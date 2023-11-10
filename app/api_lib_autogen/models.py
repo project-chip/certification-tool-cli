@@ -307,16 +307,20 @@ class WiFiConfig(BaseModel):
     ssid: "str" = Field(..., alias="ssid")
     password: "str" = Field(..., alias="password")
 
+
 class SelectedTests(BaseModel):
     collections: "list[SelectedCollection]" = Field(..., alias="collections")
+
 
 class SelectedCollection(BaseModel):
     public_id: "str" = Field(..., alias="public_id")
     test_suites: "list[SelectedTestSuite]" = Field(..., alias="test_suites")
 
+
 class SelectedTestSuite(BaseModel):
     public_id: "str" = Field(..., alias="public_id")
     test_cases: "list[SelectedTestCase]" = Field(..., alias="test_cases")
+
 
 class SelectedTestCase(BaseModel):
     public_id: "str" = Field(..., alias="public_id")

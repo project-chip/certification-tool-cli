@@ -179,7 +179,7 @@ def list_projects(
         else:
             projects = __list_project_by_batch(archived, skip, limit)
 
-        if projects is None or len(projects) == 0:
+        if projects is None or (isinstance(projects, list) and len(projects) == 0):
             click.echo("Server did not return any project", err=True)
             raise Exit(code=1)
 

@@ -57,7 +57,9 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int)
     selected_tests_dict = __parse_selected_tests(selected_tests, file)
 
     try:
-        new_test_run = await __create_new_test_run(selected_tests=selected_tests_dict, title=title, project_id=project_id)
+        new_test_run = await __create_new_test_run(
+            selected_tests=selected_tests_dict, title=title, project_id=project_id
+        )
         socket = TestRunSocket(new_test_run)
         socket_task = asyncio.create_task(socket.connect_websocket())
         new_test_run = await __start_test_run(new_test_run)
@@ -65,7 +67,7 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int)
         await socket_task
         click.echo(f"Log output in: '{log_path}'")
     finally:
-        await client.aclose()        
+        await client.aclose()
 
 
 async def __create_new_test_run(selected_tests: dict, title: str, project_id: int) -> None:
