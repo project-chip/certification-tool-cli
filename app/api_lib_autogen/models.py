@@ -22,11 +22,7 @@ from pydantic import BaseModel, Field
 
 class BodyCreateTestRunExecutionApiV1TestRunExecutionsPost(BaseModel):
     test_run_execution_in: "TestRunExecutionCreate" = Field(..., alias="test_run_execution_in")
-    selected_tests: "Optional[Dict[str, Dict[str, Dict[str, int]]]]" = Field(None, alias="selected_tests")
-
-
-# class BodyUploadFileApiV1TestRunExecutionsFileUploadPost(BaseModel):
-# file: "IO[Any]" = Field(..., alias="file")
+    selected_tests: "SelectedTests" = Field(..., alias="selected_tests")
 
 
 class DutConfig(BaseModel):
@@ -169,7 +165,6 @@ class TestRunExecution(BaseModel):
 
 class TestRunExecutionCreate(BaseModel):
     title: "str" = Field(..., alias="title")
-    test_run_config_id: "Optional[int]" = Field(None, alias="test_run_config_id")
     project_id: "Optional[int]" = Field(None, alias="project_id")
     description: "Optional[str]" = Field(None, alias="description")
     operator_id: "Optional[int]" = Field(None, alias="operator_id")
@@ -311,3 +306,18 @@ class ValidationError(BaseModel):
 class WiFiConfig(BaseModel):
     ssid: "str" = Field(..., alias="ssid")
     password: "str" = Field(..., alias="password")
+
+class SelectedTests(BaseModel):
+    collections: "list[SelectedCollection]" = Field(..., alias="collections")
+
+class SelectedCollection(BaseModel):
+    public_id: "str" = Field(..., alias="public_id")
+    test_suites: "list[SelectedTestSuite]" = Field(..., alias="test_suites")
+
+class SelectedTestSuite(BaseModel):
+    public_id: "str" = Field(..., alias="public_id")
+    test_cases: "list[SelectedTestCase]" = Field(..., alias="test_cases")
+
+class SelectedTestCase(BaseModel):
+    public_id: "str" = Field(..., alias="public_id")
+    iterations: "int" = Field(..., alias="iterations")

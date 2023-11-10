@@ -63,15 +63,15 @@ class TestRunUpdate(TestUpdateBase):
 
 
 class TestSuiteUpdate(TestUpdateBase):
-    test_suite_execution_id: int
+    test_suite_execution_index: int
 
 
 class TestCaseUpdate(TestSuiteUpdate):
-    test_case_execution_id: int
+    test_case_execution_index: int
 
 
 class TestStepUpdate(TestCaseUpdate):
-    test_step_execution_id: int
+    test_step_execution_index: int
 
 
 class TestUpdate(BaseModel):
