@@ -1399,7 +1399,8 @@
             "Body_create_test_run_execution_api_v1_test_run_executions__post": {
                 "title": "Body_create_test_run_execution_api_v1_test_run_executions__post",
                 "required": [
-                    "test_run_execution_in"
+                    "test_run_execution_in",
+                    "selected_tests"
                 ],
                 "type": "object",
                 "properties": {
@@ -1407,17 +1408,68 @@
                         "$ref": "#/components/schemas/TestRunExecutionCreate"
                     },
                     "selected_tests": {
-                        "title": "Selected Tests",
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "object",
-                                "additionalProperties": {
-                                    "type": "integer"
-                                }
-                            }
+                        "$ref": "#/components/schemas/SelectedTests"
+                    }
+                }
+            },
+            "SelectedTests": {
+                "title": "Selected Tests",
+                "type": "object",
+                "properties":{
+                    "collections": {
+                        "title": "Collections",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SelectedCollection"
                         }
+                    }
+                }
+            },
+            "SelectedCollection": {
+                "title": "Selected Test Collection",
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "title": "Collection Public ID",
+                        "type": "string"
+                    },
+                    "test_suites": {
+                        "title": "Collection Test Suites",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SelectedSuite"
+                        }
+                    }
+                }
+            },
+            "SelectedSuite": {
+                "title": "Selected Test Suite",
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "title": "Test Suite Public ID",
+                        "type": "string"
+                    },
+                    "test_cases": {
+                        "title": "Suite Test Cases",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SelectedCase"
+                        }
+                    }
+                }
+            },
+            "SelectedCase": {
+                "title": "Selected Test Case",
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "title": "Test Case Public ID",
+                        "type": "string"
+                    },
+                    "iterations": {
+                        "title": "Iterations",
+                        "type": "integer"
                     }
                 }
             },
@@ -1978,10 +2030,6 @@
                     "title": {
                         "title": "Title",
                         "type": "string"
-                    },
-                    "test_run_config_id": {
-                        "title": "Test Run Config Id",
-                        "type": "integer"
                     },
                     "project_id": {
                         "title": "Project Id",
