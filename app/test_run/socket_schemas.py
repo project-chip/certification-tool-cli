@@ -27,6 +27,7 @@ STATUS_CODE_KEY = "status_code"
 class MessageTypeEnum(str, Enum):
     PROMPT_REQUEST = "prompt_request"
     PROMPT_RESPONSE = "prompt_response"
+    OPTIONS_REQUEST = "options_request"
     TEST_UPDATE = "test_update"
     TIME_OUT_NOTIFICATION = "time_out_notification"
     TEST_LOG_RECORDS = "test_log_records"
