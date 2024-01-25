@@ -36,7 +36,8 @@ test_run_executions_api = async_apis.test_run_executions_api
     "--selected-tests",
     "-s",
     help="JSON string with selected tests. "
-    'Format Example: \'{"SDK YAML Tests":{"FirstChipToolSuite":{"TC-ACE-1.1": 1}}}\'',
+    'Format: \'{"collection_name":{"test_suite_id":{"test_case_id": <iterations>}}}\' '
+    'For instance: \'{"SDK YAML Tests":{"FirstChipToolSuite":{"TC-ACE-1.1": 1}}}\'',
 )
 @click.option(
     "--title", default=lambda: str(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")), show_default="timestamp"
