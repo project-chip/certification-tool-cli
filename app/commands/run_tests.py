@@ -93,7 +93,7 @@ def build_test_selection(test_collections, tests_list) -> dict:
 )
 @click.option(
     "--tests-list",
-    help="List of test cases to execute. For example: TC-ACE-1.1,TC_ACE_1_3",
+    help="List of test cases to execute. Separated by commas (,) and without any blank spaces. For example: TC-ACE-1.1,TC_ACE_1_3",
 )
 @async_cmd
 async def run_tests(selected_tests: str, title: str, file: str, project_id: int, tests_list: str = None) -> None:
