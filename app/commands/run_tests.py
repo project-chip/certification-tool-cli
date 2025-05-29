@@ -35,14 +35,19 @@ test_collections_api = async_apis.test_collections_api
 def build_test_selection(test_collections, tests_list) -> dict:
     """Build the test selection JSON structure from test_collections and tests_list.
     Example:
-        tests_list = ["TC-ACE-1.1", "TC_ACE_1_3"]
-        test_collections = {
-            "SDK YAML Tests": {
-                "FirstChipToolSuite": {
+        tests_list = "TC-ACE-1.1,TC_ACE_1_3"
+        Selected tests: {
+                "SDK YAML Tests": {
+                    "FirstChipToolSuite": {
                     "TC-ACE-1.1": 1
+                    }
+                },
+                "SDK Python Tests": {
+                    "Python Testing Suite": {
+                    "TC_ACE_1_3": 1
+                    }
                 }
             }
-        }
     """
     selected_tests = {}
 
