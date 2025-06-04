@@ -23,9 +23,9 @@ from commands import (
     delete_project,
     list_projects,
     run_tests,
+    run_tests_cli,
     test_run_execution_history,
     update_project,
-    run_tests_cli
 )
 
 
