@@ -56,7 +56,7 @@ projects_api = async_apis.projects_api
 )
 @async_cmd
 async def run_tests_cli(title: str, config: str, tests_list: str) -> None:
-    """Create a new test run from selected tests"""
+    """Simplified CLI execution of a test run from selected tests"""
 
     # Configure new log output for test.
     log_path = test_logging.configure_logger_for_run(title=title)
