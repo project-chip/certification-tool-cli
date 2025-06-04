@@ -91,7 +91,7 @@ async def run_tests_cli(title: str, config: str, tests_list: str) -> None:
         await client.aclose()
 
 
-async def __create_new_test_run_cli(selected_tests: dict, title: str, config: dict = {}) -> m.TestRunExecutionWithChildren:
+async def __create_new_test_run_cli(selected_tests: dict, title: str, config: Optional[dict] = None) -> m.TestRunExecutionWithChildren:
     click.echo(f"Creating new test run with title: {title}")
 
     test_run_in = m.TestRunExecutionCreate(title=title)
