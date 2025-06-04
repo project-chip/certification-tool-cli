@@ -16,6 +16,7 @@
 import copy
 import json
 from typing import Any
+from configparser import ConfigParser
 
 import click
 from click.exceptions import Exit
@@ -100,38 +101,25 @@ def read_properties_file(file_path: str) -> dict:
         Exception: For other unexpected errors
     """
     properties = {}
-    current_section = None
     
     try:
-        with open(file_path, 'r') as f:
-            for line in f:
-                line = line.strip()
+        config = ConfigParser()
+        config.read(file_path)
+        
+        for section in config.sections():
+            properties[section] = {}
+            for key, value in config[section].items():
+                if key == 'pairing_mode':
+                    if value not in VALID_PAIRING_MODES:
+                        raise ValueError(
+                            f"Invalid pairing_mode value: {value}. "
+                            f"Valid values are: {', '.join(VALID_PAIRING_MODES)}"
+                        )
                 
-                if not line or line.startswith('#'):
-                    continue
-                
-                if line.startswith('[') and line.endswith(']'):
-                    current_section = line[1:-1]
-                    if current_section not in properties:
-                        properties[current_section] = {}
-                    continue
-                
-                if '=' in line:
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip()
-                    
-                    if key == 'pairing_mode':
-                        if value not in VALID_PAIRING_MODES:
-                            raise ValueError(
-                                f"Invalid pairing_mode value: {value}. "
-                                f"Valid values are: {', '.join(VALID_PAIRING_MODES)}"
-                            )
-                    
-                    if key in ATTRIBUTE_MAPPING:
-                        add_mapped_property(properties, key, value, ATTRIBUTE_MAPPING[key])
-                    else:
-                        add_unmapped_property(properties, key, value, current_section)
+                if key in ATTRIBUTE_MAPPING:
+                    add_mapped_property(properties, key, value, ATTRIBUTE_MAPPING[key])
+                else:
+                    add_unmapped_property(properties, key, value, section)
         
         return properties
     except FileNotFoundError:

@@ -46,7 +46,9 @@ projects_api = async_apis.projects_api
     default=lambda: str(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")),
     show_default="timestamp",
 )
-@click.option("--config", "-f", help="JSON config file location")
+@click.option("--config", "-c", help="Property config file location. This "
+    "information is optional — if not provided, the default_config.properties "
+    "file will be used.")
 @click.option(
     "--tests-list",
     required=True,
