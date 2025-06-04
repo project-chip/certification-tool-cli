@@ -26,6 +26,7 @@ from async_cmd import async_cmd
 from click.exceptions import Exit
 from client import client
 from test_run.websocket import TestRunSocket
+from typing import Optional
 from utils import (
     read_properties_file,
     merge_properties_to_config,
