@@ -52,6 +52,11 @@ def build_test_selection(test_collections, tests_list) -> dict:
             "SDK YAML Tests": {
                 "FirstChipToolSuite": {
                     "TC-ACE-1.1": 1
+                },
+                "SDK Python Tests": {
+                    "Python Testing Suite": {
+                    "TC_ACE_1_3": 1
+                    }
                 }
             }
         }
