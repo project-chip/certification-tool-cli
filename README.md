@@ -106,7 +106,7 @@ Example: --tests-list TC-ACE-1.1,TC_ACE_1_3
 Optional:
 --title: Custom title for the test run. If not provided, the current timestamp will be used as the default.
 --config: Path to the property config file. If not specified, default_config.properties will be used.
---pics-config-folder: Path to the PICS file. If not specified, no PICS file will be used.
+--pics-config-folder: Path to the folder that contains PICS files. If not specified, no PICS file will be used.
 
 ## Development
 
