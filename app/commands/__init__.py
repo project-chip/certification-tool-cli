@@ -18,3 +18,14 @@ from .project import create_project, delete_project, list_projects, update_proje
 from .run_tests import run_tests
 from .run_tests_cli import run_tests_cli
 from .test_run_execution_history import test_run_execution_history
+
+__all__ = [
+    'available_tests',
+    'create_project',
+    'delete_project',
+    'list_projects',
+    'run_tests',
+    'run_tests_cli',
+    'test_run_execution_history',
+    'update_project',
+]
