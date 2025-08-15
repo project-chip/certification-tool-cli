@@ -51,7 +51,6 @@ def load_config():
     ]
 
     for config_path in possible_locations:
-        print(f"CLI Config Path: {config_path}")
         if config_path.exists():
             try:
                 return Config.parse_file(config_path)
@@ -66,7 +65,6 @@ def load_config():
     ]
 
     for example_path in example_locations:
-        print(f"CLI Config Path: {example_path}")
         if example_path.exists():
             try:
                 with open(example_path, "r", encoding="utf-8") as f:
