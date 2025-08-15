@@ -17,7 +17,7 @@
 from asyncio import get_event_loop
 from typing import IO, TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
 
-from api_lib_autogen import models as m
+from app.api_lib_autogen import models as m
 from fastapi.encoders import jsonable_encoder
 
 if TYPE_CHECKING:

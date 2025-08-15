@@ -27,27 +27,65 @@ class LogConfig(BaseModel):
 
 
 class Config(BaseModel):
-    hostname = "localhost"
+    hostname: str = "localhost"
     log_config: LogConfig = LogConfig()
 
 
-config_root = Path(__file__).parents[1]
-config_file = Path.joinpath(config_root, "config.json")
+def get_default_config():
+    """Return default configuration when no config file is found"""
+    return {
+        "hostname": "localhost",
+        "log_config": {
+            "output_log_path": "./run_logs",
+            "format": "<level>{level: <8}</level> | <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{message}</level>"
+        }
+    }
 
-# copy example file if no config file present
-if not config_file.is_file():
-    example_config_file = Path.joinpath(config_root, "config.json.example")
-    with open(example_config_file, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    json_content = "".join(line for line in lines if not line.lstrip().startswith("#")).strip()
-    try:
-        json.loads(json_content)
-        with open(config_file, "w", encoding="utf-8") as f:
-            f.write(json_content)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON after comment removal: {e}")
 
-config = Config.parse_file(config_file)
+def load_config():
+    """Load configuration with fallbacks"""
+    # Try different possible locations for config files
+    possible_locations = [
+        Path.cwd() / "config.json",  # Current working directory
+        Path.home() / "certification-tool" / "cli" / "config.json",  # Project directory
+    ]
+
+    for config_path in possible_locations:
+        print(f"CLI Config Path: {config_path}")
+        if config_path.exists():
+            try:
+                return Config.parse_file(config_path)
+            except Exception as e:
+                print(f"Warning: Could not load config from {config_path}: {e}")
+                continue
+
+    # Try to create config from example file
+    example_locations = [
+        Path.cwd() / "config.json.example",  # Current working directory
+        Path.home() / "certification-tool" / "cli" / "config.json.example",  # Project directory
+    ]
+
+    for example_path in example_locations:
+        print(f"CLI Config Path: {example_path}")
+        if example_path.exists():
+            try:
+                with open(example_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                json_content = "".join(line for line in lines if not line.lstrip().startswith("#")).strip()
+                config_data = json.loads(json_content)
+                return Config(**config_data)
+            except Exception as e:
+                print(f"Warning: Could not load example config from {example_path}: {e}")
+                continue
+
+    # Fall back to default configuration
+    print("Warning: Using default configuration")
+    default_config = get_default_config()
+    return Config(**default_config)
+
+
+# Load the configuration
+config = load_config()
 
 
 class PairingMode(str, Enum):

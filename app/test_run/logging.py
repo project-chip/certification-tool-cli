@@ -15,7 +15,7 @@
 #
 import os
 
-from config import config
+from app.config import config
 from loguru import logger
 
 # Add custom logger for "chip-tool"

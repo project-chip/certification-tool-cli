@@ -15,8 +15,7 @@
 #
 import inspect
 
-from api_lib_autogen import models
-from api_lib_autogen.api_client import ApiClient, AsyncApis, SyncApis  # noqa F401
+from app.api_lib_autogen import models
 from pydantic import BaseModel
 
 for model in inspect.getmembers(models, inspect.isclass):

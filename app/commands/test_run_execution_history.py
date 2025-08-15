@@ -16,9 +16,9 @@
 from typing import Optional
 
 import click
-from api_lib_autogen.api_client import SyncApis
-from client import client
-from utils import __print_json
+from app.api_lib_autogen.api_client import SyncApis
+from app.client import client
+from app.utils import __print_json
 
 sync_apis = SyncApis(client)
 test_run_execution_api = sync_apis.test_run_executions_api
@@ -65,7 +65,7 @@ def test_run_execution_history(
         else:
             __test_run_execution_batch(json)
     finally:
-        client.close()
+        sync_apis.client.close()
 
 
 def __test_run_execution_by_id(id: int, json: bool) -> None:

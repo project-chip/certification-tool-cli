@@ -17,13 +17,13 @@ from typing import List, Optional
 
 import click
 import websockets
-from api_lib_autogen.models import (
+from app.api_lib_autogen.models import (
     TestCaseExecution,
     TestRunExecutionWithChildren,
     TestStepExecution,
     TestSuiteExecution,
 )
-from config import config
+from app.config import config
 from loguru import logger
 from pydantic import ValidationError
 from websockets.client import WebSocketClientProtocol
