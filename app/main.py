@@ -24,8 +24,8 @@ from commands import (
     list_projects,
     run_tests,
     run_tests_cli,
-    test_runner_status,
     test_run_execution_history,
+    test_runner_status,
     update_project,
 )
 
