@@ -16,7 +16,6 @@
 from typing import Optional
 
 import click
-
 from app.api_lib_autogen.api_client import SyncApis
 from app.client import client
 from app.utils import __print_json
