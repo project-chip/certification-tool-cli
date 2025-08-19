@@ -17,11 +17,8 @@ from typing import Optional
 
 import click
 from app.api_lib_autogen.api_client import SyncApis
-from app.client import client
+from app.client import get_client
 from app.utils import __print_json
-
-sync_apis = SyncApis(client)
-test_run_execution_api = sync_apis.test_run_executions_api
 
 table_format = "{:<5} {:30} {:10} {:40}"
 
@@ -57,18 +54,22 @@ def test_run_execution_history(
     id: Optional[int], skip: Optional[int], limit: Optional[int], json: Optional[bool]
 ) -> None:
     """Read test run execution history"""
+    client = get_client()
+
     try:
+        sync_apis = SyncApis(client)
         if id is not None:
-            __test_run_execution_by_id(id, json)
+            __test_run_execution_by_id(sync_apis, id, json)
         elif skip is not None or limit is not None:
-            __test_run_execution_batch(json, skip, limit)
+            __test_run_execution_batch(sync_apis, json, skip, limit)
         else:
-            __test_run_execution_batch(json)
+            __test_run_execution_batch(sync_apis, json)
     finally:
         sync_apis.client.close()
 
 
-def __test_run_execution_by_id(id: int, json: bool) -> None:
+def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
+    test_run_execution_api = sync_apis.test_run_executions_api
     test_run_execution = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions_id_get(id=id)
     if json:
         __print_json(test_run_execution)
@@ -76,7 +77,8 @@ def __test_run_execution_by_id(id: int, json: bool) -> None:
         __print_table_test_execution(test_run_execution.dict())
 
 
-def __test_run_execution_batch(json: Optional[bool], skip: Optional[int] = None, limit: Optional[int] = None) -> None:
+def __test_run_execution_batch(sync_apis: SyncApis, json: Optional[bool], skip: Optional[int] = None, limit: Optional[int] = None) -> None:
+    test_run_execution_api = sync_apis.test_run_executions_api
     test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions_get(
         skip=skip, limit=limit
     )
@@ -95,7 +97,7 @@ def __print_table_test_executions(test_execution: list) -> None:
 
 def __print_table_test_execution(item: dict, print_header=True) -> None:
     print_header and __print_table_header()
-    click.echo(table_format.format(item.get("id"), item.get("title"), item.get("state"), item.get("error", "No Error")))
+    click.echo(table_format.format(item.get("id"), item.get("title"), (item.get("state")).name, item.get("error", "No Error")))
 
 
 def __print_table_header() -> None:

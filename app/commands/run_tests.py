@@ -18,20 +18,16 @@ import datetime
 import json
 
 import click
-from click.exceptions import Exit
-
 import app.api_lib_autogen.models as m
 import app.test_run.logging as test_logging
+
 from app.api_lib_autogen.api_client import AsyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.async_cmd import async_cmd
-from app.client import client
+from app.client import get_client
+from app.exceptions import CLIError, handle_api_error, handle_file_error
 from app.test_run.websocket import TestRunSocket
 from app.utils import build_test_selection
-
-async_apis = AsyncApis(client)
-test_run_executions_api = async_apis.test_run_executions_api
-test_collections_api = async_apis.test_collections_api
 
 
 @click.command()
@@ -64,9 +60,13 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int,
     log_path = test_logging.configure_logger_for_run(title=title)
 
     try:
+        client = get_client()
+        async_apis = AsyncApis(client)
+        test_collections_api = async_apis.test_collections_api
+
         # Check if tests_list is provided
         if tests_list:
-            # Convert each test separeted by comma to a list
+            # Convert each test separated by comma to a list
             tests_list = [test for test in tests_list.split(",")]
             test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
             selected_tests_dict = build_test_selection(test_collections, tests_list)
@@ -75,11 +75,11 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int,
 
         click.echo(f"Selected tests: {json.dumps(selected_tests_dict, indent=2)}")
         new_test_run = await __create_new_test_run(
-            selected_tests=selected_tests_dict, title=title, project_id=project_id
+            async_apis=async_apis, selected_tests=selected_tests_dict, title=title, project_id=project_id
         )
         socket = TestRunSocket(new_test_run)
         socket_task = asyncio.create_task(socket.connect_websocket())
-        new_test_run = await __start_test_run(new_test_run)
+        new_test_run = await __start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
         click.echo(f"Log output in: '{log_path}'")
@@ -87,7 +87,7 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int,
         await client.aclose()
 
 
-async def __create_new_test_run(selected_tests: dict, title: str, project_id: int) -> None:
+async def __create_new_test_run(async_apis:AsyncApis, selected_tests: dict, title: str, project_id: int) -> None:
     click.echo(f"Creating new test run with title: {title}")
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
@@ -96,21 +96,22 @@ async def __create_new_test_run(selected_tests: dict, title: str, project_id: in
     )
 
     try:
+        test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.create_test_run_execution_api_v1_test_run_executions_post(json_body)
     except UnexpectedResponse as e:
-        click.echo(f"Create test run execution failed {e.status_code}: {e.content}")
-        raise Exit(code=1)
+        handle_api_error(e, f"create test run execution")
 
 
-async def __start_test_run(test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
+async def __start_test_run(async_apis:AsyncApis, test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
     click.echo(f"Starting Test run: Title: {test_run.title}, id: {test_run.id}")
+
     try:
+        test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post(
             id=test_run.id
         )
     except UnexpectedResponse as e:
-        click.echo(f"Failed to start test run: {e.status_code} {e.content}", err=True)
-        raise Exit(code=1)
+        handle_api_error(e, f"start test run execution")
 
 
 def __parse_selected_tests(json_str: str, filename: str) -> dict:
@@ -120,8 +121,6 @@ def __parse_selected_tests(json_str: str, filename: str) -> dict:
             json_str = json_file.read()
         return json.loads(json_str)
     except json.JSONDecodeError as e:
-        click.echo(f"Failed to parse JSON parameter: {e.msg}")
-        raise Exit(code=1)
+        raise CLIError(f"Failed to parse JSON parameter: {e.msg}")
     except FileNotFoundError as e:
-        click.echo(f"File not found: {e.filename} {e.strerror}.")
-        raise Exit(code=1)
+        handle_file_error(e, "json file")

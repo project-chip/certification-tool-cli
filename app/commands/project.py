@@ -17,19 +17,17 @@ import json
 from typing import Any, List, Optional
 
 import click
-from click.exceptions import Exit
 from pydantic import ValidationError
 
 from app.api_lib_autogen.api_client import SyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
-from app.client import client
+from app.api_lib_autogen.models import Project, ProjectUpdate, TestEnvironmentConfig
+from app.client import get_client
 from app.utils import __print_json
+from app.exceptions import handle_api_error, handle_file_error, CLIError
 
-sync_apis = SyncApis(client)
 
 TABLE_FORMAT = "{:<5} {:20} {:40}"
-
 
 @click.command()
 @click.option(
@@ -47,29 +45,46 @@ TABLE_FORMAT = "{:<5} {:20} {:40}"
 )
 def create_project(name: str, config: Optional[str]) -> None:
     """Create a project"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
+        
+        # Get default config
         test_environment_config = sync_apis.projects_api.default_config_api_v1_projects_default_config_get()
-        if config is not None:
-            file = open(config, "r")
-            config_dict = json.load(file)
-            test_environment_config = TestEnvironmentConfig(**config_dict)
-        projectCreate = ProjectCreate(name=name, config=test_environment_config)
-        response = sync_apis.projects_api.create_project_api_v1_projects_post(project_create=projectCreate)
-        click.echo(f"Project {response.name} created with id {response.id}.")
-    except json.JSONDecodeError as e:
-        click.echo(f"Failed to parse JSON parameter: {e.msg}", err=True)
-        raise Exit(code=1)
-    except FileNotFoundError as e:
-        click.echo(f"File not found: {e.filename} {e.strerror}", err=True)
-        raise Exit(code=1)
-    except ValidationError as e:
-        click.echo(f"Validation failed for Config file: \n{e.json()}", err=True)
-        raise Exit(code=1)
-    except UnexpectedResponse as e:
-        click.echo(f"Failed to create project {name}: {e.status_code} {e.content}", err=True)
-        raise Exit(code=1)
+        
+        # Load custom config if provided
+        if config:
+            try:
+                with open(config, "r") as f:
+                    config_dict = json.load(f)
+                test_environment_config = TestEnvironmentConfig(**config_dict)
+            except FileNotFoundError as e:
+                handle_file_error(e, "config file")
+            except json.JSONDecodeError as e:
+                raise CLIError(f"Invalid JSON in config file: {e.msg}")
+            except ValidationError as e:
+                raise CLIError(f"Invalid configuration: {e}")
+
+        # Create project
+        from app.api_lib_autogen.models import ProjectCreate
+        project_create = ProjectCreate(name=name, config=test_environment_config)
+        
+        try:
+            response = sync_apis.projects_api.create_project_api_v1_projects_post(project_create=project_create)
+            click.echo(f"Project '{response.name}' created with ID {response.id}")
+        except UnexpectedResponse as e:
+            handle_api_error(e, f"create project '{name}'")
+            
+    except CLIError:
+        # Re-raise CLI errors as-is
+        raise
+    except Exception as e:
+        # Catch any unexpected errors
+        raise CLIError(f"Unexpected error creating project: {e}")
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 @click.command()
@@ -81,14 +96,17 @@ def create_project(name: str, config: Optional[str]) -> None:
 )
 def delete_project(id: int) -> None:
     """Delete a project"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
         sync_apis.projects_api.delete_project_api_v1_projects_id_delete(id=id)
-        click.echo(f"Project {id} is deleted.")
+        click.echo(f"Project {id} was deleted.")
     except UnexpectedResponse as e:
-        click.echo(f"Failed to delete project {id}: {e.status_code} {e.content}", err=True)
-        raise Exit(code=1)
+        handle_api_error(e, f"delete project id '{id}'")
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 @click.command()
@@ -131,12 +149,14 @@ def list_projects(
 ) -> None:
     """Get a list of projects"""
 
+    client = None
+    sync_apis = None
+
     def __list_project_by_id(id: int) -> Project:
         try:
             return sync_apis.projects_api.read_project_api_v1_projects_id_get(id=id)
         except UnexpectedResponse as e:
-            click.echo(f"Failed to list project {id}: {e.status_code} {e.content}", err=True)
-            raise Exit(code=1)
+            handle_api_error(e, f"list project with id '{id}'")
 
     def __list_project_by_batch(
         archived: bool, skip: Optional[int] = None, limit: Optional[int] = None
@@ -144,8 +164,7 @@ def list_projects(
         try:
             return sync_apis.projects_api.read_projects_api_v1_projects_get(archived=archived, skip=skip, limit=limit)
         except UnexpectedResponse as e:
-            click.echo(f"Failed to list objects: {e.status_code} {e.content}", err=True)
-            raise Exit(code=1)
+            handle_api_error(e, f"list projects ")
 
     def __print_table(projects: Any) -> None:
         click.echo(
@@ -175,21 +194,27 @@ def list_projects(
         )
 
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
+        
         if id is not None:
             projects = __list_project_by_id(id)
         else:
             projects = __list_project_by_batch(archived, skip, limit)
 
         if projects is None or (isinstance(projects, list) and len(projects) == 0):
-            click.echo("Server did not return any project", err=True)
-            raise Exit(code=1)
+            raise CLIError(f"Server did not return any project")
 
         if json:
             __print_json(projects)
         else:
             __print_table(projects)
+    except CLIError:
+        # Re-raise CLI errors as-is
+        raise
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 @click.command()
@@ -207,23 +232,23 @@ def list_projects(
 )
 def update_project(id: int, config: str):
     """Updates project with full test environment config file"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
         file = open(config, "r")
         config_dict = json.load(file)
         projectUpdate = ProjectUpdate(**config_dict)
         response = sync_apis.projects_api.update_project_api_v1_projects_id_put(id=id, project_update=projectUpdate)
         click.echo(f"Project {response.name} is updated with the new config.")
     except json.JSONDecodeError as e:
-        click.echo(f"Failed to parse JSON parameter: {e.msg}", err=True)
-        raise Exit(code=1)
+        raise CLIError(f"Failed to parse JSON parameter: {e.msg}")
     except FileNotFoundError as e:
-        click.echo(f"File not found: {e.filename} {e.strerror}", err=True)
-        raise Exit(code=1)
+        handle_file_error(e, "config file")
     except ValidationError as e:
-        click.echo(f"Validation failed for Config file: {e.json()}", err=True)
-        raise Exit(code=1)
+        raise CLIError(f"Invalid configuration: {e}")
     except UnexpectedResponse as e:
-        click.echo(f"Failed to update project {id}: {e.status_code} {e.content}", err=True)
-        raise Exit(code=1)
+        handle_api_error(e, f"update project with '{id}'")
     finally:
-        client.close()
+        if client:
+            client.close()

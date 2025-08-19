@@ -15,5 +15,26 @@
 #
 from app.api_lib_autogen.api_client import ApiClient
 from app.config import config
+from app.exceptions import ConfigurationError
 
-client = ApiClient(host=f"http://{config.hostname}")
+
+def get_client() -> ApiClient:
+    """Get API client with proper error handling."""
+    try:
+        return ApiClient(host=f"http://{config.hostname}")
+    except Exception as e:
+        raise ConfigurationError(
+            f"Could not connect to API server at {config.hostname}. "
+            f"Please check if the server is running and the hostname is correct. "
+            f"Error: {e}"
+        )
+
+
+# [Deprecated] For backward compatibility
+client: ApiClient | None = None
+try:
+    client = get_client()
+except ConfigurationError:
+    # Don't fail at module level, let commands handle it
+    pass
+

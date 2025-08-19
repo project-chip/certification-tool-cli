@@ -19,14 +19,14 @@ import json
 from typing import Optional
 
 import click
-from click.exceptions import Exit
 
 import app.api_lib_autogen.models as m
 import app.test_run.logging as test_logging
 from app.api_lib_autogen.api_client import AsyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.async_cmd import async_cmd
-from app.client import client
+from app.client import get_client
+from app.exceptions import CLIError, handle_api_error
 from app.test_run.websocket import TestRunSocket
 from app.utils import (
     build_test_selection,
@@ -35,11 +35,7 @@ from app.utils import (
     read_pics_config,
     read_properties_file,
 )
-
-async_apis = AsyncApis(client)
-test_run_executions_api = async_apis.test_run_executions_api
-test_collections_api = async_apis.test_collections_api
-projects_api = async_apis.projects_api
+from app.validation import validate_test_ids, validate_file_path, validate_directory_path
 
 
 @click.command()
@@ -69,48 +65,66 @@ projects_api = async_apis.projects_api
 async def run_tests_cli(title: str, config: str, tests_list: str, pics_config_folder: str = None) -> None:
     """Simplified CLI execution of a test run from selected tests"""
 
-    # Configure new log output for test.
-    log_path = test_logging.configure_logger_for_run(title=title)
+    # Validate inputs and convert each test separated by comma to a list
+    validated_test_ids = validate_test_ids(tests_list)
 
-    # Get default config and convert to dict
-    default_config = await projects_api.default_config_api_v1_projects_default_config_get()
-    default_config_dict = convert_nested_to_dict(default_config)
+    if config:
+        config_path = validate_file_path(config, must_exist=True)
+        config = str(config_path)
+    
+    if pics_config_folder:
+        pics_path = validate_directory_path(pics_config_folder, must_exist=True)
+        pics_config_folder = str(pics_path)
 
-    # If config file is provided, read and parse it
-    if not config:
-        config = "default_config.properties"
-
-    config_data = read_properties_file(config)
-    click.echo(f"Read config from file: {config_data}")
-    cli_config_dict = merge_properties_to_config(config_data, default_config_dict)
-    click.echo(f"CLI Config for test run execution: {cli_config_dict}")
-
-    # Read PICS configuration if provided
-    pics = read_pics_config(pics_config_folder)
-    click.echo(f"PICS Used: {json.dumps(pics, indent=2)}")
+    client = get_client()
 
     try:
-        # Convert each test separeted by comma to a list
-        tests_list = [test for test in tests_list.split(",")]
+        async_apis = AsyncApis(client)
+        projects_api = async_apis.projects_api
+        test_collections_api = async_apis.test_collections_api
+
+        # Configure new log output for test.
+        log_path = test_logging.configure_logger_for_run(title=title)
+
+        # Get default config and convert to dict
+        default_config = await projects_api.default_config_api_v1_projects_default_config_get()
+        default_config_dict = convert_nested_to_dict(default_config)
+
+        # If config file is provided, read and parse it
+        if not config:
+            config = "default_config.properties"
+
+        config_data = read_properties_file(config)
+        click.echo(f"Read config from file: {config_data}")
+        cli_config_dict = merge_properties_to_config(config_data, default_config_dict)
+        click.echo(f"CLI Config for test run execution: {cli_config_dict}")
+
+        # Read PICS configuration if provided
+        pics = read_pics_config(pics_config_folder)
+
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
-        selected_tests_dict = build_test_selection(test_collections, tests_list)
+        selected_tests_dict = build_test_selection(test_collections, validated_test_ids)
 
         click.echo(f"Selected tests: {json.dumps(selected_tests_dict, indent=2)}")
         new_test_run = await __create_new_test_run_cli(
-            selected_tests=selected_tests_dict, title=title, config=cli_config_dict, pics=pics
+            async_apis, selected_tests=selected_tests_dict, title=title, config=cli_config_dict, pics=pics
         )
         socket = TestRunSocket(new_test_run)
         socket_task = asyncio.create_task(socket.connect_websocket())
-        new_test_run = await __start_test_run(new_test_run)
+        new_test_run = await __start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
         click.echo(f"Log output in: '{log_path}'")
+    except CLIError:
+        raise  # Re-raise CLI errors
+    except Exception as e:
+        raise CLIError(f"Unexpected error during test execution: {e}")
     finally:
-        await client.aclose()
+        await async_apis.client.aclose()
 
 
 async def __create_new_test_run_cli(
-    selected_tests: dict, title: str, config: Optional[dict] = None, pics: Optional[dict] = None
+    async_apis: AsyncApis, selected_tests: dict, title: str, config: Optional[dict] = None, pics: Optional[dict] = None
 ) -> m.TestRunExecutionWithChildren:
     click.echo(f"Creating new test run with title: {title}")
 
@@ -120,20 +134,20 @@ async def __create_new_test_run_cli(
     )
 
     try:
+        test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post(
             json_body
         )
     except UnexpectedResponse as e:
-        click.echo(f"Create test run execution failed {e.status_code}: {e.content}")
-        raise Exit(code=1)
+        handle_api_error(e, "create test run execution")
 
 
-async def __start_test_run(test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
+async def __start_test_run(async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
     click.echo(f"Starting Test run: Title: {test_run.title}, id: {test_run.id}")
     try:
+        test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post(
             id=test_run.id
         )
     except UnexpectedResponse as e:
-        click.echo(f"Failed to start test run: {e.status_code} {e.content}", err=True)
-        raise Exit(code=1)
+        handle_api_error(e, "start test run")
