@@ -17,6 +17,11 @@ from typing import List, Optional
 
 import click
 import websockets
+from loguru import logger
+from pydantic import ValidationError
+from websockets.client import WebSocketClientProtocol
+from websockets.client import connect as websocket_connect
+
 from app.api_lib_autogen.models import (
     TestCaseExecution,
     TestRunExecutionWithChildren,
@@ -24,10 +29,6 @@ from app.api_lib_autogen.models import (
     TestSuiteExecution,
 )
 from app.config import config
-from loguru import logger
-from pydantic import ValidationError
-from websockets.client import WebSocketClientProtocol
-from websockets.client import connect as websocket_connect
 
 from .prompt_manager import handle_prompt
 from .socket_schemas import (

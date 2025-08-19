@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import click
+
 from app.commands import (
     available_tests,
     create_project,
@@ -27,7 +28,7 @@ from app.commands import (
     update_project,
     versions,
 )
-from commands.versions import get_cli_version
+from app.commands.versions import get_cli_version
 
 
 @click.group()

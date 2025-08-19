@@ -15,8 +15,9 @@
 #
 import os
 
-from app.config import config
 from loguru import logger
+
+from app.config import config
 
 # Add custom logger for "chip-tool"
 CHIPTOOL_LEVEL = "CHIPTOOL"

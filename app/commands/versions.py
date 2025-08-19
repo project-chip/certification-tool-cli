@@ -15,12 +15,12 @@
 #
 import os
 import subprocess
-from typing import Optional
 
 import click
 import tomli
-from api_lib_autogen.api_client import SyncApis
-from client import client
+
+from app.api_lib_autogen.api_client import SyncApis
+from app.client import client
 
 sync_apis = SyncApis(client)
 versions_api = sync_apis.versions_api
@@ -31,6 +31,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:
+        click.echo("")
         project_root = os.path.dirname(PROJECT_ROOT)
         pyproject_path = os.path.join(project_root, "pyproject.toml")
         if os.path.exists(pyproject_path):

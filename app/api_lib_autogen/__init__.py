@@ -15,8 +15,9 @@
 #
 import inspect
 
-from app.api_lib_autogen import models
 from pydantic import BaseModel
+
+from app.api_lib_autogen import models
 
 # Update forward references for all models
 for model in inspect.getmembers(models, inspect.isclass):

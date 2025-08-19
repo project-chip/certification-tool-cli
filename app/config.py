@@ -37,8 +37,10 @@ def get_default_config():
         "hostname": "localhost",
         "log_config": {
             "output_log_path": "./run_logs",
-            "format": "<level>{level: <8}</level> | <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{message}</level>"
-        }
+            "format": "<level>{level: <8}</level> | \
+                <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | \
+                    <level>{message}</level>",
+        },
     }
 
 

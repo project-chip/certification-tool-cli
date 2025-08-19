@@ -16,9 +16,10 @@
 from typing import Optional
 
 import click
-from api_lib_autogen.api_client import SyncApis
-from client import client
-from utils import __print_json
+
+from app.api_lib_autogen.api_client import SyncApis
+from app.client import client
+from app.utils import __print_json
 
 sync_apis = SyncApis(client)
 test_run_execution_api = sync_apis.test_run_executions_api
@@ -47,8 +48,8 @@ def __print_status_table(status_data: dict) -> None:
     click.echo("Matter Test Runner Status")
     click.echo("=" * 30)
     click.echo(f"State: {status_data.get('state', 'Unknown')}")
-    
-    if 'test_run_execution_id' in status_data:
+
+    if "test_run_execution_id" in status_data:
         click.echo(f"Active Test Run ID: {status_data.get('test_run_execution_id')}")
     else:
         click.echo("No active test run")

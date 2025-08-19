@@ -17,9 +17,10 @@ import asyncio
 import datetime
 import json
 
-import app.api_lib_autogen.models as m
 import click
 from click.exceptions import Exit
+
+import app.api_lib_autogen.models as m
 import app.test_run.logging as test_logging
 from app.api_lib_autogen.api_client import AsyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse

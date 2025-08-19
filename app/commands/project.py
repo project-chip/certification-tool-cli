@@ -18,12 +18,13 @@ from typing import Any, List, Optional
 
 import click
 from click.exceptions import Exit
+from pydantic import ValidationError
+
 from app.api_lib_autogen.api_client import SyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
 from app.client import client
 from app.utils import __print_json
-from pydantic import ValidationError
 
 sync_apis = SyncApis(client)
 

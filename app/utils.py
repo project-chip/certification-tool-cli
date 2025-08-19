@@ -21,6 +21,7 @@ from typing import Any
 
 import click
 from click.exceptions import Exit
+
 from app.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
 
 

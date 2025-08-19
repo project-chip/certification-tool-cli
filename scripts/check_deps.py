@@ -49,10 +49,10 @@ def check_dependency_conflicts():
 def main():
     """Main function."""
     print("🔍 Checking dependencies...")
-    
+
     safety_ok = run_safety_check()
     conflicts_ok = check_dependency_conflicts()
-    
+
     if safety_ok and conflicts_ok:
         print("\n✅ All dependency checks passed!")
         sys.exit(0)
