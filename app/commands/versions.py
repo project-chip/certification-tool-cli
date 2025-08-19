@@ -25,6 +25,7 @@ from client import client
 sync_apis = SyncApis(client)
 versions_api = sync_apis.versions_api
 
+
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:
