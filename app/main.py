@@ -28,11 +28,11 @@ from commands import (
     update_project,
     versions,
 )
-from commands.versions import __get_cli_version
+from commands.versions import get_cli_version
 
 
 @click.group()
-@click.version_option(version=f"{__get_cli_version()}")
+@click.version_option(version=f"{get_cli_version()}")
 def root() -> None:
     pass
 
