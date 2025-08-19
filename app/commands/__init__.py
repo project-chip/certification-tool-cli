@@ -19,3 +19,4 @@ from .run_tests import run_tests
 from .run_tests_cli import run_tests_cli
 from .test_run_execution_history import test_run_execution_history
 from .test_runner_status import test_runner_status
+from .versions import versions
