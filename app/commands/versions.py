@@ -15,6 +15,7 @@
 #
 import os
 import subprocess
+from pathlib import Path
 
 import click
 import tomli
@@ -25,7 +26,7 @@ from app.client import client
 sync_apis = SyncApis(client)
 versions_api = sync_apis.versions_api
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = Path(__file__).parent.parents[0]
 
 
 def get_cli_version() -> str:
