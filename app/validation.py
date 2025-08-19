@@ -32,7 +32,7 @@ def _sanitize_path(file_path: str) -> Path:
         # This will raise ValueError if path tries to go outside current working directory
         path.relative_to(Path.cwd().resolve())
     except ValueError:
-        # Allow absolute paths in user directories but warn
+        # Allow absolute paths in user directories but fail paths outside
         if not str(path).startswith(str(Path.home())):
             raise CLIError(f"Access denied: Path '{file_path}' is outside allowed directories")
     

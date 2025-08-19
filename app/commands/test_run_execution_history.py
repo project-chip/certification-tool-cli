@@ -17,7 +17,9 @@ from typing import Optional
 
 import click
 from app.api_lib_autogen.api_client import SyncApis
+from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.client import get_client
+from app.exceptions import CLIError, handle_api_error
 from app.utils import __print_json
 
 table_format = "{:<5} {:30} {:10} {:40}"
@@ -54,9 +56,9 @@ def test_run_execution_history(
     id: Optional[int], skip: Optional[int], limit: Optional[int], json: Optional[bool]
 ) -> None:
     """Read test run execution history"""
-    client = get_client()
-
+    
     try:
+        client = get_client()
         sync_apis = SyncApis(client)
         if id is not None:
             __test_run_execution_by_id(sync_apis, id, json)
@@ -64,28 +66,36 @@ def test_run_execution_history(
             __test_run_execution_batch(sync_apis, json, skip, limit)
         else:
             __test_run_execution_batch(sync_apis, json)
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
     finally:
         sync_apis.client.close()
 
 
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
-    test_run_execution_api = sync_apis.test_run_executions_api
-    test_run_execution = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions_id_get(id=id)
-    if json:
-        __print_json(test_run_execution)
-    else:
-        __print_table_test_execution(test_run_execution.dict())
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions_id_get(id=id)
+        if json:
+            __print_json(test_run_execution)
+        else:
+            __print_table_test_execution(test_run_execution.dict())
+    except UnexpectedResponse as e:
+        handle_api_error(e, "create test run execution")
 
 
 def __test_run_execution_batch(sync_apis: SyncApis, json: Optional[bool], skip: Optional[int] = None, limit: Optional[int] = None) -> None:
-    test_run_execution_api = sync_apis.test_run_executions_api
-    test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions_get(
-        skip=skip, limit=limit
-    )
-    if json:
-        __print_json(test_run_executions)
-    else:
-        __print_table_test_executions(test_run_executions)
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions_get(
+            skip=skip, limit=limit
+        )
+        if json:
+            __print_json(test_run_executions)
+        else:
+            __print_table_test_executions(test_run_executions)
+    except UnexpectedResponse as e:
+        handle_api_error(e, "create test run execution")
 
 
 def __print_table_test_executions(test_execution: list) -> None:

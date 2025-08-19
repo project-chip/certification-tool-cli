@@ -76,9 +76,9 @@ async def run_tests_cli(title: str, config: str, tests_list: str, pics_config_fo
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_config_folder = str(pics_path)
 
-    client = get_client()
 
     try:
+        client = get_client()
         async_apis = AsyncApis(client)
         projects_api = async_apis.projects_api
         test_collections_api = async_apis.test_collections_api
