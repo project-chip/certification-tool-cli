@@ -14,30 +14,31 @@
 # limitations under the License.
 #
 import os
-import re
 import subprocess
 from typing import Optional
 
 import click
+import tomli
 from api_lib_autogen.api_client import SyncApis
 from client import client
 
 sync_apis = SyncApis(client)
 versions_api = sync_apis.versions_api
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_root = os.path.dirname(PROJECT_ROOT)
         pyproject_path = os.path.join(project_root, "pyproject.toml")
         if os.path.exists(pyproject_path):
-            with open(pyproject_path, "r") as f:
-                content = f.read()
-                # Simple regex to find version in pyproject.toml
-                version_match = re.search(r'version\s*=\s*"([^"]+)"', content)
-                if version_match:
-                    return version_match.group(1)
+            with open(pyproject_path, "rb") as f:
+                pyproject_data = tomli.load(f)
+                version = pyproject_data.get("project", {}).get("version")
+                if version:
+                    return version
         return "unknown"
     except (FileNotFoundError, IOError):
         return "unknown"
@@ -51,7 +52,7 @@ def _get_cli_sha() -> str:
             capture_output=True,
             text=True,
             check=True,
-            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            cwd=os.path.dirname(PROJECT_ROOT),
         )
         return result.stdout.strip()[:8]
     except (subprocess.CalledProcessError, FileNotFoundError):
