@@ -16,7 +16,6 @@
 import inspect
 
 import click
-
 from pydantic import BaseModel
 
 from app.api_lib_autogen import models
