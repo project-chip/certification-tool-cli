@@ -17,10 +17,11 @@ from typing import Any
 
 import click
 import yaml
-from api_lib_autogen.api_client import SyncApis
 from click.exceptions import Exit
-from client import client
-from utils import __json_string, __print_json
+
+from app.api_lib_autogen.api_client import SyncApis
+from app.client import client
+from app.utils import __json_string, __print_json
 
 sync_apis = SyncApis(client)
 

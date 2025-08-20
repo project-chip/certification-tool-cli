@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from api_lib_autogen.api_client import ApiClient
-from config import config
+from app.api_lib_autogen.api_client import ApiClient
+from app.config import config
 
 client = ApiClient(host=f"http://{config.hostname}")

@@ -17,13 +17,14 @@ import json
 from typing import Any, List, Optional
 
 import click
-from api_lib_autogen.api_client import SyncApis
-from api_lib_autogen.exceptions import UnexpectedResponse
-from api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
 from click.exceptions import Exit
-from client import client
 from pydantic import ValidationError
-from utils import __print_json
+
+from app.api_lib_autogen.api_client import SyncApis
+from app.api_lib_autogen.exceptions import UnexpectedResponse
+from app.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
+from app.client import client
+from app.utils import __print_json
 
 sync_apis = SyncApis(client)
 

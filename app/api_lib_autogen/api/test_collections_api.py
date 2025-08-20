@@ -17,10 +17,10 @@
 from asyncio import get_event_loop
 from typing import TYPE_CHECKING, Awaitable
 
-from api_lib_autogen import models as m
+from app.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
-    from api_lib_autogen.api_client import ApiClient
+    from app.api_lib_autogen.api_client import ApiClient
 
 
 class _TestCollectionsApi:

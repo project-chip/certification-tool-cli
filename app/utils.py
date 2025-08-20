@@ -21,7 +21,8 @@ from typing import Any
 
 import click
 from click.exceptions import Exit
-from config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
+
+from app.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
 
 
 def __print_json(object: Any) -> None:
