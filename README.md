@@ -19,7 +19,6 @@
 
 Please refer to the main repository for how to use these tools [here](https://github.com/project-chip/certification-tool)
 
-https://github.com/project-chip/certification-tool
 
 # CSA Certification Tool - CLI
 
@@ -46,13 +45,15 @@ CLI tool for using the CSA Test Harness
 ```
 Commands:
   available-tests             Get a list of available tests
-  run-tests                   Create a new test run from selected tests
-  test-run-execution-history  Read test run execution history
-  list-projects               Get a list of projects
   create-project              Creates a project
   delete-project              Deletes a project
-  update-project              Updates a project with full test env config file
+  list-projects               Get a list of projects
+  run-tests                   Create a new test run from selected tests
   run-tests-cli               Simplified CLI execution of a test run from selected tests
+  test-run-execution-history  Read test run execution history
+  test-runner-status          Get the current Matter test runner status
+  update-project              Updates a project with full test env config file
+  versions                    Get application versions information
 ```
 
 ### available-tests
@@ -141,6 +142,14 @@ To update our client:
 
 The project dependencies are managed with [Poetry](https://python-poetry.org).
 To add a new dependency, run `poetry add <package-name>`.
+
+#### Checking Dependencies
+
+The project dependencies may be scanned to look for known vulnerabilities or conflicts for all the poetry packages
+configured. For that, run the following command after the tool installation to verify the current status of the
+required dependencies:
+
+-  `poetry run python ./scripts/check_deps.py`
 
 ### Linting and formatting
 

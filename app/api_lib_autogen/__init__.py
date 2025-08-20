@@ -15,13 +15,15 @@
 #
 import inspect
 
+import click
+
 from pydantic import BaseModel
 
 from app.api_lib_autogen import models
 
 # Update forward references for all models
 for model in inspect.getmembers(models, inspect.isclass):
-    if model[1].__module__ == "api_lib_autogen.models":
+    if model[1].__module__ == "app.api_lib_autogen.models":
         model_class = model[1]
         if issubclass(model_class, BaseModel):
             try:
@@ -29,7 +31,7 @@ for model in inspect.getmembers(models, inspect.isclass):
             except Exception as e:
                 # Some models might not need forward ref updates or might fail
                 # This is okay, we'll continue with other models
-                pass
+                click.echo(f"Warning: Could not update forward refs for {model_class.__name__} on first pass: {e}")
 
 # Try to update forward references again after all models are processed
 # This handles circular dependencies
@@ -41,4 +43,4 @@ for model in inspect.getmembers(models, inspect.isclass):
                 model_class.update_forward_refs()
             except Exception as e:
                 # If it still fails, that's okay
-                pass
+                click.echo(f"Warning: Could not update forward refs for {model_class.__name__} on second pass: {e}")

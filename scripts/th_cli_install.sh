@@ -1,6 +1,18 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status.
 set -e
+
+# --- Argument Handling ---
+# Initialize a variable to hold the arguments for pipx.
+PIPX_ARGS="--force"
+
+# Check the first argument passed to the script.
+if [[ "$1" == "--editable" ]]; then
+  echo "Running in --editable mode."
+  PIPX_ARGS="$PIPX_ARGS --editable"
+fi
+# --- End of Argument Handling ---
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
@@ -9,14 +21,24 @@ echo "Installing Matter CLI..."
 # Check if pipx is installed
 if ! command -v pipx &> /dev/null; then
     echo "Installing pipx..."
-    sudo apt update
+    # Checking for root privileges before running sudo
+    if [[ $EUID -ne 0 ]]; then
+       echo "Sudo privileges are required to install pipx."
+       sudo apt update
+    else
+       apt update
+    fi
     sudo apt install -y pipx
     pipx ensurepath
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
 # Running Poetry install
-source ~/.profile #ensure poetry is in path
+echo "Running Poetry..."
+if ! command -v poetry &> /dev/null; then
+    echo "Poetry could not be found. Please ensure it is installed and in your PATH."
+    exit 1
+fi
 poetry self update
 poetry --project="$PROJECT_ROOT" install
 
@@ -27,7 +49,7 @@ poetry --project="$PROJECT_ROOT" build
 # Install with pipx
 echo "Installing with pipx..."
 cd "$PROJECT_ROOT"
-pipx install . --force
+pipx install . $PIPX_ARGS
 
 echo ""
 echo "Installation complete!"
