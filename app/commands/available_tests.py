@@ -17,13 +17,12 @@ from typing import Any
 
 import click
 import yaml
-from click.exceptions import Exit
 
 from app.api_lib_autogen.api_client import SyncApis
-from app.client import client
+from app.api_lib_autogen.exceptions import UnexpectedResponse
+from app.client import get_client
+from app.exceptions import CLIError, handle_api_error
 from app.utils import __json_string, __print_json
-
-sync_apis = SyncApis(client)
 
 
 @click.command()
@@ -35,18 +34,28 @@ sync_apis = SyncApis(client)
 )
 def available_tests(json: bool = False) -> None:
     """Get a list of available tests"""
+    try:
+        client = get_client()
+        sync_apis: SyncApis = SyncApis(client)
+        test_collections = sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get()
 
-    test_collections = sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get()
+        if test_collections is None:
+            raise CLIError("Server did not return test_collection")
 
-    if test_collections is None:
-        click.echo("Server did not return test_collection", err=True)
-        raise Exit(code=1)
-
-    if json:
-        __print_json(test_collections)
-    else:
-        __print_yaml(test_collections)
-    client.close()
+        if json:
+            __print_json(test_collections)
+        else:
+            __print_yaml(test_collections)
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"delete project id '{id}'")
+    except Exception as e:
+        raise CLIError(
+            f"Could not fetch the available tests: {e}. Please check if the API server is running and accessible."
+        )
+    finally:
+        sync_apis.client.close()
 
 
 def __print_yaml(object: Any) -> None:
