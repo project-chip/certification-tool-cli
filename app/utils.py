@@ -20,6 +20,7 @@ from configparser import ConfigParser
 from typing import Any
 
 import click
+
 from app.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
 from app.exceptions import CLIError, handle_file_error
 
@@ -128,7 +129,7 @@ def read_properties_file(file_path: str) -> dict:
                     add_unmapped_property(properties, key, value, section)
 
         return properties
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         handle_file_error(e, "properties file")
     except ValueError as e:
         raise CLIError(f"Invalid properties file: {str(e)}")

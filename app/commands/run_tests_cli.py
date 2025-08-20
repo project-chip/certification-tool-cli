@@ -35,7 +35,7 @@ from app.utils import (
     read_pics_config,
     read_properties_file,
 )
-from app.validation import validate_test_ids, validate_file_path, validate_directory_path
+from app.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 
 @click.command()
@@ -71,11 +71,10 @@ async def run_tests_cli(title: str, config: str, tests_list: str, pics_config_fo
     if config:
         config_path = validate_file_path(config, must_exist=True)
         config = str(config_path)
-    
+
     if pics_config_folder:
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_config_folder = str(pics_path)
-
 
     try:
         client = get_client()
@@ -142,7 +141,9 @@ async def __create_new_test_run_cli(
         handle_api_error(e, "create test run execution")
 
 
-async def __start_test_run(async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
+async def __start_test_run(
+    async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren
+) -> m.TestRunExecutionWithChildren:
     click.echo(f"Starting Test run: Title: {test_run.title}, id: {test_run.id}")
     try:
         test_run_executions_api = async_apis.test_run_executions_api

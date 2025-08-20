@@ -17,13 +17,13 @@ from typing import Any
 
 import click
 import yaml
-from click.exceptions import Exit
 
 from app.api_lib_autogen.api_client import SyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.client import get_client
 from app.exceptions import CLIError, handle_api_error
 from app.utils import __json_string, __print_json
+
 
 @click.command()
 @click.option(
@@ -47,11 +47,13 @@ def available_tests(json: bool = False) -> None:
         else:
             __print_yaml(test_collections)
     except CLIError:
-        raise # Re-raise CLI Errors as-is
+        raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse as e:
         handle_api_error(e, f"delete project id '{id}'")
     except Exception as e:
-        raise CLIError(f"Could not fetch the available tests: {e}. Please check if the API server is running and accessible.")
+        raise CLIError(
+            f"Could not fetch the available tests: {e}. Please check if the API server is running and accessible."
+        )
     finally:
         sync_apis.client.close()
 

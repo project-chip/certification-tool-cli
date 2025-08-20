@@ -23,11 +23,11 @@ from app.api_lib_autogen.api_client import SyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.api_lib_autogen.models import Project, ProjectUpdate, TestEnvironmentConfig
 from app.client import get_client
+from app.exceptions import CLIError, handle_api_error, handle_file_error
 from app.utils import __print_json
-from app.exceptions import handle_api_error, handle_file_error, CLIError
-
 
 TABLE_FORMAT = "{:<5} {:20} {:40}"
+
 
 @click.command()
 @click.option(
@@ -49,10 +49,10 @@ def create_project(name: str, config: Optional[str]) -> None:
     try:
         client = get_client()
         sync_apis = SyncApis(client)
-        
+
         # Get default config
         test_environment_config = sync_apis.projects_api.default_config_api_v1_projects_default_config_get()
-        
+
         # Load custom config if provided
         if config:
             try:
@@ -68,14 +68,15 @@ def create_project(name: str, config: Optional[str]) -> None:
 
         # Create project
         from app.api_lib_autogen.models import ProjectCreate
+
         project_create = ProjectCreate(name=name, config=test_environment_config)
-        
+
         try:
             response = sync_apis.projects_api.create_project_api_v1_projects_post(project_create=project_create)
             click.echo(f"Project '{response.name}' created with ID {response.id}")
         except UnexpectedResponse as e:
             handle_api_error(e, f"create project '{name}'")
-            
+
     except CLIError:
         # Re-raise CLI errors as-is
         raise
@@ -164,7 +165,7 @@ def list_projects(
         try:
             return sync_apis.projects_api.read_projects_api_v1_projects_get(archived=archived, skip=skip, limit=limit)
         except UnexpectedResponse as e:
-            handle_api_error(e, f"list projects ")
+            handle_api_error(e, "list projects")
 
     def __print_table(projects: Any) -> None:
         click.echo(
@@ -196,14 +197,14 @@ def list_projects(
     try:
         client = get_client()
         sync_apis = SyncApis(client)
-        
+
         if id is not None:
             projects = __list_project_by_id(id)
         else:
             projects = __list_project_by_batch(archived, skip, limit)
 
         if projects is None or (isinstance(projects, list) and len(projects) == 0):
-            raise CLIError(f"Server did not return any project")
+            raise CLIError("Server did not return any project")
 
         if json:
             __print_json(projects)

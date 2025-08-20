@@ -7,12 +7,7 @@ import sys
 def run_safety_check():
     """Run safety check for known security vulnerabilities."""
     try:
-        result = subprocess.run(
-            ["safety", "check", "--json"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        result = subprocess.run(["safety", "check", "--json"], capture_output=True, text=True, check=False)
         if result.returncode != 0:
             print("⚠️  Security vulnerabilities found:")
             print(result.stdout)
@@ -28,12 +23,7 @@ def run_safety_check():
 def check_dependency_conflicts():
     """Check for dependency conflicts."""
     try:
-        result = subprocess.run(
-            ["pip", "check"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        result = subprocess.run(["pip", "check"], capture_output=True, text=True, check=False)
         if result.returncode != 0:
             print("⚠️  Dependency conflicts found:")
             print(result.stdout)

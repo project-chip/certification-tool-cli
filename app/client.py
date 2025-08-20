@@ -37,4 +37,3 @@ try:
 except ConfigurationError:
     # Don't fail at module level, let commands handle it
     pass
-

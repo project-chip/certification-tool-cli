@@ -18,9 +18,9 @@ import datetime
 import json
 
 import click
+
 import app.api_lib_autogen.models as m
 import app.test_run.logging as test_logging
-
 from app.api_lib_autogen.api_client import AsyncApis
 from app.api_lib_autogen.exceptions import UnexpectedResponse
 from app.async_cmd import async_cmd
@@ -28,7 +28,7 @@ from app.client import get_client
 from app.exceptions import CLIError, handle_api_error, handle_file_error
 from app.test_run.websocket import TestRunSocket
 from app.utils import build_test_selection
-from app.validation import validate_test_ids, validate_file_path
+from app.validation import validate_file_path, validate_test_ids
 
 
 @click.command()
@@ -67,7 +67,7 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int,
 
         # Check if tests_list is provided
         if tests_list:
-            validated_test_ids = validate_test_ids(tests_list) # Validate and convert test list
+            validated_test_ids = validate_test_ids(tests_list)  # Validate and convert test list
             test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
             selected_tests_dict = build_test_selection(test_collections, validated_test_ids)
         else:
@@ -84,12 +84,12 @@ async def run_tests(selected_tests: str, title: str, file: str, project_id: int,
         await socket_task
         click.echo(f"Log output in: '{log_path}'")
     except UnexpectedResponse as e:
-        handle_api_error(e, f"run test execution")
+        handle_api_error(e, "run test execution")
     finally:
         await client.aclose()
 
 
-async def __create_new_test_run(async_apis:AsyncApis, selected_tests: dict, title: str, project_id: int) -> None:
+async def __create_new_test_run(async_apis: AsyncApis, selected_tests: dict, title: str, project_id: int) -> None:
     click.echo(f"Creating new test run with title: {title}")
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
@@ -101,10 +101,12 @@ async def __create_new_test_run(async_apis:AsyncApis, selected_tests: dict, titl
         test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.create_test_run_execution_api_v1_test_run_executions_post(json_body)
     except UnexpectedResponse as e:
-        handle_api_error(e, f"create test run execution")
+        handle_api_error(e, "create test run execution")
 
 
-async def __start_test_run(async_apis:AsyncApis, test_run: m.TestRunExecutionWithChildren) -> m.TestRunExecutionWithChildren:
+async def __start_test_run(
+    async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren
+) -> m.TestRunExecutionWithChildren:
     click.echo(f"Starting Test run: Title: {test_run.title}, id: {test_run.id}")
 
     try:
@@ -113,7 +115,7 @@ async def __start_test_run(async_apis:AsyncApis, test_run: m.TestRunExecutionWit
             id=test_run.id
         )
     except UnexpectedResponse as e:
-        handle_api_error(e, f"start test run execution")
+        handle_api_error(e, "start test run execution")
 
 
 def __parse_selected_tests(json_str: str, filename: str) -> dict:
