@@ -16,7 +16,7 @@
 #
 import click
 
-from csa_certification_cli.commands import (
+from th_cli.commands import (
     available_tests,
     create_project,
     delete_project,
@@ -28,7 +28,7 @@ from csa_certification_cli.commands import (
     update_project,
     versions,
 )
-from csa_certification_cli.commands.versions import get_cli_version
+from th_cli.commands.versions import get_cli_version
 
 
 @click.group()

@@ -19,7 +19,7 @@ from typing import Optional
 
 import click
 
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 
 
 class CLIError(click.ClickException):

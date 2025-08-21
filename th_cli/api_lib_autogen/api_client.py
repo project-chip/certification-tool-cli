@@ -19,21 +19,21 @@ from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, Type
 from httpx import AsyncClient, Request, Response
 from pydantic import ValidationError, parse_obj_as
 
-from csa_certification_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
-from csa_certification_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
-from csa_certification_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
-from csa_certification_cli.api_lib_autogen.api.test_collections_api import (
+from th_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
+from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
+from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
+from th_cli.api_lib_autogen.api.test_collections_api import (
     AsyncTestCollectionsApi,
     SyncTestCollectionsApi,
 )
-from csa_certification_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
-from csa_certification_cli.api_lib_autogen.api.test_run_executions_api import (
+from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
+from th_cli.api_lib_autogen.api.test_run_executions_api import (
     AsyncTestRunExecutionsApi,
     SyncTestRunExecutionsApi,
 )
-from csa_certification_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
-from csa_certification_cli.api_lib_autogen.api.versions_api import AsyncVersionsApi, SyncVersionsApi
-from csa_certification_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
+from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
+from th_cli.api_lib_autogen.api.versions_api import AsyncVersionsApi, SyncVersionsApi
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 
 ClientT = TypeVar("ClientT", bound="ApiClient")
 

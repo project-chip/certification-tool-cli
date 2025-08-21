@@ -19,16 +19,16 @@ import json
 
 import click
 
-import csa_certification_cli.api_lib_autogen.models as m
-import csa_certification_cli.test_run.logging as test_logging
-from csa_certification_cli.api_lib_autogen.api_client import AsyncApis
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.async_cmd import async_cmd
-from csa_certification_cli.client import get_client
-from csa_certification_cli.exceptions import CLIError, handle_api_error, handle_file_error
-from csa_certification_cli.test_run.websocket import TestRunSocket
-from csa_certification_cli.utils import build_test_selection
-from csa_certification_cli.validation import validate_file_path, validate_test_ids
+import th_cli.api_lib_autogen.models as m
+import th_cli.test_run.logging as test_logging
+from th_cli.api_lib_autogen.api_client import AsyncApis
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.async_cmd import async_cmd
+from th_cli.client import get_client
+from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from th_cli.test_run.websocket import TestRunSocket
+from th_cli.utils import build_test_selection
+from th_cli.validation import validate_file_path, validate_test_ids
 
 
 @click.command(no_args_is_help=True)

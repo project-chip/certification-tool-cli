@@ -18,11 +18,11 @@ from typing import Any
 import click
 import yaml
 
-from csa_certification_cli.api_lib_autogen.api_client import SyncApis
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.client import get_client
-from csa_certification_cli.exceptions import CLIError, handle_api_error
-from csa_certification_cli.utils import __json_string, __print_json
+from th_cli.api_lib_autogen.api_client import SyncApis
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.client import get_client
+from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.utils import __json_string, __print_json
 
 
 @click.command()

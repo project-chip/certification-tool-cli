@@ -17,9 +17,9 @@ from typing import Optional
 
 import click
 
-from csa_certification_cli.api_lib_autogen.api_client import SyncApis
-from csa_certification_cli.client import get_client
-from csa_certification_cli.utils import __print_json
+from th_cli.api_lib_autogen.api_client import SyncApis
+from th_cli.client import get_client
+from th_cli.utils import __print_json
 
 
 @click.command()

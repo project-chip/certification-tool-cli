@@ -19,12 +19,12 @@ from typing import Any, List, Optional
 import click
 from pydantic import ValidationError
 
-from csa_certification_cli.api_lib_autogen.api_client import SyncApis
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
-from csa_certification_cli.client import get_client
-from csa_certification_cli.exceptions import CLIError, handle_api_error, handle_file_error
-from csa_certification_cli.utils import __print_json
+from th_cli.api_lib_autogen.api_client import SyncApis
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
+from th_cli.client import get_client
+from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from th_cli.utils import __print_json
 
 TABLE_FORMAT = "{:<5} {:20} {:40}"
 

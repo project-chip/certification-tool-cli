@@ -19,11 +19,11 @@ import subprocess
 import click
 import tomli
 
-from csa_certification_cli.api_lib_autogen.api_client import SyncApis
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.client import get_client
-from csa_certification_cli.config import find_git_root, get_package_root
-from csa_certification_cli.exceptions import handle_api_error
+from th_cli.api_lib_autogen.api_client import SyncApis
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.client import get_client
+from th_cli.config import find_git_root, get_package_root
+from th_cli.exceptions import handle_api_error
 
 
 def get_cli_version() -> str:

@@ -20,22 +20,22 @@ from typing import Optional
 
 import click
 
-import csa_certification_cli.api_lib_autogen.models as m
-import csa_certification_cli.test_run.logging as test_logging
-from csa_certification_cli.api_lib_autogen.api_client import AsyncApis
-from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.async_cmd import async_cmd
-from csa_certification_cli.client import get_client
-from csa_certification_cli.exceptions import CLIError, handle_api_error
-from csa_certification_cli.test_run.websocket import TestRunSocket
-from csa_certification_cli.utils import (
+import th_cli.api_lib_autogen.models as m
+import th_cli.test_run.logging as test_logging
+from th_cli.api_lib_autogen.api_client import AsyncApis
+from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.async_cmd import async_cmd
+from th_cli.client import get_client
+from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.test_run.websocket import TestRunSocket
+from th_cli.utils import (
     build_test_selection,
     convert_nested_to_dict,
     merge_properties_to_config,
     read_pics_config,
     read_properties_file,
 )
-from csa_certification_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
+from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 
 @click.command(no_args_is_help=True)
@@ -122,7 +122,8 @@ async def run_tests_cli(title: str, config: str, tests_list: str, pics_config_fo
     except Exception as e:
         raise CLIError(f"Unexpected error during test execution: {e}")
     finally:
-        await async_apis.client.aclose()
+        if client:
+            await client.aclose()
 
 
 async def __create_new_test_run_cli(

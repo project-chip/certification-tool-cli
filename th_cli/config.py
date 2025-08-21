@@ -20,7 +20,7 @@ from typing import Dict, Tuple
 
 from pydantic import BaseModel
 
-from csa_certification_cli.exceptions import CLIError
+from th_cli.exceptions import CLIError
 
 
 def get_package_root() -> Path:
