@@ -21,7 +21,7 @@ from typing import Dict, Tuple
 from pydantic import BaseModel
 
 CURRENT_DIR = Path.cwd()
-PROJECT_ROOT = Path.home() / "certification-tool/" "cli/"
+PROJECT_ROOT = Path.home() / "certification-tool" / "cli"
 
 
 class LogConfig(BaseModel):

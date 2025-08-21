@@ -18,11 +18,8 @@ from typing import Optional
 import click
 
 from csa_certification_cli.api_lib_autogen.api_client import SyncApis
-from csa_certification_cli.client import client
+from csa_certification_cli.client import get_client
 from csa_certification_cli.utils import __print_json
-
-sync_apis = SyncApis(client)
-test_run_execution_api = sync_apis.test_run_executions_api
 
 
 @click.command()
@@ -33,14 +30,20 @@ test_run_execution_api = sync_apis.test_run_executions_api
 )
 def test_runner_status(json: Optional[bool]) -> None:
     """Get the current Matter test runner status"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
+        test_run_execution_api = sync_apis.test_run_executions_api
+        
         test_runner_status = test_run_execution_api.get_test_runner_status_api_v1_test_run_executions_status_get()
         if json:
             __print_json(test_runner_status)
         else:
             __print_status_table(test_runner_status.dict())
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 def __print_status_table(status_data: dict) -> None:

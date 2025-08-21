@@ -33,7 +33,8 @@ from csa_certification_cli.utils import __json_string, __print_json
     help="Print JSON response for more details",
 )
 def available_tests(json: bool = False) -> None:
-    """Get a list of available tests cases"""
+    """Get a list of available test cases"""
+    client = None
     try:
         client = get_client()
         sync_apis: SyncApis = SyncApis(client)

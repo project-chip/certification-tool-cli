@@ -21,7 +21,7 @@ from pydantic import ValidationError
 
 from csa_certification_cli.api_lib_autogen.api_client import SyncApis
 from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from csa_certification_cli.api_lib_autogen.models import Project, ProjectUpdate, TestEnvironmentConfig
+from csa_certification_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
 from csa_certification_cli.client import get_client
 from csa_certification_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from csa_certification_cli.utils import __print_json
@@ -74,8 +74,6 @@ def create_project(name: str, config: Optional[str]) -> None:
                 raise CLIError(f"Invalid configuration: {e}")
 
         # Create project
-        from csa_certification_cli.api_lib_autogen.models import ProjectCreate
-
         project_create = ProjectCreate(name=name, config=test_environment_config)
 
         try:
