@@ -19,40 +19,46 @@ import json
 
 import click
 
-import app.api_lib_autogen.models as m
-import app.test_run.logging as test_logging
-from app.api_lib_autogen.api_client import AsyncApis
-from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.async_cmd import async_cmd
-from app.client import get_client
-from app.exceptions import CLIError, handle_api_error, handle_file_error
-from app.test_run.websocket import TestRunSocket
-from app.utils import build_test_selection
-from app.validation import validate_file_path, validate_test_ids
+import csa_certification_cli.api_lib_autogen.models as m
+import csa_certification_cli.test_run.logging as test_logging
+from csa_certification_cli.api_lib_autogen.api_client import AsyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.async_cmd import async_cmd
+from csa_certification_cli.client import get_client
+from csa_certification_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from csa_certification_cli.test_run.websocket import TestRunSocket
+from csa_certification_cli.utils import build_test_selection
+from csa_certification_cli.validation import validate_file_path, validate_test_ids
 
 
-@click.command()
+@click.command(no_args_is_help=True)
+@click.option(
+    "--project-id",
+    "-i",
+    required=True,
+    help="Project ID that this test run belongs to",
+)
+@click.option(
+    "--title",
+    "-n",
+    help="Name of the test run execution",
+    default=lambda: str(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")),
+    show_default="timestamp",
+)
+@click.option(
+    "--tests-list",
+    "-t",
+    help="List of test cases to execute. Separated by commas (,) and without any blank spaces. "
+    "For example: TC-ACE-1.1,TC_ACE_1_3",
+)
 @click.option(
     "--selected-tests",
     "-s",
     help="JSON string with selected tests. "
     'Format: \'{"collection_name":{"test_suite_id":{"test_case_id": <iterations>}}}\' '
-    'For instance: \'{"SDK YAML Tests":{"FirstChipToolSuite":{"TC-ACE-1.1": 1}}}\'',
-)
-@click.option(
-    "--title", default=lambda: str(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")), show_default="timestamp"
+    'For example: \'{"SDK YAML Tests":{"FirstChipToolSuite":{"TC-ACE-1.1": 1}}}\'',
 )
 @click.option("--file", "-f", help="JSON file location")
-@click.option(
-    "--project-id",
-    required=True,
-    help="Project ID that this test run belongs to",
-)
-@click.option(
-    "--tests-list",
-    help="List of test cases to execute. Separated by commas (,) and without any blank spaces. "
-    "For example: TC-ACE-1.1,TC_ACE_1_3",
-)
 @async_cmd
 async def run_tests(selected_tests: str, title: str, file: str, project_id: int, tests_list: str = None) -> None:
     """Create a new test run from selected tests"""

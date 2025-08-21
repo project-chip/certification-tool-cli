@@ -14,7 +14,7 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
 [project]
-name = "app"
+name = "csa_certification_cli"
 version = "0.1.0"
 description = "Test Harness CLI tool for CSA Matter certification"
 authors = [
@@ -48,13 +48,13 @@ dependencies = [
 ]
 
 [project.scripts]
-th-cli = "app.main:root"
+th-cli = "csa_certification_cli.main:root"
 
 [tool.poetry]
 packages = [
-    {include = "app"},
-    {include = "commands", from = "app"},
-    {include = "api_lib_autogen", from = "app"},
+    {include = "csa_certification_cli"},
+    {include = "commands", from = "csa_certification_cli"},
+    {include = "api_lib_autogen", from = "csa_certification_cli"},
 ]
 
 [tool.poetry.group.dev.dependencies]

@@ -19,10 +19,10 @@ from typing import IO, TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
 
-from app.api_lib_autogen import models as m
+from csa_certification_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
-    from app.api_lib_autogen.api_client import ApiClient
+    from csa_certification_cli.api_lib_autogen.api_client import ApiClient
 
 
 class _TestRunExecutionsApi:

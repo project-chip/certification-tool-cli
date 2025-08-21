@@ -22,13 +22,13 @@ from pydantic import ValidationError
 from websockets.client import WebSocketClientProtocol
 from websockets.client import connect as websocket_connect
 
-from app.api_lib_autogen.models import (
+from csa_certification_cli.api_lib_autogen.models import (
     TestCaseExecution,
     TestRunExecutionWithChildren,
     TestStepExecution,
     TestSuiteExecution,
 )
-from app.config import config
+from csa_certification_cli.config import config
 
 from .prompt_manager import handle_prompt
 from .socket_schemas import (

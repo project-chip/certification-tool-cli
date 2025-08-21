@@ -15,26 +15,21 @@
 #
 import os
 import subprocess
-from pathlib import Path
 
 import click
 import tomli
 
-from app.api_lib_autogen.api_client import SyncApis
-from app.client import client
-
-sync_apis = SyncApis(client)
-versions_api = sync_apis.versions_api
-
-PROJECT_ROOT = Path(__file__).parent.parents[0]
+from csa_certification_cli.api_lib_autogen.api_client import SyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.client import get_client
+from csa_certification_cli.config import PROJECT_ROOT
+from csa_certification_cli.exceptions import handle_api_error, handle_file_error
 
 
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:
-        click.echo("")
-        project_root = os.path.dirname(PROJECT_ROOT)
-        pyproject_path = os.path.join(project_root, "pyproject.toml")
+        pyproject_path = os.path.join(PROJECT_ROOT, "pyproject.toml")
         if os.path.exists(pyproject_path):
             with open(pyproject_path, "rb") as f:
                 pyproject_data = tomli.load(f)
@@ -42,7 +37,9 @@ def get_cli_version() -> str:
                 if version:
                     return version
         return "unknown"
-    except (FileNotFoundError, IOError):
+    except FileNotFoundError as e:
+        handle_file_error(e, f"{pyproject_path} file")
+    except IOError:
         return "unknown"
 
 
@@ -54,19 +51,28 @@ def _get_cli_sha() -> str:
             capture_output=True,
             text=True,
             check=True,
-            cwd=os.path.dirname(PROJECT_ROOT),
+            cwd=PROJECT_ROOT,
         )
         return result.stdout.strip()[:8]
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except FileNotFoundError as e:
+        handle_file_error(e, f"{PROJECT_ROOT} directory")
+    except subprocess.CalledProcessError:
         return "unknown"
 
 
 @click.command()
 def versions() -> None:
     """Get application versions information"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
+        versions_api = sync_apis.versions_api
+
         versions_info = versions_api.get_versions_api_v1_versions_get()
         _print_versions_table(versions_info)
+    except UnexpectedResponse as e:
+        handle_api_error(e, "get versions")
     finally:
         client.close()
 
@@ -75,6 +81,7 @@ def _print_versions_table(versions_data: dict) -> None:
     """Print versions in a formatted table"""
     click.echo("Application Versions")
     click.echo("=" * 30)
+    click.echo("")
 
     # Add CLI version and SHA first
     cli_version = get_cli_version()

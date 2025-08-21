@@ -17,11 +17,11 @@ from typing import Optional
 
 import click
 
-from app.api_lib_autogen.api_client import SyncApis
-from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.client import get_client
-from app.exceptions import CLIError, handle_api_error
-from app.utils import __print_json
+from csa_certification_cli.api_lib_autogen.api_client import SyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.client import get_client
+from csa_certification_cli.exceptions import CLIError, handle_api_error
+from csa_certification_cli.utils import __print_json
 
 table_format = "{:<5} {:30} {:10} {:40}"
 
@@ -29,6 +29,7 @@ table_format = "{:<5} {:30} {:10} {:40}"
 @click.command()
 @click.option(
     "--id",
+    "-i",
     default=None,
     required=False,
     type=int,
@@ -36,6 +37,7 @@ table_format = "{:<5} {:30} {:10} {:40}"
 )
 @click.option(
     "--skip",
+    "-s",
     default=None,
     required=False,
     type=int,
@@ -43,6 +45,7 @@ table_format = "{:<5} {:30} {:10} {:40}"
 )
 @click.option(
     "--limit",
+    "-l",
     default=None,
     required=False,
     type=int,

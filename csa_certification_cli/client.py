@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from app.api_lib_autogen.api_client import ApiClient
-from app.config import config
-from app.exceptions import ConfigurationError
+from csa_certification_cli.api_lib_autogen.api_client import ApiClient
+from csa_certification_cli.config import config
+from csa_certification_cli.exceptions import ConfigurationError
 
 
 def get_client() -> ApiClient:

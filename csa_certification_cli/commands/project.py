@@ -19,32 +19,39 @@ from typing import Any, List, Optional
 import click
 from pydantic import ValidationError
 
-from app.api_lib_autogen.api_client import SyncApis
-from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.api_lib_autogen.models import Project, ProjectUpdate, TestEnvironmentConfig
-from app.client import get_client
-from app.exceptions import CLIError, handle_api_error, handle_file_error
-from app.utils import __print_json
+from csa_certification_cli.api_lib_autogen.api_client import SyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.api_lib_autogen.models import Project, ProjectUpdate, TestEnvironmentConfig
+from csa_certification_cli.client import get_client
+from csa_certification_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from csa_certification_cli.utils import __print_json
 
 TABLE_FORMAT = "{:<5} {:20} {:40}"
 
 
-@click.command()
+def _abort_if_false(ctx, value):
+    if not value:
+        ctx.abort()
+
+
+@click.command(no_args_is_help=True)
 @click.option(
     "--name",
+    "-n",
     required=True,
     type=str,
-    help="*Name of the project*",
+    help="Name of the project",
 )
 @click.option(
     "--config",
+    "-c",
     required=False,
     type=str,
     default=None,
     help="Config file for the project",
 )
 def create_project(name: str, config: Optional[str]) -> None:
-    """Create a project"""
+    """Create a new project"""
     client = None
     try:
         client = get_client()
@@ -67,7 +74,7 @@ def create_project(name: str, config: Optional[str]) -> None:
                 raise CLIError(f"Invalid configuration: {e}")
 
         # Create project
-        from app.api_lib_autogen.models import ProjectCreate
+        from csa_certification_cli.api_lib_autogen.models import ProjectCreate
 
         project_create = ProjectCreate(name=name, config=test_environment_config)
 
@@ -88,12 +95,22 @@ def create_project(name: str, config: Optional[str]) -> None:
             client.close()
 
 
-@click.command()
+@click.command(no_args_is_help=True)
 @click.option(
     "--id",
+    "-i",
     required=True,
     type=int,
-    help="*Project Id to delete*",
+    help="Project ID to delete",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    callback=_abort_if_false,
+    expose_value=False,
+    prompt="Are you sure you want to delete the project?",
+    help="Delete the project without confirmation",
 )
 def delete_project(id: int) -> None:
     """Delete a project"""
@@ -104,7 +121,7 @@ def delete_project(id: int) -> None:
         sync_apis.projects_api.delete_project_api_v1_projects_id_delete(id=id)
         click.echo(f"Project {id} was deleted.")
     except UnexpectedResponse as e:
-        handle_api_error(e, f"delete project id '{id}'")
+        handle_api_error(e, f"delete project ID '{id}'")
     finally:
         if client:
             client.close()
@@ -113,20 +130,15 @@ def delete_project(id: int) -> None:
 @click.command()
 @click.option(
     "--id",
+    "-i",
     default=None,
     required=False,
     type=int,
     help="Fetch specific project via ID",
 )
 @click.option(
-    "--archived",
-    default=False,
-    required=False,
-    type=bool,
-    help="List archived projects or not",
-)
-@click.option(
     "--skip",
+    "-s",
     default=None,
     required=False,
     type=int,
@@ -134,10 +146,17 @@ def delete_project(id: int) -> None:
 )
 @click.option(
     "--limit",
+    "-l",
     default=None,
     required=False,
     type=int,
     help="Maximun number of projects to fetch",
+)
+@click.option(
+    "--archived",
+    default=False,
+    is_flag=True,
+    help="List only archived projects",
 )
 @click.option(
     "--json",
@@ -218,15 +237,17 @@ def list_projects(
             client.close()
 
 
-@click.command()
+@click.command(no_args_is_help=True)
 @click.option(
     "--id",
+    "-i",
     required=True,
     type=int,
     help="*The ID for the project to update*",
 )
 @click.option(
     "--config",
+    "-c",
     required=True,
     type=str,
     help="New config file path",

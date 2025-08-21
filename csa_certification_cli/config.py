@@ -20,6 +20,9 @@ from typing import Dict, Tuple
 
 from pydantic import BaseModel
 
+CURRENT_DIR = Path.cwd()
+PROJECT_ROOT = Path.home() / "certification-tool/" "cli/"
+
 
 class LogConfig(BaseModel):
     output_log_path = "./run_logs"
@@ -48,8 +51,8 @@ def load_config():
     """Load configuration with fallbacks"""
     # Try different possible locations for config files
     possible_locations = [
-        Path.cwd() / "config.json",  # Current working directory
-        Path.home() / "certification-tool" / "cli" / "config.json",  # Project directory
+        CURRENT_DIR / "config.json",  # Current working directory
+        PROJECT_ROOT / "config.json",  # Project directory
     ]
 
     for config_path in possible_locations:
@@ -62,8 +65,8 @@ def load_config():
 
     # Try to create config from example file
     example_locations = [
-        Path.cwd() / "config.json.example",  # Current working directory
-        Path.home() / "certification-tool" / "cli" / "config.json.example",  # Project directory
+        CURRENT_DIR / "config.json.example",  # Current working directory
+        PROJECT_ROOT / "config.json.example",  # Project directory
     ]
 
     for example_path in example_locations:

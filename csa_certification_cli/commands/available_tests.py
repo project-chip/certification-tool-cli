@@ -18,11 +18,11 @@ from typing import Any
 import click
 import yaml
 
-from app.api_lib_autogen.api_client import SyncApis
-from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.client import get_client
-from app.exceptions import CLIError, handle_api_error
-from app.utils import __json_string, __print_json
+from csa_certification_cli.api_lib_autogen.api_client import SyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.client import get_client
+from csa_certification_cli.exceptions import CLIError, handle_api_error
+from csa_certification_cli.utils import __json_string, __print_json
 
 
 @click.command()
@@ -33,7 +33,7 @@ from app.utils import __json_string, __print_json
     help="Print JSON response for more details",
 )
 def available_tests(json: bool = False) -> None:
-    """Get a list of available tests"""
+    """Get a list of available tests cases"""
     try:
         client = get_client()
         sync_apis: SyncApis = SyncApis(client)
@@ -55,7 +55,8 @@ def available_tests(json: bool = False) -> None:
             f"Could not fetch the available tests: {e}. Please check if the API server is running and accessible."
         )
     finally:
-        sync_apis.client.close()
+        if client:
+            client.close()
 
 
 def __print_yaml(object: Any) -> None:

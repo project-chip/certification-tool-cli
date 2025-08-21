@@ -18,11 +18,11 @@ import inspect
 import click
 from pydantic import BaseModel
 
-from app.api_lib_autogen import models
+from csa_certification_cli.api_lib_autogen import models
 
 # Update forward references for all models
 for model in inspect.getmembers(models, inspect.isclass):
-    if model[1].__module__ == "app.api_lib_autogen.models":
+    if model[1].__module__ == "csa_certification_cli.api_lib_autogen.models":
         model_class = model[1]
         if issubclass(model_class, BaseModel):
             try:
@@ -35,7 +35,7 @@ for model in inspect.getmembers(models, inspect.isclass):
 # Try to update forward references again after all models are processed
 # This handles circular dependencies
 for model in inspect.getmembers(models, inspect.isclass):
-    if model[1].__module__ == "app.api_lib_autogen.models":
+    if model[1].__module__ == "csa_certification_cli.api_lib_autogen.models":
         model_class = model[1]
         if issubclass(model_class, BaseModel):
             try:

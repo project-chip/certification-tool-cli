@@ -17,10 +17,10 @@
 from asyncio import get_event_loop
 from typing import TYPE_CHECKING, Awaitable, Dict
 
-from app.api_lib_autogen import models as m
+from csa_certification_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
-    from app.api_lib_autogen.api_client import ApiClient
+    from csa_certification_cli.api_lib_autogen.api_client import ApiClient
 
 
 class _VersionsApi:
