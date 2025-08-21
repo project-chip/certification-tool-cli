@@ -241,7 +241,7 @@ def list_projects(
     "-i",
     required=True,
     type=int,
-    help="*The ID for the project to update*",
+    help="The ID for the project to update",
 )
 @click.option(
     "--config",

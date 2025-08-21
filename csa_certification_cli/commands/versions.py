@@ -54,9 +54,7 @@ def _get_cli_sha() -> str:
             cwd=PROJECT_ROOT,
         )
         return result.stdout.strip()[:8]
-    except FileNotFoundError as e:
-        handle_file_error(e, f"{PROJECT_ROOT} directory")
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
 
 
