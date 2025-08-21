@@ -26,8 +26,9 @@ CLI tool for using the CSA Test Harness
 
 ## Requirements
 
-1. Python >= 3.10
-2. Poetry installed (see: https://python-poetry.org/docs/#installation)
+1. Ubuntu Server OS
+2. Python >= 3.10
+3. Poetry installed (see: https://python-poetry.org/docs/#installation)
 
 ## Setup
 

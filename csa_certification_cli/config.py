@@ -20,6 +20,8 @@ from typing import Dict, Tuple
 
 from pydantic import BaseModel
 
+from csa_certification_cli.exceptions import CLIError
+
 
 def get_package_root() -> Path:
     """
@@ -129,7 +131,7 @@ def load_config():
             try:
                 return Config.parse_file(config_path)
             except Exception as e:
-                print(f"Warning: Could not load config from {config_path}: {e}")
+                CLIError(f"Could not load config from {config_path}: {e}")
                 continue
     
     # Try to create config from example file

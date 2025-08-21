@@ -83,7 +83,8 @@ def versions() -> None:
     except UnexpectedResponse as e:
         handle_api_error(e, "get versions")
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 def _print_versions_table(versions_data: dict) -> None:

@@ -50,7 +50,7 @@ def available_tests(json: bool = False) -> None:
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse as e:
-        handle_api_error(e, f"delete project id '{id}'")
+        handle_api_error(e, f"get available tests")
     except Exception as e:
         raise CLIError(
             f"Could not fetch the available tests: {e}. Please check if the API server is running and accessible."

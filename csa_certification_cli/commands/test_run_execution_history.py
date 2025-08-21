@@ -73,7 +73,8 @@ def test_run_execution_history(
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     finally:
-        sync_apis.client.close()
+        if client:
+            client.close()
 
 
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
