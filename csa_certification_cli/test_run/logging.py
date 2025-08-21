@@ -17,7 +17,7 @@ import os
 
 from loguru import logger
 
-from app.config import config
+from csa_certification_cli.config import config
 
 # Add custom logger for "chip-tool"
 CHIPTOOL_LEVEL = "CHIPTOOL"

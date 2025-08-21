@@ -17,12 +17,9 @@ from typing import Optional
 
 import click
 
-from app.api_lib_autogen.api_client import SyncApis
-from app.client import client
-from app.utils import __print_json
-
-sync_apis = SyncApis(client)
-test_run_execution_api = sync_apis.test_run_executions_api
+from csa_certification_cli.api_lib_autogen.api_client import SyncApis
+from csa_certification_cli.client import get_client
+from csa_certification_cli.utils import __print_json
 
 
 @click.command()
@@ -33,20 +30,27 @@ test_run_execution_api = sync_apis.test_run_executions_api
 )
 def test_runner_status(json: Optional[bool]) -> None:
     """Get the current Matter test runner status"""
+    client = None
     try:
+        client = get_client()
+        sync_apis = SyncApis(client)
+        test_run_execution_api = sync_apis.test_run_executions_api
+        
         test_runner_status = test_run_execution_api.get_test_runner_status_api_v1_test_run_executions_status_get()
         if json:
             __print_json(test_runner_status)
         else:
             __print_status_table(test_runner_status.dict())
     finally:
-        client.close()
+        if client:
+            client.close()
 
 
 def __print_status_table(status_data: dict) -> None:
     """Print status in a formatted table"""
     click.echo("Matter Test Runner Status")
     click.echo("=" * 30)
+    click.echo("")
     click.echo(f"State: {status_data.get('state', 'Unknown')}")
 
     if "test_run_execution_id" in status_data:

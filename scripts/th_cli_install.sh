@@ -44,6 +44,8 @@ if ! command -v pipx &> /dev/null; then
     fi
     sudo apt install -y pipx
     pipx ensurepath
+    # [Optional] To allow pipx actions with --global argument use the below line
+    # sudo pipx ensurepath --global
     export PATH="$HOME/.local/bin:$PATH"
 fi
 

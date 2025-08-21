@@ -21,8 +21,8 @@ from typing import Any
 
 import click
 
-from app.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
-from app.exceptions import CLIError, handle_file_error
+from csa_certification_cli.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES
+from csa_certification_cli.exceptions import CLIError, handle_file_error
 
 
 def __print_json(object: Any) -> None:

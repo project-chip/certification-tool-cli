@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import List
 
-from app.exceptions import CLIError
+from csa_certification_cli.exceptions import CLIError
 
 
 def validate_project_name(name: str) -> str:

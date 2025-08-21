@@ -111,16 +111,16 @@ Optional:
 
 ## Development
 
-The source files are organized in `./app`.
+The source files are organized in `./csa_certification_cli`.
 
 ### Add new command
 
 The project uses [click](https://click.palletsprojects.com/) to declare commands.
 To add a new `command` to the CLI:
 
--   Add a new file in `./app/commands`
--   Import the new command in `./app/commands/__init__.py`
--   Import and add the new command to the `root` group in `./app/main.py`
+-   Add a new file in `./csa_certification_cli/commands`
+-   Import the new command in `./csa_certification_cli/commands/__init__.py`
+-   Import and add the new command to the `root` group in `./csa_certification_cli/main.py`
 
 ### VS Code Environment
 

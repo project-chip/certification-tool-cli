@@ -20,29 +20,37 @@ from typing import Optional
 
 import click
 
-import app.api_lib_autogen.models as m
-import app.test_run.logging as test_logging
-from app.api_lib_autogen.api_client import AsyncApis
-from app.api_lib_autogen.exceptions import UnexpectedResponse
-from app.async_cmd import async_cmd
-from app.client import get_client
-from app.exceptions import CLIError, handle_api_error
-from app.test_run.websocket import TestRunSocket
-from app.utils import (
+import csa_certification_cli.api_lib_autogen.models as m
+import csa_certification_cli.test_run.logging as test_logging
+from csa_certification_cli.api_lib_autogen.api_client import AsyncApis
+from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from csa_certification_cli.async_cmd import async_cmd
+from csa_certification_cli.client import get_client
+from csa_certification_cli.exceptions import CLIError, handle_api_error
+from csa_certification_cli.test_run.websocket import TestRunSocket
+from csa_certification_cli.utils import (
     build_test_selection,
     convert_nested_to_dict,
     merge_properties_to_config,
     read_pics_config,
     read_properties_file,
 )
-from app.validation import validate_directory_path, validate_file_path, validate_test_ids
+from csa_certification_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 
-@click.command()
+@click.command(no_args_is_help=True)
+@click.option(
+    "--tests-list",
+    "-t",
+    required=True,
+    help="List of test cases to execute. For example: TC-ACE-1.1,TC_ACE_1_3",
+)
 @click.option(
     "--title",
+    "-n",
     default=lambda: str(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")),
     show_default="timestamp",
+    help="Name of the test run execution",
 )
 @click.option(
     "--config",
@@ -50,11 +58,6 @@ from app.validation import validate_directory_path, validate_file_path, validate
     help="Property config file location. This "
     "information is optional — if not provided, the default_config.properties "
     "file will be used.",
-)
-@click.option(
-    "--tests-list",
-    required=True,
-    help="List of test cases to execute. For example: TC-ACE-1.1,TC_ACE_1_3",
 )
 @click.option(
     "--pics-config-folder",
