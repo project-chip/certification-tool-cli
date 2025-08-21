@@ -20,8 +20,75 @@ from typing import Dict, Tuple
 
 from pydantic import BaseModel
 
-CURRENT_DIR = Path.cwd()
-PROJECT_ROOT = Path.home() / "certification-tool" / "cli"
+
+def get_package_root() -> Path:
+    """
+    Get the root directory of the package installation.
+    This works for both editable and non-editable installations.
+    """
+    # Get the directory containing this config.py file
+    return Path(__file__).parent.parent
+
+def find_git_root() -> Path | None:
+    """
+    Find the root directory containing the CLI's .git folder.
+    This is needed for git operations and will find the original source.
+    """
+    # Start from the package root
+    current_path = get_package_root()
+    
+    # Walk up the directory tree looking for .git
+    while current_path != current_path.parent:
+        if (current_path / ".git").exists():
+            return current_path
+        current_path = current_path.parent
+    
+    # If not found in package location, try current working directory
+    current_path = Path.cwd()
+    while current_path != current_path.parent:
+        if (current_path / ".git").exists():
+            return current_path
+        current_path = current_path.parent
+    
+    return None
+
+def is_editable_install() -> bool:
+    """
+    Detect if this is an editable installation.
+    """
+    package_root = get_package_root()
+    git_root = find_git_root()
+    
+    # If git root and package root are the same, it's likely editable
+    if git_root and package_root:
+        try:
+            # Check if package root is within or same as git root
+            package_root.relative_to(git_root)
+            return True
+        except ValueError:
+            return False
+    return False
+
+def get_config_search_paths() -> list[Path]:
+    """
+    Get a list of paths to search for configuration files.
+    """
+    paths = []
+    
+    # Always include current working directory
+    paths.append(Path.cwd())
+    
+    # Include package installation directory
+    package_root = get_package_root()
+    paths.append(package_root)
+    
+    # If not editable install, also check git root (original source)
+    if not is_editable_install():
+        git_root = find_git_root()
+        if git_root and git_root != package_root:
+            paths.append(git_root)
+    
+    return paths
 
 
 class LogConfig(BaseModel):
@@ -49,12 +116,14 @@ def get_default_config():
 
 def load_config():
     """Load configuration with fallbacks"""
+    # Get dynamic search paths
+    search_paths = get_config_search_paths()
+    
     # Try different possible locations for config files
-    possible_locations = [
-        CURRENT_DIR / "config.json",  # Current working directory
-        PROJECT_ROOT / "config.json",  # Project directory
-    ]
-
+    possible_locations = []
+    for path in search_paths:
+        possible_locations.append(path / "config.json")
+    
     for config_path in possible_locations:
         if config_path.exists():
             try:
@@ -62,13 +131,12 @@ def load_config():
             except Exception as e:
                 print(f"Warning: Could not load config from {config_path}: {e}")
                 continue
-
+    
     # Try to create config from example file
-    example_locations = [
-        CURRENT_DIR / "config.json.example",  # Current working directory
-        PROJECT_ROOT / "config.json.example",  # Project directory
-    ]
-
+    example_locations = []
+    for path in search_paths:
+        example_locations.append(path / "config.json.example")
+    
     for example_path in example_locations:
         if example_path.exists():
             try:
@@ -80,7 +148,7 @@ def load_config():
             except Exception as e:
                 print(f"Warning: Could not load example config from {example_path}: {e}")
                 continue
-
+    
     # Fall back to default configuration
     print("Warning: Using default configuration")
     default_config = get_default_config()

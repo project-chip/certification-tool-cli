@@ -22,36 +22,47 @@ import tomli
 from csa_certification_cli.api_lib_autogen.api_client import SyncApis
 from csa_certification_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from csa_certification_cli.client import get_client
-from csa_certification_cli.config import PROJECT_ROOT
-from csa_certification_cli.exceptions import handle_api_error, handle_file_error
+from csa_certification_cli.config import find_git_root, get_package_root
+from csa_certification_cli.exceptions import handle_api_error
 
 
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:
-        pyproject_path = os.path.join(PROJECT_ROOT, "pyproject.toml")
-        if os.path.exists(pyproject_path):
+        # Try package root first
+        package_root = get_package_root()
+        pyproject_path = package_root / "pyproject.toml"
+        
+        if not pyproject_path.exists():
+            # If not found in package root, try git root
+            git_root = find_git_root()
+            if git_root:
+                pyproject_path = git_root / "pyproject.toml"
+        
+        if pyproject_path.exists():
             with open(pyproject_path, "rb") as f:
                 pyproject_data = tomli.load(f)
                 version = pyproject_data.get("project", {}).get("version")
                 if version:
                     return version
         return "unknown"
-    except FileNotFoundError as e:
-        handle_file_error(e, f"{pyproject_path} file")
-    except IOError:
+    except (FileNotFoundError, IOError):
         return "unknown"
 
-
-def _get_cli_sha() -> str:
+def get_cli_sha() -> str:
     """Get current CLI SHA from git"""
     try:
+        # Always use git root for git operations - this ensures we find the original repo
+        git_root = find_git_root()
+        if not git_root:
+            return "unknown"
+        
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
             check=True,
-            cwd=PROJECT_ROOT,
+            cwd=git_root,
         )
         return result.stdout.strip()[:8]
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -83,7 +94,7 @@ def _print_versions_table(versions_data: dict) -> None:
 
     # Add CLI version and SHA first
     cli_version = get_cli_version()
-    cli_sha = _get_cli_sha()
+    cli_sha = get_cli_sha()
 
     click.echo(f"CLI Version: {cli_version}")
     click.echo(f"CLI SHA: {cli_sha}")
