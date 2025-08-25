@@ -46,6 +46,13 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest)
     click.echo("=======================================")
 
 
+async def handle_file_upload_request(socket: WebSocketClientProtocol, request: PromptRequest) -> None:
+    """Handle file upload requests from the backend."""
+    click.echo("=======================================")
+    await __handle_file_upload_prompt(socket=socket, prompt=request)
+    click.echo("=======================================")
+
+
 async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: OptionsSelectPromptRequest) -> None:
     try:
         user_answer = await asyncio.wait_for(__prompt_user_for_option(prompt), float(prompt.timeout))
@@ -89,6 +96,20 @@ async def __handle_text_prompt(socket: WebSocketClientProtocol, prompt: TextInpu
         pass
 
 
+async def __handle_file_upload_prompt(socket: WebSocketClientProtocol, prompt: PromptRequest) -> None:
+    """Handle the file upload prompt and user interaction."""
+    try:
+        file_path = await asyncio.wait_for(__prompt_user_for_file_upload(prompt), float(prompt.timeout))
+        if file_path:
+            await __upload_file_and_send_response(socket=socket, file_path=file_path, prompt=prompt)
+        else:
+            # User cancelled or provided empty path
+            await __send_prompt_response(socket=socket, input="", prompt=prompt)
+    except asyncio.exceptions.TimeoutError:
+        click.echo("File upload prompt timed out", err=True)
+        pass
+
+
 async def __prompt_user_for_text_input(prompt: TextInputPromptRequest) -> str:
     # Print Prompt
     click.echo(italic(prompt.prompt))
@@ -108,6 +129,77 @@ async def __prompt_user_for_text_input(prompt: TextInputPromptRequest) -> str:
     return await __prompt_user_for_text_input(prompt)
 
 
+async def __prompt_user_for_file_upload(prompt: PromptRequest) -> str:
+    """Prompt the user to provide a file path for upload."""
+    # Print Prompt
+    click.echo(prompt.prompt)
+
+    click.echo("Enter the path to the file to upload (or press Enter to skip): ")
+
+    # Wait for input async
+    file_path = await aioconsole.ainput()
+
+    # If user just pressed Enter, return empty string
+    if not file_path.strip():
+        return ""
+
+    # Validate file path and type
+    if __valid_file_upload(file_path=file_path, prompt=prompt):
+        return file_path
+
+    # Recursively Retry
+    await asyncio.sleep(0.1)
+    click.echo(f"Invalid file path or type: {file_path}", err=True)
+    return await __prompt_user_for_file_upload(prompt)
+
+async def __upload_file_and_send_response(
+    socket: WebSocketClientProtocol, file_path: str, prompt: PromptRequest
+) -> None:
+    """Send file path as response - let backend handle actual upload."""
+    try:
+        import os
+        import httpx
+        from config import config
+
+        if not os.path.isfile(file_path):
+            click.echo(f"Error: File '{file_path}' does not exist or is not accessible", err=True)
+            await __send_prompt_response(socket=socket, input="", prompt=prompt)
+            return
+
+        file_size = os.path.getsize(file_path)
+        
+        # Check file size limit (e.g., 100MB)
+        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
+        if file_size > MAX_FILE_SIZE:
+            click.echo(f"❌ File too large: {file_size} bytes (max: {MAX_FILE_SIZE} bytes)", err=True)
+            await __send_prompt_response(socket=socket, input="", prompt=prompt)
+            return
+        
+        click.echo(f"File selected: {file_path} (size: {file_size:,} bytes)")
+
+        # Build upload URL - handle both hostname and hostname:port formats
+        base_url = config.hostname
+        if not base_url.startswith(('http://', 'https://')):
+            base_url = f"http://{base_url}"
+        upload_url = f"{base_url}/api/v1/test_run_executions/file_upload/"
+
+        async with httpx.AsyncClient() as client:
+            with open(file_path, 'rb') as file:
+                files = {'file': (os.path.basename(file_path), file, 'application/octet-stream')}
+
+                response = await client.post(upload_url, files=files)
+
+                if response.status_code == 200:
+                    click.echo("✅ File uploaded successfully")
+                    await __send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
+                else:
+                    click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
+                    await __send_prompt_response(socket=socket, input="", prompt=prompt)
+
+    except Exception as e:
+        click.echo(f"❌ Error uploading file: {str(e)}", err=True)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
+
 def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
     if not isinstance(input, str):
         return False
@@ -116,6 +208,21 @@ def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
         return True
 
     return re.match(prompt.regex_pattern, input) is not None
+
+
+def __valid_file_upload(file_path: str, prompt: PromptRequest) -> bool:
+    """Validate that the file path is valid and the file is accessible."""
+    import os
+
+    if not os.path.isfile(file_path) or not os.access(file_path, os.R_OK):
+        return False
+
+    file_ext = os.path.splitext(file_path)[1].lower()
+    if file_ext not in ['.txt', '.log']:
+        click.echo(f"Warning: File extension '{file_ext}' is not a common log format. Consider using .txt or .log files.", err=True)
+        return False
+
+    return True
 
 
 async def __send_prompt_response(
