@@ -95,7 +95,7 @@ _TH_CLI_COMPLETE=${SHELL_TYPE}_source th-cli > "$COMPLETION_FILE"
 echo "Generated completion script at $COMPLETION_FILE"
 
 # Add source line to RC file if not already present
-if ! grep -q "source $COMPLETION_FILE" "$RC_FILE" 2>/dev/null; then
+if ! grep -Fq "source $COMPLETION_FILE" "$RC_FILE" 2>/dev/null; then
   echo "source $COMPLETION_FILE" >> "$RC_FILE"
   echo "Added completion source to $RC_FILE"
 fi

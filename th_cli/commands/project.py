@@ -247,7 +247,7 @@ def list_projects(
     "--config",
     "-c",
     required=True,
-    type=click.Path(exists=True, dir_okay=False),
+    type=click.Path(file_okay=True, dir_okay=False),
     help="New config JSON file path",
 )
 def update_project(id: int, config: str):
