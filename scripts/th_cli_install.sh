@@ -97,7 +97,6 @@ echo "Generated completion script at $COMPLETION_FILE"
 # Add source line to RC file if not already present
 if ! grep -q "source $COMPLETION_FILE" "$RC_FILE" 2>/dev/null; then
   echo "source $COMPLETION_FILE" >> "$RC_FILE"
-  source $RC_FILE
   echo "Added completion source to $RC_FILE"
 fi
 
