@@ -71,9 +71,9 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
 )
 @async_cmd
 async def run_tests(
-    title: str, tests_list: str, config: str - None, pics_config_folder: str = None, project_id: int = None
+    title: str, tests_list: str, config: str = None, pics_config_folder: str = None, project_id: int = None
 ) -> None:
-    """Simplified CLI execution of a test run from selected tests"""
+    """CLI execution of a test run from selected tests"""
 
     # Validate inputs and convert each test separated by comma to a list
     validated_test_ids = validate_test_ids(tests_list)
