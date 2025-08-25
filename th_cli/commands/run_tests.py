@@ -71,7 +71,7 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
 )
 @async_cmd
 async def run_tests(
-    title: str, config: str, tests_list: str, pics_config_folder: str = None, project_id: int = None
+    title: str, tests_list: str, config: str - None, pics_config_folder: str = None, project_id: int = None
 ) -> None:
     """Simplified CLI execution of a test run from selected tests"""
 
@@ -86,6 +86,7 @@ async def run_tests(
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_config_folder = str(pics_path)
 
+    client = None
     try:
         client = get_client()
         async_apis = AsyncApis(client)
@@ -145,7 +146,7 @@ async def __create_new_test_run_cli(
     title: str,
     config: Optional[dict] = None,
     pics: Optional[dict] = None,
-    project_id: Optional[dict] = None,
+    project_id: Optional[int] = None,
 ) -> m.TestRunExecutionWithChildren:
     click.echo(f"Creating new test run with title: {title}")
 
