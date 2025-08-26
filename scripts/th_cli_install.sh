@@ -74,7 +74,7 @@ echo "Setting up shell completion..."
 
 # Detect shell and set up completion feature
 # Note: The expected shell to be installed for Test Harness is currently bash.
-# However, an example on how to handle multiples shells is provided below.
+# However, an example on how to handle multiple shells is provided below.
 if [ -n "$BASH_VERSION" ]; then
   SHELL_TYPE="bash"
   COMPLETION_FILE="$HOME/$COMPLETION_FILE.bash"
