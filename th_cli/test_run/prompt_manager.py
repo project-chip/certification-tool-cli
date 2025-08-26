@@ -139,24 +139,24 @@ async def __prompt_user_for_file_upload(prompt: PromptRequest) -> str:
     """Prompt the user to provide a file path for upload."""
     # Print Prompt
     click.echo(prompt.prompt)
+    
+    while True:
+        click.echo("Enter the path to the file to upload (or press Enter to skip): ")
 
-    click.echo("Enter the path to the file to upload (or press Enter to skip): ")
+        # Wait for input async
+        file_path = await aioconsole.ainput()
 
-    # Wait for input async
-    file_path = await aioconsole.ainput()
+        # If user just pressed Enter, return empty string
+        if not file_path.strip():
+            return ""
 
-    # If user just pressed Enter, return empty string
-    if not file_path.strip():
-        return ""
+        # Validate file path and type
+        if __valid_file_upload(file_path=file_path, prompt=prompt):
+            return file_path
 
-    # Validate file path and type
-    if __valid_file_upload(file_path=file_path, prompt=prompt):
-        return file_path
-
-    # Recursively Retry
-    await asyncio.sleep(0.1)
-    click.echo(f"Invalid file path or type: {file_path}", err=True)
-    return await __prompt_user_for_file_upload(prompt)
+        # Show error and retry (avoiding recursion)
+        await asyncio.sleep(0.1)
+        click.echo(f"Invalid file path or type: {file_path}", err=True)
 
 async def __upload_file_and_send_response(
     socket: WebSocketClientProtocol, file_path: str, prompt: PromptRequest
@@ -197,8 +197,14 @@ async def __upload_file_and_send_response(
                     click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
                     await __send_prompt_response(socket=socket, input="", prompt=prompt)
 
+    except httpx.RequestError as e:
+        click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
+    except httpx.HTTPStatusError as e:
+        click.echo(f"❌ HTTP error during file upload: {e.response.status_code} - {e.response.text}", err=True)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
     except Exception as e:
-        click.echo(f"❌ Error uploading file: {str(e)}", err=True)
+        click.echo(f"❌ Unexpected error uploading file: {str(e)}", err=True)
         await __send_prompt_response(socket=socket, input="", prompt=prompt)
 
 def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
