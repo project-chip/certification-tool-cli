@@ -15,16 +15,19 @@
 #
 import asyncio
 import json
+import os
 import re
 from typing import Any, Union
 
 import aioconsole
 import click
+import httpx
 
 # from loguru import logger
 from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
+from config import config
 
 from .socket_schemas import (
     OptionsSelectPromptRequest,
@@ -33,6 +36,9 @@ from .socket_schemas import (
     TextInputPromptRequest,
     UserResponseStatusEnum,
 )
+
+# Constants
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
 
 async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest) -> None:
@@ -157,10 +163,6 @@ async def __upload_file_and_send_response(
 ) -> None:
     """Send file path as response - let backend handle actual upload."""
     try:
-        import os
-        import httpx
-        from config import config
-
         if not os.path.isfile(file_path):
             click.echo(f"Error: File '{file_path}' does not exist or is not accessible", err=True)
             await __send_prompt_response(socket=socket, input="", prompt=prompt)
@@ -168,8 +170,7 @@ async def __upload_file_and_send_response(
 
         file_size = os.path.getsize(file_path)
         
-        # Check file size limit (e.g., 100MB)
-        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
+        # Check file size limit
         if file_size > MAX_FILE_SIZE:
             click.echo(f"❌ File too large: {file_size} bytes (max: {MAX_FILE_SIZE} bytes)", err=True)
             await __send_prompt_response(socket=socket, input="", prompt=prompt)
@@ -212,14 +213,13 @@ def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
 
 def __valid_file_upload(file_path: str, prompt: PromptRequest) -> bool:
     """Validate that the file path is valid and the file is accessible."""
-    import os
 
     if not os.path.isfile(file_path) or not os.access(file_path, os.R_OK):
         return False
 
     file_ext = os.path.splitext(file_path)[1].lower()
     if file_ext not in ['.txt', '.log']:
-        click.echo(f"Warning: File extension '{file_ext}' is not a common log format. Consider using .txt or .log files.", err=True)
+        click.echo(f"Error: Invalid file type '{file_ext}'. Only .txt and .log files are supported.", err=True)
         return False
 
     return True
