@@ -17,12 +17,12 @@
 import click
 
 from th_cli.commands import (
+    abort_testing,
     available_tests,
     create_project,
     delete_project,
     list_projects,
     run_tests,
-    run_tests_cli,
     test_run_execution_history,
     test_runner_status,
     update_project,
@@ -38,6 +38,7 @@ def root() -> None:
     pass
 
 
+root.add_command(abort_testing)
 root.add_command(available_tests)
 root.add_command(create_project)
 root.add_command(list_projects)
@@ -46,7 +47,6 @@ root.add_command(test_run_execution_history)
 root.add_command(test_runner_status)
 root.add_command(delete_project)
 root.add_command(update_project)
-root.add_command(run_tests_cli)
 root.add_command(versions)
 
 
