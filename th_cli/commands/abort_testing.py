@@ -33,6 +33,8 @@ def abort_testing() -> None:
 
         response = test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post()
         click.echo(response.get("detail", "Testing aborted"))
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse as e:
         handle_api_error(e, "abort testing")
     finally:
