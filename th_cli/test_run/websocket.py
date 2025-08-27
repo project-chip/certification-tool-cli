@@ -30,7 +30,7 @@ from th_cli.api_lib_autogen.models import (
 )
 from th_cli.config import config
 
-from .prompt_manager import handle_prompt
+from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
     MessageTypeEnum,
     PromptRequest,
@@ -78,7 +78,11 @@ class TestRunSocket:
         if isinstance(message.payload, TestUpdate):
             await self.__handle_test_update(socket=socket, update=message.payload)
         elif isinstance(message.payload, PromptRequest):
-            await handle_prompt(socket=socket, request=message.payload)
+            # Check if it's a file upload request by message type
+            if message.type == MessageTypeEnum.FILE_UPLOAD_REQUEST:
+                await handle_file_upload_request(socket=socket, request=message.payload)
+            else:
+                await handle_prompt(socket=socket, request=message.payload)
         elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
             self.__handle_log_record(message.payload)
         elif isinstance(message.payload, TimeOutNotification):
