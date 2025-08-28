@@ -21,11 +21,12 @@ import yaml
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
+from th_cli.colorize import colorize_log_dump, colorize_log_header
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __json_string, __print_json
 
 
-@click.command()
+@click.command(help=colorize_log_header("List all available test cases"))
 @click.option(
     "--json",
     is_flag=True,
@@ -61,4 +62,5 @@ def available_tests(json: bool = False) -> None:
 
 
 def __print_yaml(object: Any) -> None:
-    click.echo(yaml.dump(yaml.load(__json_string(object), Loader=yaml.FullLoader)))
+    yaml_dump = yaml.dump(yaml.load(__json_string(object), Loader=yaml.FullLoader))
+    click.echo(colorize_log_dump(yaml_dump))

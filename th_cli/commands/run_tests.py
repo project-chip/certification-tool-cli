@@ -26,6 +26,7 @@ from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.async_cmd import async_cmd
 from th_cli.client import get_client
+from th_cli.colorize import colorize_log_header, colorize_log_key_value, italic, set_colors_enabled
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
@@ -38,7 +39,7 @@ from th_cli.utils import (
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 
-@click.command(no_args_is_help=True)
+@click.command(no_args_is_help=True, help=colorize_log_header("CLI execution of a test run"))
 @click.option(
     "--tests-list",
     "-t",
@@ -71,11 +72,25 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
     type=int,
     help="Project ID that this test run belongs to. If not provided, uses the default 'CLI Execution Project' in TH.",
 )
+@click.option(
+    "--no-color",
+    is_flag=True,
+    help="Disable colored output for test execution status.",
+)
 @async_cmd
 async def run_tests(
-    title: str, tests_list: str, config: str = None, pics_config_folder: str = None, project_id: int = None
+    title: str,
+    tests_list: str,
+    config: str = None,
+    pics_config_folder: str = None,
+    project_id: int = None,
+    no_color: bool = False,
 ) -> None:
     """CLI execution of a test run from selected tests"""
+
+    # Set color preference if specified
+    if no_color:
+        set_colors_enabled(False)
 
     # Validate inputs and convert each test separated by comma to a list
     validated_test_ids = validate_test_ids(tests_list)
@@ -107,18 +122,20 @@ async def run_tests(
             config = "default_config.properties"
 
         config_data = read_properties_file(config)
-        click.echo(f"Read config from file: {config_data}")
+        click.echo(colorize_log_key_value("Read config from file", config_data))
         cli_config_dict = merge_properties_to_config(config_data, default_config_dict)
-        click.echo(f"CLI Config for test run execution: {cli_config_dict}")
+        click.echo(colorize_log_key_value("CLI Config for test run execution", cli_config_dict))
 
         # Read PICS configuration if provided
         pics = read_pics_config(pics_config_folder)
-        click.echo(f"PICS Used: {json.dumps(pics, indent=2)}")
+        click.echo(colorize_log_key_value("PICS Used", json.dumps(pics, indent=2)))
 
+        # Retrieve available test collections to build test selection
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
         selected_tests_dict = build_test_selection(test_collections, validated_test_ids)
 
-        click.echo(f"Selected tests: {json.dumps(selected_tests_dict, indent=2)}")
+        click.echo(colorize_log_key_value("Selected tests", json.dumps(selected_tests_dict, indent=2)))
+
         new_test_run = await __create_new_test_run_cli(
             async_apis,
             selected_tests=selected_tests_dict,
@@ -132,7 +149,7 @@ async def run_tests(
         new_test_run = await __start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
-        click.echo(f"Log output in: '{log_path}'")
+        click.echo(colorize_log_key_value("Log output in", italic(log_path)))
     except CLIError:
         raise  # Re-raise CLI errors
     except Exception as e:
@@ -150,7 +167,7 @@ async def __create_new_test_run_cli(
     pics: Optional[dict] = None,
     project_id: Optional[int] = None,
 ) -> m.TestRunExecutionWithChildren:
-    click.echo(f"Creating new test run with title: {title}")
+    click.echo(colorize_log_key_value("Creating new test run with title", title))
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
     json_body = m.BodyCreateTestRunExecutionCliApiV1TestRunExecutionsCliPost(
@@ -169,7 +186,13 @@ async def __create_new_test_run_cli(
 async def __start_test_run(
     async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren
 ) -> m.TestRunExecutionWithChildren:
-    click.echo(f"Starting Test run: Title: {test_run.title}, id: {test_run.id}")
+    header = colorize_log_header("Starting Test run")
+    title = colorize_log_key_value("Title", test_run.title)
+    id = colorize_log_key_value("ID", str(test_run.id))
+
+    click.echo("")
+    click.echo(f"{header}:\n- {title}\n- {id}\n")
+
     try:
         test_run_executions_api = async_apis.test_run_executions_api
         return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post(
