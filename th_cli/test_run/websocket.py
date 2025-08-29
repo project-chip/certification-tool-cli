@@ -28,7 +28,7 @@ from th_cli.api_lib_autogen.models import (
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import colorize_error, colorize_hierarchy_prefix, colorize_state
+from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state
 from th_cli.config import config
 
 from .prompt_manager import handle_prompt
@@ -105,21 +105,21 @@ class TestRunSocket:
                 await socket.close()
 
     def __log_test_run_update(self, update: TestRunUpdate) -> None:
-        test_run_text = colorize_hierarchy_prefix("Test Run", "test_run")
+        test_run_text = colorize_hierarchy_prefix("Test Run", HierarchyEnum.TEST_RUN.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"{test_run_text} {colored_state}")
 
     def __log_test_suite_update(self, update: TestSuiteUpdate) -> None:
         suite = self.__suite(update.test_suite_execution_index)
         title = suite.test_suite_metadata.title
-        colored_title = colorize_hierarchy_prefix(title, "test_suite")
+        colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_SUITE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"  - {colored_title} {colored_state}")
 
     def __log_test_case_update(self, update: TestCaseUpdate) -> None:
         case = self.__case(index=update.test_case_execution_index, suite_index=update.test_suite_execution_index)
         title = case.test_case_metadata.title
-        colored_title = colorize_hierarchy_prefix(title, "test_case")
+        colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_CASE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
 
@@ -131,7 +131,7 @@ class TestRunSocket:
         )
         if step is not None:
             title = step.title
-            colored_title = colorize_hierarchy_prefix(title, "test_step")
+            colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_STEP.value)
             colored_state = colorize_state(update.state.value)
             click.echo(f"            - {colored_title} {colored_state}")
 

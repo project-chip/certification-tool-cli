@@ -15,10 +15,28 @@
 #
 
 import os
+from enum import Enum
 
 import click
 
 from th_cli.api_lib_autogen.models import TestRunnerState, TestStateEnum
+
+
+class TextTypeEnum(str, Enum):
+    HEADER = "header"
+    KEY = "key"
+    VALUE = "value"
+    HELP = "help"
+    DUMP = "dump"
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+class HierarchyEnum(str, Enum):
+    TEST_RUN = "test_run"
+    TEST_SUITE = "test_suite"
+    TEST_CASE = "test_case"
+    TEST_STEP = "test_step"
 
 
 class ColorConfig:
@@ -45,21 +63,21 @@ class ColorConfig:
 
     # Hierarchy colors for different levels of test organization
     TEST_HIERARCHY_COLORS: dict[str, str] = {
-        "test_run": "blue",
-        "test_suite": "magenta",
-        "test_case": "cyan",
-        "test_step": "bright_black",
+        HierarchyEnum.TEST_RUN.value: "blue",
+        HierarchyEnum.TEST_SUITE.value: "magenta",
+        HierarchyEnum.TEST_CASE.value: "cyan",
+        HierarchyEnum.TEST_STEP.value: "bright_black",
     }
 
     # Default colors for logs
     TEXT_COLORS: dict[str, str] = {
-        "header": "bright_blue",
-        "key": "bright_blue",
-        "value": "bright_black",
-        "help": "bright_black",
-        "dump": "bright_black",
-        "success": "green",
-        "error": "red",
+        TextTypeEnum.HEADER.value: "bright_blue",
+        TextTypeEnum.KEY.value: "bright_blue",
+        TextTypeEnum.VALUE.value: "bright_black",
+        TextTypeEnum.HELP.value: "bright_black",
+        TextTypeEnum.DUMP.value: "bright_black",
+        TextTypeEnum.SUCCESS.value: "green",
+        TextTypeEnum.ERROR.value: "red",
     }
 
     def __init__(self):
@@ -161,7 +179,7 @@ def colorize_help(help_message: str) -> str:
     if not color_config.colors_enabled:
         return help_message
 
-    color = color_config.get_text_color("help")
+    color = color_config.get_text_color(TextTypeEnum.HELP.value)
     return click.style(help_message, fg=color)
 
 
@@ -177,7 +195,7 @@ def colorize_success(success_message: str) -> str:
     if not color_config.colors_enabled:
         return success_message
 
-    color = color_config.get_text_color("success")
+    color = color_config.get_text_color(TextTypeEnum.SUCCESS.value)
     return click.style(success_message, fg=color, bold=True)
 
 
@@ -193,7 +211,7 @@ def colorize_error(error_message: str) -> str:
     if not color_config.colors_enabled:
         return error_message
 
-    color = color_config.get_text_color("error")
+    color = color_config.get_text_color(TextTypeEnum.ERROR.value)
     return click.style(error_message, fg=color, bold=True, italic=True)
 
 
@@ -211,8 +229,8 @@ def colorize_key_value(key: str, value: any) -> str:
     if not color_config.colors_enabled:
         return f"{key}: {value}"
 
-    colored_key = click.style(key, fg=color_config.get_text_color("key"), bold=True)
-    colored_value = click.style(value_as_str, fg=color_config.get_text_color("value"))
+    colored_key = click.style(key, fg=color_config.get_text_color(TextTypeEnum.KEY.value), bold=True)
+    colored_value = click.style(value_as_str, fg=color_config.get_text_color(TextTypeEnum.VALUE.value))
     return f"{colored_key}: {colored_value}"
 
 
@@ -228,7 +246,7 @@ def colorize_header(header: str) -> str:
     if not color_config.colors_enabled:
         return header
 
-    color = color_config.get_text_color("header")
+    color = color_config.get_text_color(TextTypeEnum.HEADER.value)
     return click.style(header, fg=color, bold=True, underline=True)
 
 
@@ -244,7 +262,7 @@ def colorize_dump(dump: str) -> str:
     if not color_config.colors_enabled:
         return dump
 
-    color = color_config.get_text_color("dump")
+    color = color_config.get_text_color(TextTypeEnum.DUMP.value)
     return click.style(dump, fg=color, italic=True)
 
 
