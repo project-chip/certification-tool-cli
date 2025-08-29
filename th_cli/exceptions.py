@@ -20,7 +20,7 @@ from typing import Optional
 import click
 
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.colorize import colorize_log_error
+from th_cli.colorize import colorize_error
 
 
 class CLIError(click.ClickException):
@@ -32,7 +32,7 @@ class CLIError(click.ClickException):
 
     def show(self, file=None):
         """Show the error message."""
-        error_message = colorize_log_error(f"Error: {self.format_message()}")
+        error_message = colorize_error(f"Error: {self.format_message()}")
         click.echo(error_message, err=True, file=file)
 
 

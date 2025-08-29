@@ -52,10 +52,11 @@ class ColorConfig:
     }
 
     # Default colors for logs
-    LOG_COLORS: dict[str, str] = {
+    TEXT_COLORS: dict[str, str] = {
         "header": "bright_blue",
         "key": "bright_blue",
         "value": "bright_black",
+        "help": "bright_black",
         "dump": "bright_black",
         "success": "green",
         "error": "red",
@@ -78,9 +79,9 @@ class ColorConfig:
         """Get color for a test runner state."""
         return self.RUNNER_STATE_COLORS.get(state.lower(), "white")
 
-    def get_log_color(self, log_type: str) -> str:
+    def get_text_color(self, text_type: str) -> str:
         """Get color for a log type."""
-        return self.LOG_COLORS.get(log_type.lower(), "white")
+        return self.TEXT_COLORS.get(text_type.lower(), "white")
 
     def get_hierarchy_color(self, level: str) -> str:
         """Get color for a hierarchy level."""
@@ -135,7 +136,7 @@ def colorize_hierarchy_prefix(text: str, level: str) -> str:
     Colorize hierarchy prefixes (e.g., test suite titles, test case titles).
 
     Args:
-        hierarchy_text: The text to colorize
+        text: The text to colorize
         level: The hierarchy level ("test_run", "test_suite", "test_case", "test_step")
 
     Returns:
@@ -147,8 +148,23 @@ def colorize_hierarchy_prefix(text: str, level: str) -> str:
     color = color_config.get_hierarchy_color(level)
     return click.style(text, fg=color)
 
+def colorize_help(help_message: str) -> str:
+    """
+    Colorize success messages in logs.
 
-def colorize_log_success(success_message: str) -> str:
+    Args:
+        help_message: The help message to colorize
+    Returns:
+        Colored string if colors are enabled, plain string otherwise
+    """
+    if not color_config.colors_enabled:
+        return help_message
+
+    color = color_config.get_text_color("help")
+    return click.style(help_message, fg=color)
+
+
+def colorize_success(success_message: str) -> str:
     """
     Colorize success messages in logs.
 
@@ -160,10 +176,11 @@ def colorize_log_success(success_message: str) -> str:
     if not color_config.colors_enabled:
         return success_message
 
-    return click.style(success_message, fg=color_config.get_log_color("success"), bold=True)
+    color = color_config.get_text_color("success")
+    return click.style(success_message, fg=color, bold=True)
 
 
-def colorize_log_error(error_message: str) -> str:
+def colorize_error(error_message: str) -> str:
     """
     Colorize error messages in logs.
 
@@ -175,10 +192,11 @@ def colorize_log_error(error_message: str) -> str:
     if not color_config.colors_enabled:
         return error_message
 
-    return click.style(error_message, fg=color_config.get_log_color("error"), bold=True, italic=True)
+    color = color_config.get_text_color("error")
+    return click.style(error_message, fg=color, bold=True, italic=True)
 
 
-def colorize_log_key_value(key: str, value: str) -> str:
+def colorize_key_value(key: str, value: any) -> str:
     """
     Colorize key-value pairs in logs.
 
@@ -188,15 +206,16 @@ def colorize_log_key_value(key: str, value: str) -> str:
     Returns:
         Colored string if colors are enabled, plain string otherwise
     """
+    value_as_str = str(value)
     if not color_config.colors_enabled:
         return f"{key}: {value}"
 
-    colored_key = click.style(key, fg=color_config.get_log_color("key"), bold=True)
-    colored_value = click.style(value, fg=color_config.get_log_color("value"))
+    colored_key = click.style(key, fg=color_config.get_text_color("key"), bold=True)
+    colored_value = click.style(value_as_str, fg=color_config.get_text_color("value"))
     return f"{colored_key}: {colored_value}"
 
 
-def colorize_log_header(header: str) -> str:
+def colorize_header(header: str) -> str:
     """
     Colorize log headers.
 
@@ -208,10 +227,11 @@ def colorize_log_header(header: str) -> str:
     if not color_config.colors_enabled:
         return header
 
-    return click.style(header, fg=color_config.get_log_color("header"), bold=True, underline=True)
+    color = color_config.get_text_color("header")
+    return click.style(header, fg=color, bold=True, underline=True)
 
 
-def colorize_log_dump(dump: str) -> str:
+def colorize_dump(dump: str) -> str:
     """
     Colorize log dumps (e.g., JSON or YAML dumps).
 
@@ -223,7 +243,8 @@ def colorize_log_dump(dump: str) -> str:
     if not color_config.colors_enabled:
         return dump
 
-    return click.style(dump, fg=color_config.get_log_color("dump"), italic=True)
+    color = color_config.get_text_color("dump")
+    return click.style(dump, fg=color, italic=True)
 
 
 def italic(text: str) -> str:
@@ -235,7 +256,9 @@ def italic(text: str) -> str:
     Returns:
         Italicized string
     """
-
+    if not color_config.colors_enabled:
+        return text
+    
     return click.style(text, italic=True)
 
 

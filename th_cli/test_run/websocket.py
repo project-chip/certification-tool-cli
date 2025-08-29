@@ -28,7 +28,7 @@ from th_cli.api_lib_autogen.models import (
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import colorize_hierarchy_prefix, colorize_log_error, colorize_state
+from th_cli.colorize import colorize_hierarchy_prefix, colorize_error, colorize_state
 from th_cli.config import config
 
 from .prompt_manager import handle_prompt
@@ -64,7 +64,7 @@ class TestRunSocket:
                 # skip messages that are bytes, as we're expecting a string.\
                 if not isinstance(message, str):
                     click.echo(
-                        colorize_log_error("Failed to parse incoming websocket message. got bytes, expected text"),
+                        colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
                         err=True,
                     )
                     continue
@@ -72,8 +72,8 @@ class TestRunSocket:
                     message_obj = SocketMessage.parse_raw(message)
                     await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
                 except ValidationError as e:
-                    click.echo(colorize_log_error(f"Received invalid socket message: {message}"), err=True)
-                    click.echo(colorize_log_error(e.json()), err=True)
+                    click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
+                    click.echo(colorize_error(e.json()), err=True)
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -87,7 +87,7 @@ class TestRunSocket:
             pass
         else:
             click.echo(
-                colorize_log_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
+                colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
                 err=True,
             )
 
