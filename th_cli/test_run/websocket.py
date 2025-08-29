@@ -28,7 +28,7 @@ from th_cli.api_lib_autogen.models import (
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import colorize_hierarchy_prefix, colorize_error, colorize_state
+from th_cli.colorize import colorize_error, colorize_hierarchy_prefix, colorize_state
 from th_cli.config import config
 
 from .prompt_manager import handle_prompt

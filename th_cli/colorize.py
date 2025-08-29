@@ -148,6 +148,7 @@ def colorize_hierarchy_prefix(text: str, level: str) -> str:
     color = color_config.get_hierarchy_color(level)
     return click.style(text, fg=color)
 
+
 def colorize_help(help_message: str) -> str:
     """
     Colorize success messages in logs.
@@ -258,7 +259,7 @@ def italic(text: str) -> str:
     """
     if not color_config.colors_enabled:
         return text
-    
+
     return click.style(text, italic=True)
 
 

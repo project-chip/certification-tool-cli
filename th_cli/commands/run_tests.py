@@ -26,13 +26,7 @@ from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.async_cmd import async_cmd
 from th_cli.client import get_client
-from th_cli.colorize import (
-    colorize_header,
-    colorize_help,
-    colorize_key_value,
-    italic,
-    set_colors_enabled
-)
+from th_cli.colorize import colorize_header, colorize_help, colorize_key_value, italic, set_colors_enabled
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
@@ -63,9 +57,11 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
     "--config",
     "-c",
     type=click.Path(file_okay=True, dir_okay=False),
-    help=colorize_help("Property config file location. This "
-    "information is optional — if not provided, the default_config.properties "
-    "file will be used."),
+    help=colorize_help(
+        "Property config file location. This "
+        "information is optional — if not provided, the default_config.properties "
+        "file will be used."
+    ),
 )
 @click.option(
     "--pics-config-folder",
@@ -76,8 +72,9 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
 @click.option(
     "--project-id",
     type=int,
-    help=colorize_help("Project ID that this test run belongs to. "
-    "If not provided, uses the default 'CLI Execution Project' in TH."),
+    help=colorize_help(
+        "Project ID that this test run belongs to. " "If not provided, uses the default 'CLI Execution Project' in TH."
+    ),
 )
 @click.option(
     "--no-color",
