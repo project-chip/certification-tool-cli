@@ -15,7 +15,6 @@
 #
 
 import os
-from typing import Dict
 
 import click
 
@@ -26,7 +25,7 @@ class ColorConfig:
     """Configuration for test output colors."""
 
     # Default color mapping for different test states
-    DEFAULT_STATE_COLORS: Dict[str, str] = {
+    DEFAULT_STATE_COLORS: dict[str, str] = {
         TestStateEnum.PASSED.value: "green",
         TestStateEnum.FAILED.value: "red",
         TestStateEnum.ERROR.value: "red",
@@ -37,7 +36,7 @@ class ColorConfig:
         TestStateEnum.NOT_APPLICABLE.value: "bright_black",
     }
 
-    RUNNER_STATE_COLORS: Dict[str, str] = {
+    RUNNER_STATE_COLORS: dict[str, str] = {
         TestRunnerState.IDLE.value: "bright_black",
         TestRunnerState.READY.value: "green",
         TestRunnerState.LOADING.value: "yellow",
@@ -45,7 +44,7 @@ class ColorConfig:
     }
 
     # Hierarchy colors for different levels of test organization
-    TEST_HIERARCHY_COLORS: Dict[str, str] = {
+    TEST_HIERARCHY_COLORS: dict[str, str] = {
         "test_run": "blue",
         "test_suite": "magenta",
         "test_case": "cyan",
@@ -53,12 +52,14 @@ class ColorConfig:
     }
 
     # Default colors for logs
-    LOG_HEADER_COLOR = "bright_blue"
-    LOG_KEY_COLOR = "bright_blue"
-    LOG_VALUE_COLOR = "bright_black"
-    LOG_DUMP_COLOR = "bright_black"
-    LOG_SUCCESS_COLOR = "green"
-    LOG_ERROR_COLOR = "red"
+    LOG_COLORS: dict[str, str] = {
+        "header": "bright_blue",
+        "key": "bright_blue",
+        "value": "bright_black",
+        "dump": "bright_black",
+        "success": "green",
+        "error": "red",
+    }
 
     def __init__(self):
         # Check if colors should be disabled via environment variable
@@ -76,6 +77,10 @@ class ColorConfig:
     def get_runner_state_color(self, state: str) -> str:
         """Get color for a test runner state."""
         return self.RUNNER_STATE_COLORS.get(state.lower(), "white")
+
+    def get_log_color(self, log_type: str) -> str:
+        """Get color for a log type."""
+        return self.LOG_COLORS.get(log_type.lower(), "white")
 
     def get_hierarchy_color(self, level: str) -> str:
         """Get color for a hierarchy level."""
@@ -155,7 +160,7 @@ def colorize_log_success(success_message: str) -> str:
     if not color_config.colors_enabled:
         return success_message
 
-    return click.style(success_message, fg=color_config.LOG_SUCCESS_COLOR, bold=True)
+    return click.style(success_message, fg=color_config.get_log_color("success"), bold=True)
 
 
 def colorize_log_error(error_message: str) -> str:
@@ -170,7 +175,7 @@ def colorize_log_error(error_message: str) -> str:
     if not color_config.colors_enabled:
         return error_message
 
-    return click.style(error_message, fg=color_config.LOG_ERROR_COLOR, bold=True, italic=True)
+    return click.style(error_message, fg=color_config.get_log_color("error"), bold=True, italic=True)
 
 
 def colorize_log_key_value(key: str, value: str) -> str:
@@ -186,8 +191,8 @@ def colorize_log_key_value(key: str, value: str) -> str:
     if not color_config.colors_enabled:
         return f"{key}: {value}"
 
-    colored_key = click.style(key, fg=color_config.LOG_KEY_COLOR, bold=True)
-    colored_value = click.style(value, fg=color_config.LOG_VALUE_COLOR)
+    colored_key = click.style(key, fg=color_config.get_log_color("key"), bold=True)
+    colored_value = click.style(value, fg=color_config.get_log_color("value"))
     return f"{colored_key}: {colored_value}"
 
 
@@ -203,7 +208,7 @@ def colorize_log_header(header: str) -> str:
     if not color_config.colors_enabled:
         return header
 
-    return click.style(header, fg=color_config.LOG_HEADER_COLOR, bold=True, underline=True)
+    return click.style(header, fg=color_config.get_log_color("header"), bold=True, underline=True)
 
 
 def colorize_log_dump(dump: str) -> str:
@@ -218,7 +223,7 @@ def colorize_log_dump(dump: str) -> str:
     if not color_config.colors_enabled:
         return dump
 
-    return click.style(dump, fg=color_config.LOG_DUMP_COLOR, italic=True)
+    return click.style(dump, fg=color_config.get_log_color("dump"), italic=True)
 
 
 def italic(text: str) -> str:
