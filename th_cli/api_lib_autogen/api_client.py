@@ -103,7 +103,7 @@ class ApiClient:
         ...
 
     @overload  # noqa F811
-    def request_sync(self, *, type_: None, **kwargs: Any) -> None:
+    def request_sync(self, *, type_: None, **kwargs: Any) -> str:
         ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:  # noqa F811
