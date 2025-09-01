@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from contextlib import closing
 from typing import Optional
 
 import click
