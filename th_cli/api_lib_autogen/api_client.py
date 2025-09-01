@@ -86,7 +86,7 @@ class ApiClient:
     @overload  # noqa F811
     async def request(
         self, *, type_: None, method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
-    ) -> None:
+    ) -> str:
         ...
 
     async def request(  # noqa F811
