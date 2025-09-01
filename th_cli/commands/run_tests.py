@@ -26,7 +26,14 @@ from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.async_cmd import async_cmd
 from th_cli.client import get_client
-from th_cli.colorize import colorize_header, colorize_help, colorize_key_value, italic, set_colors_enabled
+from th_cli.colorize import (
+    colorize_cmd_help,
+    colorize_header,
+    colorize_help,
+    colorize_key_value,
+    italic,
+    set_colors_enabled
+)
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
@@ -39,7 +46,11 @@ from th_cli.utils import (
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 
-@click.command(no_args_is_help=True, short_help=colorize_help("CLI execution of a test run"))
+@click.command(
+    no_args_is_help=True,
+    short_help=colorize_help("CLI execution of a test run"),
+    help=colorize_cmd_help("run_tests", "CLI execution of a test run from selected tests"),
+)
 @click.option(
     "--tests-list",
     "-t",

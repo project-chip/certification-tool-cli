@@ -20,7 +20,7 @@ import click
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_header, colorize_help, colorize_state, italic
+from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, colorize_state, italic
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
@@ -28,7 +28,10 @@ table_format_header = "{:<5} {:47} {:12} {:8}"
 table_format = "{:<5} {:55} {:25} {}"
 
 
-@click.command(short_help=colorize_help("List the test run execution history"))
+@click.command(
+    short_help=colorize_help("List the test run execution history"),
+    help=colorize_cmd_help("test_run_execution_history", "Read the test run execution history from all projects"),
+)
 @click.option(
     "--id",
     "-i",

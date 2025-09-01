@@ -23,6 +23,7 @@ from th_cli.api_lib_autogen.models import TestRunnerState, TestStateEnum
 
 
 class TextTypeEnum(str, Enum):
+    CMD = "cmd"
     HEADER = "header"
     KEY = "key"
     VALUE = "value"
@@ -71,6 +72,7 @@ class ColorConfig:
 
     # Default colors for logs
     TEXT_COLORS: dict[str, str] = {
+        TextTypeEnum.CMD.value: "bright_blue",
         TextTypeEnum.HEADER.value: "bright_blue",
         TextTypeEnum.KEY.value: "bright_blue",
         TextTypeEnum.VALUE.value: "bright_black",
@@ -108,6 +110,26 @@ class ColorConfig:
 
 # Global color configuration instance
 color_config = ColorConfig()
+
+
+def colorize_cmd_help(cmd: str, description: str) -> str:
+    """
+    Colorize command descriptions.
+
+    Args:
+        cmd_desc: The command description to colorize
+
+    Returns:
+        Colored string if colors are enabled, plain string otherwise
+    """
+    if not color_config.colors_enabled:
+        return f"{cmd}: {description}"
+
+    color = color_config.get_text_color(TextTypeEnum.CMD.value)
+    cmd = click.style(cmd, fg=color, bold=True, underline=True)
+    color = color_config.get_text_color(TextTypeEnum.VALUE.value)
+    description = click.style(description, fg=color)
+    return f"{cmd}: {description}"
 
 
 def colorize_state(state_name: str) -> str:

@@ -21,12 +21,15 @@ import yaml
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_dump, colorize_help
+from th_cli.colorize import colorize_cmd_help, colorize_dump, colorize_help
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __json_string, __print_json
 
 
-@click.command(short_help=colorize_help("List all available test cases"))
+@click.command(
+    short_help=colorize_help("List all available test cases"),
+    help=colorize_cmd_help("available_tests", "Get a list of the available test cases")
+)
 @click.option(
     "--json",
     is_flag=True,
@@ -34,7 +37,7 @@ from th_cli.utils import __json_string, __print_json
     help=colorize_help("Print JSON response for more details"),
 )
 def available_tests(json: bool = False) -> None:
-    """Get a list of available test cases"""
+    """Get a list of the available test cases"""
     client = None
     try:
         client = get_client()

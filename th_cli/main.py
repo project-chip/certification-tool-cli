@@ -16,7 +16,7 @@
 #
 import click
 
-from th_cli.colorize import colorize_header
+from th_cli.colorize import colorize_cmd_help
 from th_cli.commands import (
     abort_testing,
     available_tests,
@@ -32,7 +32,7 @@ from th_cli.commands import (
 from th_cli.commands.versions import get_cli_version
 
 
-@click.group(help=colorize_header("A CLI tool for Matter Test Harness certification tool"))
+@click.group(help=colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness"))
 @click.version_option(version=f"{get_cli_version()}")
 def root() -> None:
     pass

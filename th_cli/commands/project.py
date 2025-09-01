@@ -23,7 +23,7 @@ from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
 from th_cli.client import get_client
-from th_cli.colorize import colorize_error, colorize_header, colorize_help, colorize_success, italic
+from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_header, colorize_help, colorize_success, italic
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.utils import __print_json
 
@@ -35,7 +35,11 @@ def _abort_if_false(ctx, param, value):
         ctx.abort()
 
 
-@click.command(no_args_is_help=True, short_help=colorize_help("Create a new project"))
+@click.command(
+    no_args_is_help=True,
+    short_help=colorize_help("Create a new project"),
+    help=colorize_cmd_help("create_project", "Create a new project"),
+)
 @click.option(
     "--name",
     "-n",
@@ -96,6 +100,7 @@ def create_project(name: str, config: Optional[str]) -> None:
 @click.command(
     no_args_is_help=True,
     short_help=colorize_help("Delete a project"),
+    help=colorize_cmd_help("delete_project", "Delete an existing project"),
     epilog=italic('For a list of project IDs, use "th-cli list-projects"'),
 )
 @click.option(
@@ -131,7 +136,10 @@ def delete_project(id: int) -> None:
             client.close()
 
 
-@click.command(short_help=colorize_help("Get a list of projects"))
+@click.command(
+    short_help=colorize_help("Get a list of projects"),
+    help=colorize_cmd_help("list_projects", "Get a list of the existing projects"),
+)
 @click.option(
     "--id",
     "-i",
@@ -234,7 +242,11 @@ def list_projects(
             client.close()
 
 
-@click.command(no_args_is_help=True, short_help=colorize_help("Update a project"))
+@click.command(
+    no_args_is_help=True,
+    short_help=colorize_help("Update a project"),
+    help=colorize_cmd_help("update_project", "Update an existing project configuration"),
+)
 @click.option(
     "--id",
     "-i",

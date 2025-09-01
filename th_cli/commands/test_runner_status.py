@@ -19,12 +19,15 @@ import click
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.client import get_client
-from th_cli.colorize import colorize_header, colorize_help, colorize_key_value, colorize_runner_state
+from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, colorize_key_value, colorize_runner_state
 from th_cli.exceptions import CLIError
 from th_cli.utils import __print_json
 
 
-@click.command(short_help=colorize_help("Get the current test runner status"))
+@click.command(
+    short_help=colorize_help("Get the current test runner status"),
+   help=colorize_cmd_help("test_runner_status", "Get the current test runner status")
+)
 @click.option(
     "--json",
     is_flag=True,

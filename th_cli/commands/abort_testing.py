@@ -19,13 +19,16 @@ import click
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_help, colorize_success
+from th_cli.colorize import colorize_cmd_help, colorize_help, colorize_success
 from th_cli.exceptions import CLIError, handle_api_error
 
 
-@click.command(short_help=colorize_help("Abort the current test execution"))
+@click.command(
+    short_help=colorize_help("Cancel the current testing"),
+    help=colorize_cmd_help("abort_testing", "Abort the current test run execution"),
+)
 def abort_testing() -> None:
-    """Cancel the current testing"""
+    """Abort the current test run execution"""
     client = None
     try:
         client = get_client()
