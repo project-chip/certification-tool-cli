@@ -116,7 +116,7 @@ class ApiClient:
         response = await self.middleware(request, self.send_inner)
         if response.status_code in [200, 201]:
             try:
-                if type_ is type(None):
+                if type_ is None:
                     return response.text
                 return parse_obj_as(type_, response.json())
             except ValidationError as e:
