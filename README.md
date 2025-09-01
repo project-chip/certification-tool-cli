@@ -104,8 +104,8 @@ Run `th-cli delete-project --id {id}` to delete a project.
 Run `th-cli update-project --id {id} --config {config file}` to update a project. Both parameters are required. Config must be a full test environment config file.
 
 ## Command Colors
-By default, the CLI application presents color texts for all the available commands, specially for the log of test run executions from the `th-cli run-tests` command.
-If the user needs to disable the colors from the tool's output, you may use one of the options presented below:
+By default, the CLI application presents colored texts for all the available commands, specially for the log of test run executions from the `th-cli run-tests` command.
+If the users need to disable the colors from the tool's output, they may use one of the options presented below:
 
 1. Use the option flag `--no-color` from the `run-tests` command to remove color for that execution (e.g `th-cli run-tests --no-color -t TC-ACE-1.1`)
 2. Prepend the environment variable `TH_CLI_NO_COLOR` set to True to the `run-test` command (e.g `TH_CLI_NO_COLOR=1 th-cli run-tests -t TC-ACE-1.1`)

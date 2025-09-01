@@ -169,7 +169,7 @@ def colorize_hierarchy_prefix(text: str, level: str) -> str:
 
 def colorize_help(help_message: str) -> str:
     """
-    Colorize success messages in logs.
+    Colorize help messages from CLI commands.
 
     Args:
         help_message: The help message to colorize
