@@ -33,16 +33,12 @@ from th_cli.exceptions import CLIError, handle_api_error
 )
 def test_run_execution_log(id: int) -> None:
     """Print test execution log for a given test run execution ID"""
-    client = None
     try:
-        client = get_client()
-        sync_apis = SyncApis(client)
-        __fetch_test_run_execution_log(sync_apis, id)
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __fetch_test_run_execution_log(sync_apis, id)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
-    finally:
-        if client:
-            client.close()
 
 
 def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int) -> None:
