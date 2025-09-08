@@ -43,7 +43,7 @@ def get_extended_help() -> str:
     return help_text
 
 
-@click.group(help=get_extended_help())
+@click.group(help=colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness"))
 @click.version_option(version=get_extended_help())
 def root() -> None:
     pass

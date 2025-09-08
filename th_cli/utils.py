@@ -414,13 +414,17 @@ def get_cli_sha() -> str:
 
 def get_versions() -> dict:
     """Get server version information"""
+    client = None
     try:
-        with closing(get_client()) as client:
-            sync_apis = SyncApis(client)
-            versions_api = sync_apis.versions_api
-            versions_info = versions_api.get_versions_api_v1_versions_get()
-            return versions_info
+        client = get_client()
+        sync_apis = SyncApis(client)
+        versions_api = sync_apis.versions_api
+        versions_info = versions_api.get_versions_api_v1_versions_get()
+        return versions_info
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse:
         raise
+    finally:
+        if client:
+            client.close()

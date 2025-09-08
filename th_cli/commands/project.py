@@ -121,22 +121,27 @@ def project(
                 click.echo("Operation cancelled.")
                 return
 
+    client = None
+    sync_apis = None
     try:
-        with closing(get_client()) as client:
-            sync_apis = SyncApis(client)
-            if operation == "create":
-                _create_project(sync_apis, name, config)
-            elif operation == "list":
-                _list_projects(sync_apis, id, archived, skip, limit, json)
-            elif operation == "update":
-                _update_project(sync_apis, id, config)
-            elif operation == "delete":
-                _delete_project(sync_apis, id)
+        client = get_client()
+        sync_apis = SyncApis(client)
+        if operation == "create":
+            _create_project(sync_apis, name, config)
+        elif operation == "list":
+            _list_projects(sync_apis, id, archived, skip, limit, json)
+        elif operation == "update":
+            _update_project(sync_apis, id, config)
+        elif operation == "delete":
+            _delete_project(sync_apis, id)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except Exception as e:
         # Catch any unexpected errors
         raise CLIError(f"Unexpected error in {operation} operation: {e}")
+    finally:
+        if client:
+            client.close()
 
 
 def _create_project(sync_apis: SyncApis, name: str, config: Optional[str]) -> None:
