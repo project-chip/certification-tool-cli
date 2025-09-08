@@ -98,9 +98,9 @@ def project(
     config: Optional[str],
     skip: Optional[int],
     limit: Optional[int],
-    archived: bool,
-    json: bool,
-    yes: bool,
+    archived: Optional[bool] = False,
+    json: Optional[bool] = False,
+    yes: Optional[bool] = False,
 ) -> None:
     """Manage projects - create, list, update, or delete"""
 
@@ -142,7 +142,10 @@ def project(
 def _create_project(sync_apis: SyncApis, name: str, config: Optional[str]) -> None:
     """Create a new project"""
     # Get default config
-    test_environment_config = sync_apis.projects_api.default_config_api_v1_projects_default_config_get()
+    try:
+        test_environment_config = sync_apis.projects_api.default_config_api_v1_projects_default_config_get()
+    except UnexpectedResponse as e:
+        handle_api_error(e, "get default config")
 
     # Load custom config if provided
     if config:
