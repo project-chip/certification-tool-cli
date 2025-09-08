@@ -92,10 +92,9 @@ def test_run_execution(id: Optional[int], skip: Optional[int], limit: Optional[i
                 __fetch_test_run_execution_log(sync_apis, id)
             elif id is not None:
                 __test_run_execution_by_id(sync_apis, id, json)
-            elif skip is not None or limit is not None:
-                __test_run_execution_batch(sync_apis, json, skip, limit)
             else:
-                __test_run_execution_batch(sync_apis, json)
+                __test_run_execution_batch(sync_apis, json, skip, limit)
+
     except CLIError:
         raise  # Re-raise CLI Errors as-is
 
