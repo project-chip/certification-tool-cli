@@ -16,7 +16,6 @@
 import asyncio
 import datetime
 import json
-from typing import Optional
 
 import click
 
@@ -178,9 +177,9 @@ async def __create_new_test_run_cli(
     async_apis: AsyncApis,
     selected_tests: dict,
     title: str,
-    config: Optional[dict] = None,
-    pics: Optional[dict] = None,
-    project_id: Optional[int] = None,
+    config: dict | None = None,
+    pics: dict | None = None,
+    project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
     click.echo(colorize_key_value("Creating new test run with title", title))
 

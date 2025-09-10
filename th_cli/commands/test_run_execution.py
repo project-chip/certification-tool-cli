@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 from contextlib import closing
-from typing import Optional
 
 import click
 
@@ -71,7 +70,7 @@ table_format = "{:<5} {:55} {:25} {}"
     default=False,
     help=colorize_help("Print JSON response for more details (not applicable with --log)"),
 )
-def test_run_execution(id: Optional[int], skip: Optional[int], limit: Optional[int], log: bool, json: bool) -> None:
+def test_run_execution(id: int | None, skip: int | None, limit: int | None, log: bool, json: bool) -> None:
     """Manage test run executions - list history or fetch logs"""
 
     # Validate options
@@ -112,7 +111,7 @@ def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None
 
 
 def __test_run_execution_batch(
-    sync_apis: SyncApis, json: Optional[bool], skip: Optional[int] = None, limit: Optional[int] = None
+    sync_apis: SyncApis, json: bool | None, skip: int | None = None, limit: int | None = None
 ) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api

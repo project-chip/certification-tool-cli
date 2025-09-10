@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 from enum import Enum, IntEnum
-from typing import Dict, List, Optional, Union
+from typing import Union
 
 from pydantic import BaseModel
 
@@ -56,8 +56,8 @@ class UserResponseStatusEnum(IntEnum):
 
 class TestUpdateBase(BaseModel):
     state: TestStateEnum
-    errors: Optional[List[str]]
-    failures: Optional[List[str]]
+    errors: list[str] | None
+    failures: list[str] | None
 
 
 class TestRunUpdate(TestUpdateBase):
@@ -89,8 +89,8 @@ class TestLogRecord(BaseModel):
     level: str
     timestamp: str
     message: str
-    test_suite_execution_id: Optional[int]
-    test_case_execution_id: Optional[int]
+    test_suite_execution_id: int | None
+    test_case_execution_id: int | None
 
 
 class PromptRequest(BaseModel):
@@ -100,13 +100,13 @@ class PromptRequest(BaseModel):
 
 
 class OptionsSelectPromptRequest(PromptRequest):
-    options: Dict[str, int]
+    options: dict[str, int]
 
 
 class TextInputPromptRequest(PromptRequest):
-    placeholder_text: Optional[str]
-    default_value: Optional[str]
-    regex_pattern: Optional[str]
+    placeholder_text: str | None
+    default_value: str | None
+    regex_pattern: str | None
 
 
 class PromptResponse(BaseModel):
@@ -124,5 +124,5 @@ class SocketMessage(BaseModel):
         PromptResponse,
         TestUpdate,
         TimeOutNotification,
-        List[TestLogRecord],
+        list[TestLogRecord],
     ]
