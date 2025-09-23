@@ -46,8 +46,6 @@ class TestAbortTestingCommand:
         # Assert
         assert result.exit_code == 0
         assert "Testing aborted successfully" in result.output
-        api = mock_sync_apis.test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post
-
         api.assert_called_once()
         mock_api_client.close.assert_called_once()
 

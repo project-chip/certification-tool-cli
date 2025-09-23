@@ -83,23 +83,6 @@ def mock_project_config(temp_dir: Path) -> Path:
 
 
 @pytest.fixture
-def mock_cli_config_file(temp_dir: Path) -> Path:
-    """Create a mock configuration file."""
-    config_data = {
-        "hostname": "localhost",
-        "log_config": {
-            "output_log_path": "./test_logs",
-            "format": "<level>{level: <8}</level> |\
-                  <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> |\
-                      <level>{message}</level>"
-        }
-    }
-    config_file = temp_dir / "test_config.json"
-    config_file.write_text(json.dumps(config_data, indent=2))
-    return config_file
-
-
-@pytest.fixture
 def mock_properties_file(temp_dir: Path) -> Path:
     """Create a mock properties file for testing."""
     properties_content = """

@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import copy
+import errno
 import json
 import os
 import subprocess
@@ -120,7 +121,7 @@ def read_properties_file(file_path: str) -> dict:
         config = ConfigParser()
 
         if not config.read(file_path):
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), file_path)
 
         for section in config.sections():
             properties[section] = {}
@@ -297,7 +298,10 @@ def parse_pics_xml(xml_content: str) -> dict:
 
     try:
         root = fromstring(xml_content)
-        cluster_name = root.find("name").text
+        cluster_name_element = root.find("name")
+        if cluster_name_element is None or not cluster_name_element.text:
+            raise CLIError("PICS XML file is missing the <name> element for the cluster.")
+        cluster_name = cluster_name_element.text
 
         # Initialize the result structure
         result = {"clusters": {cluster_name: {"name": cluster_name, "items": {}}}}

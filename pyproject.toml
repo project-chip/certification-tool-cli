@@ -122,10 +122,6 @@ markers = [
     "cli: CLI command tests",
 ]
 asyncio_mode = "auto"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-]
 
 [tool.coverage.run]
 source = ["th_cli"]
@@ -146,7 +142,7 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if 0:",
-    "if __name__ == .__main__.:",
+    "if __name__ == \"__main__\":",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]

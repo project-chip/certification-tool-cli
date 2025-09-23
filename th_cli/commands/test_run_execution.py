@@ -24,8 +24,8 @@ from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, c
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
-table_format_header = "{:<5} {:47} {:12} {:8}"
-table_format = "{:<5} {:55} {:25} {}"
+table_format_header = "{:<5} {:47} {:17} {:8}"
+table_format = "{:<5} {:55} {:30} {}"
 
 
 @click.command(
