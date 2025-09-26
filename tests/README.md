@@ -59,49 +59,60 @@ Ensure you have the development dependencies installed:
 poetry install --with dev
 ```
 
+Then enter the cli directory in:
+```bash
+cd certification-tool/cli
+```
+
 ### Run All Tests
 ```bash
 # Run all tests with coverage
-pytest --cov=th_cli --cov-report=term-missing --cov-report=html
+poetry run pytest --cov=th_cli --cov-report=term-missing --cov-report=html
 
 # Run all tests without coverage
-pytest --no-cov
+poetry run pytest --no-cov
 
 # Run tests in parallel for faster execution
-pytest -n auto --cov=th_cli
+poetry run pytest -n auto --cov=th_cli
 ```
 
 ### Run Specific Test Categories
 ```bash
 # Unit tests only
-pytest -m unit
+poetry run pytest -m unit
 
 # CLI command tests only  
-pytest -m cli
+poetry run pytest -m cli
 ```
 
 ### Run Tests for Specific Commands
 ```bash
 # Test specific command
-pytest tests/test_abort_testing.py
+poetry run pytest tests/test_abort_testing.py
 
 # Test specific function
-pytest tests/test_utils.py::TestBuildTestSelection::test_build_test_selection_success
+poetry run pytest tests/test_utils.py::TestBuildTestSelection::test_build_test_selection_success
 ```
 
 ### Debugging Tests
 ```bash
 # Run with verbose output
-pytest -v
+poetry run pytest -v
 
 # Stop at first failure
-pytest -x
+poetry run pytest -x
 
 # Show local variables in tracebacks
-pytest -l
+poetry run pytest -l
 
 # Run specific test with debug output
-pytest -s tests/test_run_tests.py::TestRunTestsCommand::test_run_tests_success_minimal_args
+poetry run pytest -s tests/test_run_tests.py::TestRunTestsCommand::test_run_tests_success_minimal_args
+```
+
+### Pytest Script
+```bash
+# Alternatively, run the pytest script with any required argument
+./scripts/run_pytest.py -m cli --no-cov
 ```
 
 ## Test Configuration

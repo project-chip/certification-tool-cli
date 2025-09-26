@@ -285,6 +285,30 @@ def sample_test_collections() -> api_models.TestCollections:
                         }
                     )
                 }
+            ),
+            "Custom SDK Python Tests": api_models.TestCollection(
+                name="Custom SDK Python Tests",
+                path="/path/to/custom/python/tests",
+                test_suites={
+                    "Python Testing Suite-custom": api_models.TestSuite(
+                        metadata=api_models.TestMetadata(
+                            public_id="Python Testing Suite-custom",
+                            version="1.0",
+                            title="Python Testing Suite-custom",
+                            description="Python test suite custom"
+                        ),
+                        test_cases={
+                            "TC_ACE_1_3-custom": api_models.TestCase(
+                                metadata=api_models.TestMetadata(
+                                    public_id="TC_ACE_1_3-custom",
+                                    version="1.0",
+                                    title="Test Case ACE 1.3 Custom",
+                                    description="Access Control Entry test 3 custom"
+                                )
+                            )
+                        }
+                    )
+                }
             )
         }
     )

@@ -192,6 +192,9 @@ class TestRunTestsCommand:
         # Assert
         assert result.exit_code == 0
         assert "PICS Used" in result.output
+        assert "TC.TEST.1.1" in result.output
+        assert "TC.TEST.A.1" in result.output
+        assert "TC.TEST.E.1" in result.output
 
     def test_run_tests_success_with_project_id(
         self,
@@ -284,11 +287,16 @@ class TestRunTestsCommand:
         assert result.exit_code == 1
         assert "Error: Invalid test ID format" in result.output
 
-    def test_run_tests_empty_test_list(self, cli_runner: CliRunner) -> None:
+    @pytest.mark.parametrize("empty_test_id", [
+        "",
+        " ",
+        "   ",
+    ])
+    def test_run_tests_empty_test_list(self, cli_runner: CliRunner, empty_test_id: str) -> None:
         """Test run tests with empty test list."""
         # Act
         result = cli_runner.invoke(run_tests, [
-            "--tests-list", ""
+            "--tests-list", empty_test_id
         ])
 
         # Assert
@@ -497,6 +505,7 @@ class TestRunTestsCommand:
         "TC-ACE-1.1",
         "TC-ACE-1.1,TC-ACE-1.2",
         "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3",
+        "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3,TC_ACE_1_3-custom",
         "TC-ACE-1.1, TC-ACE-1.2, TC-ACE-1.3",  # with spaces
     ])
     def test_run_tests_various_test_lists(
@@ -720,9 +729,9 @@ class TestRunTestsCommand:
         "invalid-format",
         "TC-INVALID",
         "TCACE11",
+        "TC-ACE-1.1.1",
         "TC-ACE-1.1.1.1",
-        "",
-        "   ",
+        "TC-ACE-1.1-custom-extra",
     ])
     def test_run_tests_invalid_test_id_formats(
         self,
@@ -737,7 +746,7 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 1
-        assert "Error:" in result.output
+        assert "Error: Invalid test ID format" in result.output
 
     def test_run_tests_client_cleanup_on_exception(self, cli_runner: CliRunner, mock_api_client: Mock) -> None:
         """Test that client is properly cleaned up even when an exception occurs."""
@@ -751,4 +760,5 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 1
+        assert "API creation failed" in result.output
         mock_api_client.aclose.assert_called_once()
