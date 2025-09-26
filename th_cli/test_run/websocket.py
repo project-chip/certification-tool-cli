@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import asyncio
+import datetime
+from pathlib import Path
 from typing import List, Optional
 
 import click
@@ -28,7 +31,7 @@ from th_cli.api_lib_autogen.models import (
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state
+from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state, italic
 from th_cli.config import config
 
 from .prompt_manager import handle_file_upload_request, handle_prompt
@@ -36,6 +39,7 @@ from .socket_schemas import (
     MessageTypeEnum,
     PromptRequest,
     SocketMessage,
+    StreamVerificationPromptRequest,
     TestCaseUpdate,
     TestLogRecord,
     TestRunUpdate,
@@ -79,11 +83,15 @@ class TestRunSocket:
         if isinstance(message.payload, TestUpdate):
             await self.__handle_test_update(socket=socket, update=message.payload)
         elif isinstance(message.payload, PromptRequest):
-            # Check if it's a file upload request by message type
+            # Debug: log the message type
+            logger.debug(f"Received prompt with type: {message.type}")
+
+            # Check message type to route to appropriate handler
             if message.type == MessageTypeEnum.FILE_UPLOAD_REQUEST:
                 await handle_file_upload_request(socket=socket, request=message.payload)
             else:
-                await handle_prompt(socket=socket, request=message.payload)
+                # Pass both the request and the message type to handle_prompt
+                await handle_prompt(socket=socket, request=message.payload, message_type=message.type)
         elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
             self.__handle_log_record(message.payload)
         elif isinstance(message.payload, TimeOutNotification):
