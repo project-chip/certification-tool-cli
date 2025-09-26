@@ -33,6 +33,7 @@ from th_cli.colorize import colorize_error, colorize_key_value, italic
 from th_cli.config import config
 
 from .socket_schemas import (
+    MessageTypeEnum,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
@@ -51,9 +52,6 @@ _video_handler_instance = None
 async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest, message_type: str = None) -> None:
     """Handle all types of prompts with correct inheritance order."""
     click.echo("=======================================")
-
-    # Import MessageTypeEnum here to avoid circular imports
-    from .socket_schemas import MessageTypeEnum
 
     if message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
         request, StreamVerificationPromptRequest

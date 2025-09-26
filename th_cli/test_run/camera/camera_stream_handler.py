@@ -52,6 +52,10 @@ class CameraStreamHandler:
 
     async def start_video_capture_and_stream(self, prompt_id: str) -> Path:
         """Start capturing video stream to file AND serve via HTTP."""
+        # Reset queues for the new stream
+        self.mp4_queue = queue.Queue()
+        self.response_queue = queue.Queue()
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"video_verification_{prompt_id}_{timestamp}.bin"
         self.current_stream_file = self.output_dir / filename

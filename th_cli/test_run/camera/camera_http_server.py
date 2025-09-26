@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import html
 import json
 import os
 import queue
@@ -172,7 +173,12 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             response_data = json.loads(post_data.decode("utf-8"))
             logger.info(f"Parsed JSON data: {response_data}")
 
-            response_value = int(response_data.get("response"))
+            # Check if response key exists and is not None
+            raw_response = response_data.get("response")
+            if raw_response is None:
+                raise ValueError("Missing 'response' key in JSON payload")
+
+            response_value = int(raw_response)
             logger.info(f"Extracted response value: {response_value}")
 
             # Send response to the response queue
@@ -234,7 +240,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             radio_options_html += f"""
             <div class="popup-radio-row" data-value="{value}" onclick="selectOption({value})">
                 <input type="radio" id="radio_{value}" name="group_1" value="{value}">
-                <label for="radio_{value}">{key}</label>
+                <label for="radio_{value}">{html.escape(key)}</label>
             </div>
             """
 
@@ -245,17 +251,19 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 html_template = f.read()
 
             # Replace placeholders
-            html = html_template.format(prompt_text=prompt_text, radio_options_html=radio_options_html)
+            html_content = html_template.format(
+                prompt_text=html.escape(prompt_text), radio_options_html=radio_options_html
+            )
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
             # Fallback to simple HTML
-            html = f"""
+            html_content = f"""
             <html>
             <head><title>Video Verification Error</title></head>
             <body>
                 <h1>Error loading video verification interface</h1>
                 <p>Template error: {e}</p>
-                <p>Prompt: {prompt_text}</p>
+                <p>Prompt: {html.escape(prompt_text)}</p>
                 <p>Options: {prompt_options}</p>
             </body>
             </html>
@@ -264,7 +272,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(html.encode("utf-8"))
+        self.wfile.write(html_content.encode("utf-8"))
 
     def log_message(self, format, *args):
         # Suppress HTTP logs

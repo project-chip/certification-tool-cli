@@ -50,7 +50,7 @@ class FFmpegStreamConverter:
             ]
 
             self.ffmpeg_process = subprocess.Popen(
-                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
             )
 
             # Start thread to read FFmpeg output

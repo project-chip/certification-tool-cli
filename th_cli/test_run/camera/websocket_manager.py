@@ -15,6 +15,7 @@
 #
 import asyncio
 import base64
+import binascii
 import queue
 import threading
 from typing import Optional
@@ -110,7 +111,7 @@ class VideoWebSocketManager:
                                 stream_data.extend(decoded_data)
                                 video_data = decoded_data
                                 logger.debug(f"Decoded base64 data: {len(decoded_data)} bytes")
-                            except Exception as e:
+                            except (binascii.Error, TypeError) as e:
                                 # If not base64, log and continue
                                 logger.debug(f"Received non-binary data (not base64): {data[:100]}... - {e}")
 
@@ -181,7 +182,7 @@ class VideoWebSocketManager:
                     logger.info("Video WebSocket connected successfully")
                     return True
 
-            except Exception as e:
+            except (websockets.exceptions.WebSocketException, OSError) as e:
                 attempt += 1
                 logger.debug(f"Video WebSocket connection attempt {attempt} failed: {e}")
                 if attempt < max_attempts:
