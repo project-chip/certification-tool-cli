@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 import json
-from typing import Any, List, Optional
+from typing import Any
 
 import click
 from pydantic import ValidationError
@@ -93,14 +93,14 @@ def _abort_if_false(ctx, param, value):
 )
 def project(
     operation: str,
-    id: Optional[int],
-    name: Optional[str],
-    config: Optional[str],
-    skip: Optional[int],
-    limit: Optional[int],
-    archived: Optional[bool] = False,
-    json: Optional[bool] = False,
-    yes: Optional[bool] = False,
+    id: int | None,
+    name: str | None,
+    config: str | None,
+    skip: int | None,
+    limit: int | None,
+    archived: bool | None = False,
+    json: bool | None = False,
+    yes: bool | None = False,
 ) -> None:
     """Manage projects - create, list, update, or delete"""
 
@@ -144,7 +144,7 @@ def project(
             client.close()
 
 
-def _create_project(sync_apis: SyncApis, name: str, config: Optional[str]) -> None:
+def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
     """Create a new project"""
     # Get default config
     try:
@@ -177,10 +177,10 @@ def _create_project(sync_apis: SyncApis, name: str, config: Optional[str]) -> No
 
 def _list_projects(
     sync_apis: SyncApis,
-    id: Optional[int],
+    id: int | None,
     archived: bool,
-    skip: Optional[int],
-    limit: Optional[int],
+    skip: int | None,
+    limit: int | None,
     json: bool,
 ) -> None:
     """List projects"""
@@ -191,9 +191,7 @@ def _list_projects(
         except UnexpectedResponse as e:
             handle_api_error(e, f"list project with id '{id}'")
 
-    def __list_project_by_batch(
-        archived: bool, skip: Optional[int] = None, limit: Optional[int] = None
-    ) -> List[Project]:
+    def __list_project_by_batch(archived: bool, skip: int | None = None, limit: int | None = None) -> list[Project]:
         try:
             return sync_apis.projects_api.read_projects_api_v1_projects_get(archived=archived, skip=skip, limit=limit)
         except UnexpectedResponse as e:

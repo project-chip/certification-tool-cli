@@ -7,6 +7,9 @@ dist/
 # pyenv
 .python-version
 
+# pytest
+test.properties
+
 # Environments
 .env
 .venv

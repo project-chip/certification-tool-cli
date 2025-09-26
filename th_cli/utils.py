@@ -14,11 +14,13 @@
 # limitations under the License.
 #
 import copy
+import errno
 import json
 import os
 import subprocess
 from configparser import ConfigParser
 from typing import Any
+from xml.etree.ElementTree import ParseError, fromstring
 
 import click
 import tomli
@@ -117,7 +119,9 @@ def read_properties_file(file_path: str) -> dict:
 
     try:
         config = ConfigParser()
-        config.read(file_path)
+
+        if not config.read(file_path):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), file_path)
 
         for section in config.sections():
             properties[section] = {}
@@ -243,10 +247,6 @@ def convert_nested_to_dict(obj, _seen=None):
     if obj is None or isinstance(obj, (str, int, float, bool)):
         return obj
 
-    # Handle thread objects and other special types
-    if isinstance(obj, (type, object)) and not hasattr(obj, "__dict__"):
-        return str(obj)
-
     # Check for circular references
     obj_id = id(obj)
     if obj_id in _seen:
@@ -287,10 +287,8 @@ def parse_pics_xml(xml_content: str) -> dict:
     Returns:
         dict: Dictionary containing the PICS configuration in the required format
     """
-    import xml.etree.ElementTree as ET
-    from typing import Any, Dict
 
-    def parse_pics_items(element) -> Dict[str, Any]:
+    def parse_pics_items(element) -> dict[str, Any]:
         items = {}
         for pics_item in element.findall(".//picsItem"):
             item_number = pics_item.find("itemNumber").text
@@ -299,8 +297,11 @@ def parse_pics_xml(xml_content: str) -> dict:
         return items
 
     try:
-        root = ET.fromstring(xml_content)
-        cluster_name = root.find("name").text
+        root = fromstring(xml_content)
+        cluster_name_element = root.find("name")
+        if cluster_name_element is None or not cluster_name_element.text:
+            raise CLIError("PICS XML file is missing the <name> element for the cluster.")
+        cluster_name = cluster_name_element.text
 
         # Initialize the result structure
         result = {"clusters": {cluster_name: {"name": cluster_name, "items": {}}}}
@@ -322,7 +323,7 @@ def parse_pics_xml(xml_content: str) -> dict:
 
         return result
 
-    except ET.ParseError as e:
+    except ParseError as e:
         raise CLIError(f"Failed to parse XML: {str(e)}")
     except Exception as e:
         raise CLIError(f"Failed processing PICS XML: {str(e)}")

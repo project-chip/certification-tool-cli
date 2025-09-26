@@ -15,8 +15,6 @@
 #
 """Custom exceptions and error handling for the CLI."""
 
-from typing import Optional
-
 import click
 
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -39,7 +37,7 @@ class CLIError(click.ClickException):
 class APIError(CLIError):
     """Exception for API-related errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None, content: Optional[str] = None):
+    def __init__(self, message: str, status_code: int | None = None, content: str | None = None):
         self.status_code = status_code
         self.content = content
         super().__init__(message)
@@ -62,7 +60,11 @@ class ConfigurationError(CLIError):
 
 def handle_api_error(e: UnexpectedResponse, operation: str) -> None:
     """Convert API errors to CLI errors."""
-    raise APIError(f"Failed to {operation}", status_code=e.status_code, content=e.content)
+    # Decode bytes content if necessary
+    content = e.content
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="ignore")
+    raise APIError(f"Failed to {operation}", status_code=e.status_code, content=content)
 
 
 def handle_file_error(e: FileNotFoundError, file_type: str = "file") -> None:
