@@ -103,8 +103,11 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         # Start capturing with streaming
         video_file = await video_handler.start_video_capture_and_stream(str(prompt.message_id))
 
-        # Wait 1.5 seconds to ensure stream transmission has started
-        await asyncio.sleep(1.5)
+        # Wait for stream to be ready instead of fixed delay
+        stream_ready = await video_handler.wait_for_stream_ready(timeout=10.0)
+        if not stream_ready:
+            click.echo(colorize_error("Video stream failed to initialize"), err=True)
+            return
 
         click.echo(italic(prompt.prompt))
         click.echo(f"🎬 Please verify the video at: http://{config.hostname}:8999/")

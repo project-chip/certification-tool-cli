@@ -44,6 +44,9 @@ class CameraStreamHandler:
         self.prompt_options = {}  # Store prompt options
         self.prompt_text = ""  # Store prompt text
 
+        # Stream readiness signaling
+        self.stream_ready_event = asyncio.Event()
+
     def set_prompt_data(self, prompt_text: str, options: dict):
         """Set prompt text and options for the web UI."""
         self.prompt_text = prompt_text
@@ -52,15 +55,14 @@ class CameraStreamHandler:
 
     async def start_video_capture_and_stream(self, prompt_id: str) -> Path:
         """Start capturing video stream to file AND serve via HTTP."""
-        # Reset queues for the new stream
-        self.mp4_queue = queue.Queue()
-        self.response_queue = queue.Queue()
-
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"video_verification_{prompt_id}_{timestamp}.bin"
         self.current_stream_file = self.output_dir / filename
 
         logger.info(f"Starting video capture to: {self.current_stream_file}")
+
+        # Reset the stream ready event
+        self.stream_ready_event.clear()
 
         # Start HTTP server with current prompt data
         self.http_server.start(
@@ -76,11 +78,27 @@ class CameraStreamHandler:
 
         return self.current_stream_file
 
+    async def wait_for_stream_ready(self, timeout: float = 10.0) -> bool:
+        """Wait for the video stream to be ready for viewing."""
+        try:
+            await asyncio.wait_for(self.stream_ready_event.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            logger.warning(f"Stream readiness timeout after {timeout}s")
+            return False
+
     async def _initialize_video_capture(self) -> None:
         """Initialize video capture with retry logic."""
         # Try to connect and start capturing
         if await self.websocket_manager.wait_and_connect_with_retry():
+            # Signal that the stream is ready once connection is established
+            self.stream_ready_event.set()
+            logger.info("Video stream is ready for viewing")
+
             await self.websocket_manager.start_capture_and_stream(self.current_stream_file, self.mp4_queue)
+        else:
+            logger.error("Failed to establish video stream connection")
+            # Don't set the event if connection failed
 
     async def wait_for_user_response(self, timeout: float) -> Optional[int]:
         """Wait for user response from web UI."""
