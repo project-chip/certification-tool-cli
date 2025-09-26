@@ -39,10 +39,10 @@ class CameraStreamHandler:
 
         # State
         self.current_stream_file: Optional[Path] = None
-        self.mp4_queue = queue.Queue()    # Converted MP4 data for live streaming
+        self.mp4_queue = queue.Queue()  # Converted MP4 data for live streaming
         self.response_queue = queue.Queue()  # User responses from web UI
         self.prompt_options = {}  # Store prompt options
-        self.prompt_text = ""     # Store prompt text
+        self.prompt_text = ""  # Store prompt text
 
     def set_prompt_data(self, prompt_text: str, options: dict):
         """Set prompt text and options for the web UI."""
@@ -64,7 +64,7 @@ class CameraStreamHandler:
             response_queue=self.response_queue,
             video_handler=self,
             prompt_options=self.prompt_options,
-            prompt_text=self.prompt_text
+            prompt_text=self.prompt_text,
         )
 
         # Start background task for video capture
@@ -76,10 +76,7 @@ class CameraStreamHandler:
         """Initialize video capture with retry logic."""
         # Try to connect and start capturing
         if await self.websocket_manager.wait_and_connect_with_retry():
-            await self.websocket_manager.start_capture_and_stream(
-                self.current_stream_file,
-                self.mp4_queue
-            )
+            await self.websocket_manager.start_capture_and_stream(self.current_stream_file, self.mp4_queue)
 
     async def wait_for_user_response(self, timeout: float) -> Optional[int]:
         """Wait for user response from web UI."""

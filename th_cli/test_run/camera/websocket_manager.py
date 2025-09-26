@@ -86,12 +86,14 @@ class VideoWebSocketManager:
         stream_data = bytearray()
 
         try:
-            with open(stream_file, 'wb') as f:
+            with open(stream_file, "wb") as f:
                 while self.streaming_active:
                     try:
                         # Receive video data from WebSocket
                         data = await asyncio.wait_for(self.video_websocket.recv(), timeout=1.0)
-                        logger.debug(f"Received data: {type(data)}, size: {len(data) if isinstance(data, (bytes, str)) else 'unknown'}")
+                        logger.debug(
+                            f"Received data: {type(data)}, size: {len(data) if isinstance(data, (bytes, str)) else 'unknown'}"
+                        )
 
                         video_data = None
                         if isinstance(data, bytes):

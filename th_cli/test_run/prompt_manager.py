@@ -19,7 +19,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 import aioconsole
 import aiofiles
@@ -36,13 +36,13 @@ from .socket_schemas import (
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
-    TextInputPromptRequest,
     StreamVerificationPromptRequest,
+    TextInputPromptRequest,
     UserResponseStatusEnum,
 )
 
 # Constants
-MAX_FILE_SIZE = 200 * 1024 * 1024  # 200MB in bytes
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 200MB in bytes
 
 # Global video handler instance for reuse
 _video_handler_instance = None
@@ -55,7 +55,9 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
     # Import MessageTypeEnum here to avoid circular imports
     from .socket_schemas import MessageTypeEnum
 
-    if message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(request, StreamVerificationPromptRequest):
+    if message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
+        request, StreamVerificationPromptRequest
+    ):
         await __handle_stream_verification_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):
         await __handle_options_prompt(socket=socket, prompt=request)
@@ -66,12 +68,14 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
 
     click.echo("=======================================")
 
+
 def _get_video_handler():
     """Get or create a reusable video handler instance."""
     global _video_handler_instance
     if _video_handler_instance is None:
         # Import here to avoid circular import
         from .camera import CameraStreamHandler
+
         _video_handler_instance = CameraStreamHandler()
     return _video_handler_instance
 
@@ -90,7 +94,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
     """Handle video stream verification prompts."""
     try:
         # Validate prompt has required attributes
-        if not hasattr(prompt, 'options') or not prompt.options:
+        if not hasattr(prompt, "options") or not prompt.options:
             click.echo(colorize_error("Video prompt missing required options"), err=True)
             return
 
@@ -257,7 +261,7 @@ async def __upload_file_and_send_response(
     try:
         if not os.path.isfile(file_path):
             click.echo(f"Error: File '{file_path}' does not exist or is not accessible", err=True)
-            await _send_prompt_response(socket=socket, input="", prompt=prompt)
+            await __send_prompt_response(socket=socket, input="", prompt=prompt)
             return
 
         file_size = os.path.getsize(file_path)
@@ -265,7 +269,7 @@ async def __upload_file_and_send_response(
         # Check file size limit
         if file_size > MAX_FILE_SIZE:
             click.echo(f"❌ File too large: {file_size} bytes (max: {MAX_FILE_SIZE} bytes)", err=True)
-            await _send_prompt_response(socket=socket, input="", prompt=prompt)
+            await __send_prompt_response(socket=socket, input="", prompt=prompt)
             return
 
         click.echo(f"File selected: {file_path} (size: {file_size:,} bytes)")
@@ -277,29 +281,27 @@ async def __upload_file_and_send_response(
         upload_url = f"{base_url}/api/v1/test_run_executions/file_upload/"
 
         async with httpx.AsyncClient() as client:
-            # Read file asynchronously using aiofiles
-            async with aiofiles.open(file_path, 'rb') as f:
-                file_content = await f.read()
+            with open(file_path, "rb") as file:
+                files = {"file": (os.path.basename(file_path), file, "application/octet-stream")}
 
-            files = {"file": (os.path.basename(file_path), file_content, "application/octet-stream")}
-            response = await client.post(upload_url, files=files)
+                response = await client.post(upload_url, files=files)
 
-            if response.status_code == 200:
-                click.echo("✅ File uploaded successfully")
-                await _send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
-            else:
-                click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
-                await _send_prompt_response(socket=socket, input="", prompt=prompt)
+                if response.status_code == 200:
+                    click.echo("✅ File uploaded successfully")
+                    await __send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
+                else:
+                    click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
+                    await __send_prompt_response(socket=socket, input="", prompt=prompt)
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
     except httpx.HTTPStatusError as e:
         click.echo(f"❌ HTTP error during file upload: {e.response.status_code} - {e.response.text}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
     except Exception as e:
         click.echo(f"❌ Unexpected error uploading file: {str(e)}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await __send_prompt_response(socket=socket, input="", prompt=prompt)
 
 
 def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
@@ -326,9 +328,7 @@ def __valid_file_upload(file_path: str, prompt: PromptRequest) -> bool:
     return True
 
 
-async def _send_prompt_response(
-    socket: WebSocketClientProtocol, input: Union[str, int], prompt: PromptRequest
-) -> None:
+async def _send_prompt_response(socket: WebSocketClientProtocol, input: Union[str, int], prompt: PromptRequest) -> None:
     response = PromptResponse(
         response=input,
         status_code=UserResponseStatusEnum.OKAY,

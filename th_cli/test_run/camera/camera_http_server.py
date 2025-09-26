@@ -31,11 +31,11 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         logger.info(f"GET request received: {self.path}")
-        if self.path == '/video_live.mp4':
+        if self.path == "/video_live.mp4":
             self.stream_live_video()
-        elif self.path == '/download_mp4':
+        elif self.path == "/download_mp4":
             self.download_mp4()
-        elif self.path == '/':
+        elif self.path == "/":
             self.serve_player()
         else:
             logger.warning(f"404 for GET {self.path}")
@@ -43,7 +43,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         logger.info(f"POST request received: {self.path}")
-        if self.path == '/submit_response':
+        if self.path == "/submit_response":
             self.handle_response()
         else:
             logger.warning(f"404 for POST {self.path}")
@@ -52,23 +52,23 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle CORS preflight requests."""
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def stream_live_video(self):
         """Stream live video data as HTTP response during capture."""
         logger.info("HTTP client connected for LIVE video stream")
         self.send_response(200)
-        self.send_header('Content-Type', 'video/mp4')
-        self.send_header('Cache-Control', 'no-cache')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Connection', 'keep-alive')
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Connection", "keep-alive")
         self.end_headers()
 
         # Get the MP4 queue from the server (converted data)
-        mp4_queue = getattr(self.server, 'mp4_queue', None)
+        mp4_queue = getattr(self.server, "mp4_queue", None)
         if not mp4_queue:
             logger.error("No MP4 queue found on server for live stream")
             return
@@ -107,7 +107,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
         try:
             # Get the current video file from the server
-            video_handler = getattr(self.server, 'video_handler', None)
+            video_handler = getattr(self.server, "video_handler", None)
             if not video_handler or not video_handler.current_stream_file:
                 logger.error("No video file available for download")
                 self.send_error(404, "No video file available")
@@ -133,14 +133,14 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             logger.info(f"Serving MP4 download: {mp4_file} ({file_size:,} bytes)")
 
             self.send_response(200)
-            self.send_header('Content-Type', 'video/mp4')
-            self.send_header('Content-Length', str(file_size))
-            self.send_header('Content-Disposition', f'attachment; filename="{mp4_file.name}"')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Length", str(file_size))
+            self.send_header("Content-Disposition", f'attachment; filename="{mp4_file.name}"')
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
 
             # Stream file to client
-            with open(mp4_file, 'rb') as f:
+            with open(mp4_file, "rb") as f:
                 while True:
                     chunk = f.read(8192)
                     if not chunk:
@@ -158,25 +158,25 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         logger.info(f"Received POST request to {self.path}")
         try:
             # Check if Content-Length header exists
-            if 'Content-Length' not in self.headers:
+            if "Content-Length" not in self.headers:
                 logger.error("Missing Content-Length header")
                 self.send_error(400, "Missing Content-Length header")
                 return
 
-            content_length = int(self.headers['Content-Length'])
+            content_length = int(self.headers["Content-Length"])
             logger.info(f"Reading {content_length} bytes from request body")
 
             post_data = self.rfile.read(content_length)
             logger.info(f"Raw POST data: {post_data}")
 
-            response_data = json.loads(post_data.decode('utf-8'))
+            response_data = json.loads(post_data.decode("utf-8"))
             logger.info(f"Parsed JSON data: {response_data}")
 
-            response_value = int(response_data.get('response'))
+            response_value = int(response_data.get("response"))
             logger.info(f"Extracted response value: {response_value}")
 
             # Send response to the response queue
-            response_queue = getattr(self.server, 'response_queue', None)
+            response_queue = getattr(self.server, "response_queue", None)
             if response_queue:
                 try:
                     response_queue.put_nowait(response_value)
@@ -193,8 +193,8 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             # Send success response
             logger.info("Sending success response to client")
             self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             response_json = '{"status": "success"}'
             self.wfile.write(response_json.encode())
@@ -203,52 +203,49 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(f'{{"error": "Invalid JSON: {str(e)}"}}'.encode())
         except ValueError as e:
             logger.error(f"Value error: {e}")
             self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(f'{{"error": "Invalid response value: {str(e)}"}}'.encode())
         except Exception as e:
             logger.error(f"Unexpected error handling response: {e}")
             self.send_response(500)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(f'{{"error": "Server error: {str(e)}"}}'.encode())
 
     def serve_player(self):
         """Serve a video player using external HTML template."""
         # Get dynamic data from server
-        prompt_options = getattr(self.server, 'prompt_options', {})
-        prompt_text = getattr(self.server, 'prompt_text', 'Video Verification')
+        prompt_options = getattr(self.server, "prompt_options", {})
+        prompt_text = getattr(self.server, "prompt_text", "Video Verification")
 
         # Generate radio button options dynamically
         radio_options_html = ""
         for key, value in prompt_options.items():
-            radio_options_html += f'''
+            radio_options_html += f"""
             <div class="popup-radio-row" data-value="{value}" onclick="selectOption({value})">
                 <input type="radio" id="radio_{value}" name="group_1" value="{value}">
                 <label for="radio_{value}">{key}</label>
             </div>
-            '''
+            """
 
         # Read HTML template from file
         try:
             template_path = Path(__file__).parent.parent / "video_verification.html"
-            with open(template_path, 'r', encoding='utf-8') as f:
+            with open(template_path, "r", encoding="utf-8") as f:
                 html_template = f.read()
 
             # Replace placeholders
-            html = html_template.format(
-                prompt_text=prompt_text,
-                radio_options_html=radio_options_html
-            )
+            html = html_template.format(prompt_text=prompt_text, radio_options_html=radio_options_html)
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
             # Fallback to simple HTML
@@ -265,9 +262,9 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             """
 
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(html.encode('utf-8'))
+        self.wfile.write(html.encode("utf-8"))
 
     def log_message(self, format, *args):
         # Suppress HTTP logs
@@ -286,7 +283,7 @@ class CameraHTTPServer:
         """Start HTTP server with required queues and data."""
         try:
             # Use ThreadingHTTPServer for better concurrency
-            self.server = ThreadingHTTPServer(('0.0.0.0', self.port), VideoStreamingHandler)
+            self.server = ThreadingHTTPServer(("0.0.0.0", self.port), VideoStreamingHandler)
             self.server.allow_reuse_address = True
 
             # Set all required attributes on the server
