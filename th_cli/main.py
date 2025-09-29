@@ -27,7 +27,7 @@ def get_extended_help() -> str:
     cli_version = get_cli_version()
     cli_sha = get_cli_sha()
 
-    help_text = colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness")
+    help_text = colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness\n")
     help_text += f"\n{colorize_key_value('Version', cli_version)}"
     help_text += f"\n{colorize_key_value('CLI SHA', cli_sha)}"
 
@@ -44,7 +44,7 @@ def get_extended_help() -> str:
 
 
 @click.group(help=colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness"))
-@click.version_option(version=get_extended_help())
+@click.version_option(message=get_extended_help())
 def root() -> None:
     pass
 

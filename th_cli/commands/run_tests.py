@@ -16,7 +16,6 @@
 import asyncio
 import datetime
 import json
-from typing import Optional
 
 import click
 
@@ -34,6 +33,7 @@ from th_cli.colorize import (
     italic,
     set_colors_enabled,
 )
+from th_cli.config import get_package_root
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
@@ -134,7 +134,7 @@ async def run_tests(
 
         # If config file is provided, read and parse it
         if not config:
-            config = "default_config.properties"
+            config = get_package_root() / "default_config.properties"
 
         config_data = read_properties_file(config)
         click.echo(colorize_key_value("Read config from file", config_data))
@@ -178,9 +178,9 @@ async def __create_new_test_run_cli(
     async_apis: AsyncApis,
     selected_tests: dict,
     title: str,
-    config: Optional[dict] = None,
-    pics: Optional[dict] = None,
-    project_id: Optional[int] = None,
+    config: dict | None = None,
+    pics: dict | None = None,
+    project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
     click.echo(colorize_key_value("Creating new test run with title", title))
 

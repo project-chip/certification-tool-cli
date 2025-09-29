@@ -13,11 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import asyncio
-import datetime
-from pathlib import Path
-from typing import List, Optional
-
 import click
 import websockets
 from loguru import logger
@@ -147,7 +142,7 @@ class TestRunSocket:
             colored_state = colorize_state(update.state.value)
             click.echo(f"            - {colored_title} {colored_state}")
 
-    def __handle_log_record(self, records: List[TestLogRecord]) -> None:
+    def __handle_log_record(self, records: list[TestLogRecord]) -> None:
         for record in records:
             logger.log(record.level, record.message)
 
@@ -158,6 +153,6 @@ class TestRunSocket:
         suite = self.__suite(suite_index)
         return suite.test_case_executions[index]
 
-    def __step(self, index: int, case_index: int, suite_index: int) -> Optional[TestStepExecution]:
+    def __step(self, index: int, case_index: int, suite_index: int) -> TestStepExecution | None:
         case = self.__case(index=case_index, suite_index=suite_index)
         return case.test_step_executions[index]

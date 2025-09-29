@@ -17,7 +17,6 @@
 
 import re
 from pathlib import Path
-from typing import List
 
 from th_cli.exceptions import CLIError
 
@@ -49,8 +48,8 @@ def _sanitize_path(file_path: str) -> Path:
         # This will raise ValueError if path tries to go outside current working directory
         path.relative_to(Path.cwd().resolve())
     except ValueError:
-        # Allow absolute paths in user directories but fail paths outside
-        if not str(path).startswith(str(Path.home())):
+        # Allow absolute paths in user directories or system tmp, but fail paths outside
+        if not (str(path).startswith(str(Path.home())) or str(path).startswith(str(Path("/tmp")))):
             raise CLIError(f"Access denied: Path '{file_path}' is outside allowed directories")
 
     return path
@@ -82,7 +81,7 @@ def validate_directory_path(dir_path: str, must_exist: bool = True) -> Path:
     return path
 
 
-def validate_test_ids(test_ids: str) -> List[str]:
+def validate_test_ids(test_ids: str) -> list[str]:
     """Validate and sanitize test ID list."""
     if not test_ids or len(test_ids.strip()) == 0:
         raise CLIError("Test IDs list cannot be empty")

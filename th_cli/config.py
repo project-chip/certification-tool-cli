@@ -16,7 +16,6 @@
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Tuple
 
 from pydantic import BaseModel
 
@@ -174,7 +173,7 @@ class PairingMode(str, Enum):
 
 VALID_PAIRING_MODES = {mode.value for mode in PairingMode}
 
-ATTRIBUTE_MAPPING: Dict[str, Tuple[str, ...]] = {
+ATTRIBUTE_MAPPING: dict[str, tuple[str, ...]] = {
     # Thread dataset attributes
     "channel": ("network", "thread", "dataset"),
     "panid": ("network", "thread", "dataset"),

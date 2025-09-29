@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from typing import Optional
-
 import click
 
 from th_cli.api_lib_autogen.api_client import SyncApis
@@ -34,7 +32,7 @@ from th_cli.utils import __print_json
     default=False,
     help=colorize_help("Print JSON response for more details"),
 )
-def test_runner_status(json: Optional[bool]) -> None:
+def test_runner_status(json: bool | None) -> None:
     client = None
     try:
         client = get_client()
@@ -58,7 +56,10 @@ def __print_status_table(status_data: dict) -> None:
     click.echo("")
     click.echo(colorize_header("Matter Test Runner Status"))
 
-    colorized_status = colorize_runner_state(status_data.get("state", "Unknown").value)
+    state = status_data.get("state", "Unknown")
+    # Handle both enum objects and string values
+    state_value = state.value if hasattr(state, "value") else str(state)
+    colorized_status = colorize_runner_state(state_value)
     click.echo(colorize_key_value("State", colorized_status))
 
     if "test_run_execution_id" in status_data and status_data.get("test_run_execution_id") is not None:
