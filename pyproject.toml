@@ -45,6 +45,8 @@ dependencies = [
     "aioconsole>=0.3.2,<1.0.0",
     "PyYAML>=6.0.1,<7.0.0",
     "tomli>=1.2.0,<3.0.0",
+    "aiofiles>=23.0.0,<24.0.0",
+    "ffmpeg-python>=0.2.0,<1.0.0",
 ]
 
 [project.scripts]
@@ -67,13 +69,6 @@ types-python-dateutil = "^2.8.0"
 safety = "^2.3.0"  # Security vulnerability scanning
 pip-audit = "^2.6.0"  # Alternative security scanner
 pipdeptree = "^2.13.0"  # Dependency tree visualization
-pytest = "^7.4.0"  # Testing framework
-pytest-cov = "^4.1.0"  # Coverage plugin for pytest
-pytest-mock = "^3.11.1"  # Mock plugin for pytest
-pytest-asyncio = "^0.21.1"  # Async support for pytest
-pytest-click = "^1.1.0"  # Click testing utilities
-pytest-xdist = "^3.3.1"  # Parallel test execution
-faker = "^19.3.0"  # Generate fake data for testing
 
 [tool.isort]
 multi_line_output = 3
@@ -96,56 +91,6 @@ exclude = '''
   | client_generator
 )/
 '''
-
-[tool.pytest.ini_options]
-minversion = "7.0"
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--cov=th_cli",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml:coverage.xml",
-    "--cov-branch",
-    "--cov-fail-under=85",
-    "-ra",
-    "--tb=short",
-]
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "slow: Slow running tests",
-    "cli: CLI command tests",
-]
-asyncio_mode = "auto"
-
-[tool.coverage.run]
-source = ["th_cli"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/__pycache__/*",
-    "*/api_lib_autogen/*",
-    "*/conftest.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == \"__main__\":",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
 
 [build-system]
 requires = ["poetry.core"]

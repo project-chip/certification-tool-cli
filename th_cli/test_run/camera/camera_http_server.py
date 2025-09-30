@@ -24,7 +24,13 @@ from typing import Optional
 
 from loguru import logger
 
-from th_cli.th_utils.ffmpeg_converter import VideoFileConverter
+from th_cli.th_utils.ffmpeg_converter import CHUNK_SIZE, VideoFileConverter
+
+# HTTP Endpoints
+ENDPOINT_ROOT = "/"
+ENDPOINT_VIDEO_LIVE = "/video_live.mp4"
+ENDPOINT_DOWNLOAD_MP4 = "/download_mp4"
+ENDPOINT_SUBMIT_RESPONSE = "/submit_response"
 
 
 class VideoStreamingHandler(BaseHTTPRequestHandler):
@@ -32,11 +38,11 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         logger.info(f"GET request received: {self.path}")
-        if self.path == "/video_live.mp4":
+        if self.path == ENDPOINT_VIDEO_LIVE:
             self.stream_live_video()
-        elif self.path == "/download_mp4":
+        elif self.path == ENDPOINT_DOWNLOAD_MP4:
             self.download_mp4()
-        elif self.path == "/":
+        elif self.path == ENDPOINT_ROOT:
             self.serve_player()
         else:
             logger.warning(f"404 for GET {self.path}")
@@ -44,7 +50,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         logger.info(f"POST request received: {self.path}")
-        if self.path == "/submit_response":
+        if self.path == ENDPOINT_SUBMIT_RESPONSE:
             self.handle_response()
         else:
             logger.warning(f"404 for POST {self.path}")
@@ -142,10 +148,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
             # Stream file to client
             with open(mp4_file, "rb") as f:
-                while True:
-                    chunk = f.read(8192)
-                    if not chunk:
-                        break
+                while chunk := f.read(CHUNK_SIZE):
                     self.wfile.write(chunk)
 
             logger.info("MP4 download completed successfully")

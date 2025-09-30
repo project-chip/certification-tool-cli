@@ -20,7 +20,11 @@ from pathlib import Path
 from typing import Optional
 
 import click
+import ffmpeg
 from loguru import logger
+
+# Constants
+CHUNK_SIZE = 8192  # 8KB chunks for optimal streaming performance
 
 
 class FFmpegStreamConverter:
@@ -33,25 +37,14 @@ class FFmpegStreamConverter:
     def start_conversion(self):
         """Start FFmpeg process for real-time conversion."""
         try:
-            # FFmpeg command to convert H.264 raw input to MP4 output
-            cmd = [
-                "ffmpeg",
-                "-f",
-                "h264",  # Input format: H.264 raw
-                "-i",
-                "pipe:0",  # Read from stdin
-                "-c:v",
-                "copy",  # Copy video stream (no re-encoding)
-                "-f",
-                "mp4",  # Output format: MP4
-                "-movflags",
-                "frag_keyframe+empty_moov",  # Enable streaming
-                "pipe:1",  # Write to stdout
-            ]
-
-            self.ffmpeg_process = subprocess.Popen(
-                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+            # Create FFmpeg stream using ffmpeg-python
+            stream = (
+                ffmpeg.input("pipe:0", format="h264")
+                .output("pipe:1", format="mp4", vcodec="copy", movflags="frag_keyframe+empty_moov")
+                .overwrite_output()
             )
+
+            self.ffmpeg_process = ffmpeg.run_async(stream, pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
 
             # Start thread to read FFmpeg output
             threading.Thread(target=self._read_ffmpeg_output, daemon=True).start()
@@ -59,8 +52,8 @@ class FFmpegStreamConverter:
             logger.info("FFmpeg converter started successfully")
             return True
 
-        except FileNotFoundError:
-            logger.error("FFmpeg not found - raw H.264 streaming only")
+        except ffmpeg.Error as e:
+            logger.error(f"FFmpeg not available or failed to start: {e}")
             return False
         except Exception as e:
             logger.error(f"Failed to start FFmpeg converter: {e}")
@@ -70,7 +63,7 @@ class FFmpegStreamConverter:
         """Read converted MP4 data from FFmpeg stdout."""
         try:
             while self.ffmpeg_process and self.ffmpeg_process.poll() is None:
-                data = self.ffmpeg_process.stdout.read(8192)
+                data = self.ffmpeg_process.stdout.read(CHUNK_SIZE)
                 if data:
                     try:
                         self.output_queue.put_nowait(data)
@@ -115,47 +108,29 @@ class VideoFileConverter:
     def convert_video_to_mp4(bin_file_path: Path) -> Optional[Path]:
         """Convert .bin video file to .mp4 using ffmpeg if available."""
         try:
-            # Check if ffmpeg is available
-            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
-            if result.returncode != 0:
-                click.echo("❌ FFmpeg not available for conversion")
-                return None
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            click.echo("❌ FFmpeg not found - install with: brew install ffmpeg")
-            return None
-
-        try:
             # Create MP4 filename
             mp4_file = bin_file_path.with_suffix(".mp4")
             click.echo(f"🔄 Converting {bin_file_path.name} to MP4...")
 
-            # Enhanced FFmpeg command for H.264 raw stream conversion
-            cmd = [
-                "ffmpeg",
-                "-y",  # Overwrite existing files
-                "-f",
-                "h264",  # Input format: H.264 raw
-                "-i",
-                str(bin_file_path),  # Input file
-                "-c:v",
-                "libx264",  # Re-encode with libx264 (more compatible)
-                "-preset",
-                "fast",  # Fast encoding preset
-                "-crf",
-                "23",  # Constant rate factor (good quality)
-                "-pix_fmt",
-                "yuv420p",  # Pixel format (widely compatible)
-                "-movflags",
-                "+faststart",  # Move metadata to beginning for web streaming
-                "-r",
-                "30",  # Set frame rate to 30fps
-                str(mp4_file),  # Output file
-            ]
+            # Create FFmpeg stream using ffmpeg-python
+            stream = (
+                ffmpeg.input(str(bin_file_path), format="h264")
+                .output(
+                    str(mp4_file),
+                    vcodec="libx264",
+                    preset="fast",
+                    crf=23,
+                    pix_fmt="yuv420p",
+                    movflags="+faststart",
+                    r=30,
+                )
+                .overwrite_output()
+            )
 
-            click.echo(f"🎬 Running: {' '.join(cmd[:8])}...")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            click.echo(f"🎬 Running FFmpeg conversion...")
+            ffmpeg.run(stream, capture_stdout=True, capture_stderr=True, timeout=60)
 
-            if result.returncode == 0 and mp4_file.exists():
+            if mp4_file.exists():
                 file_size = mp4_file.stat().st_size
                 click.echo(f"✅ Video converted to MP4: {mp4_file} ({file_size:,} bytes)")
 
@@ -166,24 +141,13 @@ class VideoFileConverter:
 
                 return mp4_file
             else:
-                click.echo(f"❌ FFmpeg conversion failed:")
-                click.echo(f"   Return code: {result.returncode}")
-                if result.stderr:
-                    # Show only relevant error lines
-                    error_lines = [
-                        line
-                        for line in result.stderr.split("\n")
-                        if "error" in line.lower() or "invalid" in line.lower()
-                    ]
-                    for line in error_lines[:3]:  # Show max 3 error lines
-                        click.echo(f"   {line.strip()}")
-
-                # Try alternative conversion method
+                click.echo("❌ FFmpeg conversion failed: Output file not created")
                 return VideoFileConverter._try_alternative_conversion(bin_file_path, mp4_file)
 
-        except subprocess.TimeoutExpired:
-            click.echo("❌ FFmpeg conversion timed out (>60 seconds)")
-            return None
+        except ffmpeg.Error as e:
+            click.echo(f"❌ FFmpeg conversion error: {e}")
+            # Try alternative conversion method
+            return VideoFileConverter._try_alternative_conversion(bin_file_path, mp4_file)
         except Exception as e:
             click.echo(f"❌ Video conversion error: {e}")
             return None
@@ -194,68 +158,36 @@ class VideoFileConverter:
         alternative_methods = [
             {
                 "name": "Raw H.264 with container fix",
-                "cmd": [
-                    "ffmpeg",
-                    "-y",
-                    "-f",
-                    "h264",
-                    "-i",
-                    str(bin_file_path),
-                    "-c:v",
-                    "copy",
-                    "-bsf:v",
-                    "h264_mp4toannexb",  # Fix stream format
-                    str(mp4_file),
-                ],
+                "stream": (
+                    ffmpeg.input(str(bin_file_path), format="h264")
+                    .output(str(mp4_file), vcodec="copy", bsf="h264_mp4toannexb")
+                    .overwrite_output()
+                ),
             },
             {
                 "name": "Force framerate and format",
-                "cmd": [
-                    "ffmpeg",
-                    "-y",
-                    "-f",
-                    "h264",
-                    "-r",
-                    "25",  # Input framerate
-                    "-i",
-                    str(bin_file_path),
-                    "-c:v",
-                    "libx264",
-                    "-r",
-                    "25",  # Output framerate
-                    "-pix_fmt",
-                    "yuv420p",
-                    str(mp4_file),
-                ],
+                "stream": (
+                    ffmpeg.input(str(bin_file_path), format="h264", r=25)
+                    .output(str(mp4_file), vcodec="libx264", r=25, pix_fmt="yuv420p")
+                    .overwrite_output()
+                ),
             },
             {
                 "name": "Raw video with size assumption",
-                "cmd": [
-                    "ffmpeg",
-                    "-y",
-                    "-f",
-                    "rawvideo",
-                    "-pixel_format",
-                    "yuv420p",
-                    "-video_size",
-                    "640x480",
-                    "-r",
-                    "30",
-                    "-i",
-                    str(bin_file_path),
-                    "-c:v",
-                    "libx264",
-                    str(mp4_file),
-                ],
+                "stream": (
+                    ffmpeg.input(str(bin_file_path), format="rawvideo", pix_fmt="yuv420p", s="640x480", r=30)
+                    .output(str(mp4_file), vcodec="libx264")
+                    .overwrite_output()
+                ),
             },
         ]
 
         for method in alternative_methods:
             try:
                 click.echo(f"🔄 Trying: {method['name']}")
-                result = subprocess.run(method["cmd"], capture_output=True, text=True, timeout=30)
+                ffmpeg.run(method["stream"], capture_stdout=True, capture_stderr=True, timeout=30)
 
-                if result.returncode == 0 and mp4_file.exists() and mp4_file.stat().st_size > 1024:
+                if mp4_file.exists() and mp4_file.stat().st_size > 1024:
                     file_size = mp4_file.stat().st_size
                     click.echo(f"✅ Success with {method['name']}: {mp4_file} ({file_size:,} bytes)")
                     return mp4_file
@@ -265,6 +197,5 @@ class VideoFileConverter:
                 continue
 
         click.echo("❌ All conversion methods failed")
-        click.echo(f"💡 You can try manual conversion:")
-        click.echo(f"   ffmpeg -f h264 -i '{bin_file_path}' -c:v libx264 '{bin_file_path.with_suffix('.mp4')}'")
+        click.echo(f"💡 FFmpeg-python library is installed - check video file format")
         return None

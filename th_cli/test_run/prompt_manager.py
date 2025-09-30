@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import re
+import socket
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -47,6 +48,20 @@ MAX_FILE_SIZE = 100 * 1024 * 1024  # 200MB in bytes
 
 # Global video handler instance for reuse
 _video_handler_instance = None
+
+
+def _get_local_ip() -> str:
+    """Get the local IP address of the machine."""
+    try:
+        # Connect to a remote address to determine local IP
+        # This doesn't actually send data, just determines routing
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+        return local_ip
+    except Exception:
+        # Fallback to localhost if unable to determine IP
+        return "localhost"
 
 
 async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest, message_type: str = None) -> None:
@@ -110,7 +125,8 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
             return
 
         click.echo(italic(prompt.prompt))
-        click.echo(f"🎬 Please verify the video at: http://{config.hostname}:8999/")
+        local_ip = _get_local_ip()
+        click.echo(f"🎬 Please verify the video at: http://{local_ip}:{video_handler.http_server.port}/")
 
         click.echo("Waiting for your response in the web interface...")
 
