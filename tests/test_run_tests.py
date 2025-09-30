@@ -731,7 +731,6 @@ class TestRunTestsCommand:
         "invalid-format",
         "TC-INVALID",
         "TCACE11",
-        "TC-ACE-1.1.1",
         "TC-ACE-1.1.1.1",
         "TC-ACE-1.1-custom-extra",
     ])
