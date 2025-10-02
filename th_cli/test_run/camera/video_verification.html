@@ -204,18 +204,6 @@
             cursor: not-allowed;
         }}
 
-        .download-btn {{
-            background: #4CAF50;
-        }}
-
-        .download-btn:hover {{
-            background: #45a049;
-        }}
-
-        .download-btn:disabled {{
-            background: #ccc;
-        }}
-
         .status-info {{
             background: #e8f5e8;
             border: 1px solid #4caf50;
@@ -311,58 +299,6 @@
             }}
         }}
 
-        async function downloadVideo() {{
-            const button = document.getElementById('downloadBtn');
-            const originalText = button.textContent;
-
-            try {{
-                button.textContent = '⏳ Converting...';
-                button.disabled = true;
-
-                const response = await fetch('/download_mp4', {{
-                    method: 'GET'
-                }});
-
-                if (response.ok) {{
-                    // Get filename from response headers or create default
-                    const contentDisposition = response.headers.get('content-disposition');
-                    let filename = 'video_verification.mp4';
-                    if (contentDisposition) {{
-                        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-                        if (filenameMatch) {{
-                            filename = filenameMatch[1];
-                        }}
-                    }}
-
-                    // Create blob and download
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-
-                    button.textContent = '✅ Downloaded!';
-                    setTimeout(() => {{
-                        button.textContent = originalText;
-                        button.disabled = false;
-                    }}, 2000);
-                }} else {{
-                    throw new Error(`Download failed: ${{response.status}}`);
-                }}
-            }} catch (error) {{
-                console.error('Download error:', error);
-                button.textContent = '❌ Error';
-                setTimeout(() => {{
-                    button.textContent = originalText;
-                    button.disabled = false;
-                }}, 2000);
-            }}
-        }}
-
         // Initialize video
         window.onload = function() {{
             const video = document.getElementById('videoElement');
@@ -374,6 +310,24 @@
             }});
             video.addEventListener('error', (e) => {{
                 console.error('Video error:', e);
+                const videoError = video.error;
+                if (videoError) {{
+                    const errorMessages = {{
+                        1: 'MEDIA_ERR_ABORTED - Video loading was aborted',
+                        2: 'MEDIA_ERR_NETWORK - Network error while loading video',
+                        3: 'MEDIA_ERR_DECODE - Video decoding failed (format not supported or corrupted)',
+                        4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Video format not supported'
+                    }};
+                    const errorMsg = errorMessages[videoError.code] || `Unknown error (code: ${{videoError.code}})`;
+                    console.error('Video error details:', errorMsg);
+                    console.error('Error message:', videoError.message);
+                }}
+            }});
+            video.addEventListener('canplay', () => {{
+                console.log('Video can start playing');
+            }});
+            video.addEventListener('playing', () => {{
+                console.log('Video is now playing');
             }});
         }};
     </script>
@@ -408,7 +362,7 @@
                 </div>
 
                 <div class="video-container">
-                    <video id="videoElement" controls autoplay muted>
+                    <video id="videoElement" autoplay muted>
                         <source src="/video_live.mp4" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -423,9 +377,6 @@
                 <div class="buttons-div">
                     <button id="submitBtn" class="popup-button" onclick="submitResponse()" disabled>
                         Submit
-                    </button>
-                    <button id="downloadBtn" class="popup-button download-btn" onclick="downloadVideo()">
-                        📥 Download MP4
                     </button>
                 </div>
             </div>

@@ -24,12 +24,11 @@ from typing import Optional
 
 from loguru import logger
 
-from th_cli.th_utils.ffmpeg_converter import CHUNK_SIZE, VideoFileConverter
+from th_cli.th_utils.ffmpeg_converter import CHUNK_SIZE
 
 # HTTP Endpoints
 ENDPOINT_ROOT = "/"
 ENDPOINT_VIDEO_LIVE = "/video_live.mp4"
-ENDPOINT_DOWNLOAD_MP4 = "/download_mp4"
 ENDPOINT_SUBMIT_RESPONSE = "/submit_response"
 
 
@@ -40,8 +39,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         logger.info(f"GET request received: {self.path}")
         if self.path == ENDPOINT_VIDEO_LIVE:
             self.stream_live_video()
-        elif self.path == ENDPOINT_DOWNLOAD_MP4:
-            self.download_mp4()
         elif self.path == ENDPOINT_ROOT:
             self.serve_player()
         else:
@@ -107,55 +104,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             logger.error(f"LIVE MP4 streaming error: {e}")
 
         logger.info(f"HTTP LIVE MP4 stream ended, total bytes sent: {bytes_sent}")
-
-    def download_mp4(self):
-        """Convert .bin file to MP4 and serve for download."""
-        logger.info("MP4 download request received")
-
-        try:
-            # Get the current video file from the server
-            video_handler = getattr(self.server, "video_handler", None)
-            if not video_handler or not video_handler.current_stream_file:
-                logger.error("No video file available for download")
-                self.send_error(404, "No video file available")
-                return
-
-            bin_file = video_handler.current_stream_file
-            if not bin_file.exists():
-                logger.error(f"Video file not found: {bin_file}")
-                self.send_error(404, "Video file not found")
-                return
-
-            logger.info(f"Converting {bin_file} to MP4 for download...")
-
-            # Convert to MP4
-            mp4_file = VideoFileConverter.convert_video_to_mp4(bin_file)
-            if not mp4_file or not mp4_file.exists():
-                logger.error("MP4 conversion failed")
-                self.send_error(500, "MP4 conversion failed")
-                return
-
-            # Serve MP4 file for download
-            file_size = mp4_file.stat().st_size
-            logger.info(f"Serving MP4 download: {mp4_file} ({file_size:,} bytes)")
-
-            self.send_response(200)
-            self.send_header("Content-Type", "video/mp4")
-            self.send_header("Content-Length", str(file_size))
-            self.send_header("Content-Disposition", f'attachment; filename="{mp4_file.name}"')
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-
-            # Stream file to client
-            with open(mp4_file, "rb") as f:
-                while chunk := f.read(CHUNK_SIZE):
-                    self.wfile.write(chunk)
-
-            logger.info("MP4 download completed successfully")
-
-        except Exception as e:
-            logger.error(f"Error in MP4 download: {e}")
-            self.send_error(500, f"Download error: {str(e)}")
 
     def handle_response(self):
         """Handle user response from web UI."""
@@ -249,7 +197,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
         # Read HTML template from file
         try:
-            template_path = Path(__file__).parent.parent / "video_verification.html"
+            template_path = Path(__file__).parent / "video_verification.html"
             with open(template_path, "r", encoding="utf-8") as f:
                 html_template = f.read()
 

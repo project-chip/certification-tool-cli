@@ -20,6 +20,6 @@ This package provides utility functionality:
 - FFmpeg video conversion utilities
 """
 
-from .ffmpeg_converter import FFmpegStreamConverter, VideoFileConverter
+from .ffmpeg_converter import FFmpegStreamConverter
 
-__all__ = ["FFmpegStreamConverter", "VideoFileConverter"]
+__all__ = ["FFmpegStreamConverter"]

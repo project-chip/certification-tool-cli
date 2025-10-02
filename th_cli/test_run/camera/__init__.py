@@ -23,7 +23,7 @@ This package provides modular camera/video handling functionality:
 - Main camera stream handler coordinator
 """
 
-from th_cli.th_utils.ffmpeg_converter import FFmpegStreamConverter, VideoFileConverter
+from th_cli.th_utils.ffmpeg_converter import FFmpegStreamConverter
 
 from .camera_http_server import CameraHTTPServer, VideoStreamingHandler
 from .camera_stream_handler import CameraStreamHandler
@@ -32,7 +32,6 @@ from .websocket_manager import VideoWebSocketManager
 __all__ = [
     "CameraStreamHandler",
     "FFmpegStreamConverter",
-    "VideoFileConverter",
     "CameraHTTPServer",
     "VideoStreamingHandler",
     "VideoWebSocketManager",
