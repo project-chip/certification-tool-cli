@@ -140,6 +140,7 @@ async def run_tests(
             if not os.path.exists(config):
                 # The config file is in the th_cli package directory
                 from pathlib import Path
+
                 package_config = Path(__file__).parent.parent / "default_config.properties"
                 if package_config.exists():
                     config = str(package_config)
