@@ -63,8 +63,7 @@ class FFmpegStreamConverter:
         """Read converted MP4 data from FFmpeg stdout."""
         try:
             while self.ffmpeg_process and self.ffmpeg_process.poll() is None:
-                data = self.ffmpeg_process.stdout.read(CHUNK_SIZE)
-                if data:
+                if data := self.ffmpeg_process.stdout.read(CHUNK_SIZE):
                     try:
                         self.output_queue.put_nowait(data)
                     except queue.Full:

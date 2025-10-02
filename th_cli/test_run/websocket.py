@@ -26,7 +26,7 @@ from th_cli.api_lib_autogen.models import (
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state, italic
+from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state
 from th_cli.config import config
 
 from .prompt_manager import handle_file_upload_request, handle_prompt
@@ -34,7 +34,6 @@ from .socket_schemas import (
     MessageTypeEnum,
     PromptRequest,
     SocketMessage,
-    StreamVerificationPromptRequest,
     TestCaseUpdate,
     TestLogRecord,
     TestRunUpdate,
