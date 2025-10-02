@@ -507,6 +507,8 @@ class TestRunTestsCommand:
         "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3",
         "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3,TC_ACE_1_3-custom",
         "TC-ACE-1.1, TC-ACE-1.2, TC-ACE-1.3",  # with spaces
+        "TC-MCORE_FS-1.1, TC-MCORE_FS-1_2, TC_MCORE_FS-1.2",
+        "TC_CADMIN_1_3_4","TC_CADMIN_1_3_102"
     ])
     def test_run_tests_various_test_lists(
         self,
@@ -729,7 +731,6 @@ class TestRunTestsCommand:
         "invalid-format",
         "TC-INVALID",
         "TCACE11",
-        "TC-ACE-1.1.1",
         "TC-ACE-1.1.1.1",
         "TC-ACE-1.1-custom-extra",
     ])

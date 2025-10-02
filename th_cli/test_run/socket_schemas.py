@@ -33,6 +33,7 @@ class MessageTypeEnum(str, Enum):
     TIME_OUT_NOTIFICATION = "time_out_notification"
     TEST_LOG_RECORDS = "test_log_records"
     INVALID_MESSAGE = "invalid_message"
+    STREAM_VERIFICATION_REQUEST = "stream_verification_request"
 
 
 class TestStateEnum(str, Enum):
@@ -109,6 +110,10 @@ class TextInputPromptRequest(PromptRequest):
     regex_pattern: str | None
 
 
+class StreamVerificationPromptRequest(OptionsSelectPromptRequest):
+    pass
+
+
 class PromptResponse(BaseModel):
     response: Union[int, str]
     status_code: UserResponseStatusEnum
@@ -120,6 +125,7 @@ class SocketMessage(BaseModel):
     payload: Union[
         OptionsSelectPromptRequest,
         TextInputPromptRequest,
+        StreamVerificationPromptRequest,
         PromptRequest,
         PromptResponse,
         TestUpdate,

@@ -13,6 +13,7 @@ test.properties
 # Environments
 .env
 .venv
+videos
 
 # mypy
 .mypy_cache/
