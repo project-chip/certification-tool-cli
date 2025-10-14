@@ -47,14 +47,10 @@ CLI tool for using the CSA Test Harness
 Commands:
   abort-testing               Abort the current test execution
   available-tests             Get a list of available tests
-  create-project              Creates a project
-  delete-project              Deletes a project
-  list-projects               Get a list of projects
+  project                     Manage the application projects
   run-tests                   Create a new test run from selected tests
-  test-run-execution-history  Read test run execution history
+  test-run-execution          List test run executions and read logs
   test-runner-status          Get the current Matter test runner status
-  update-project              Updates a project with full test env config file
-  versions                    Get application versions information
 ```
 
 ### available-tests
