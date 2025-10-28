@@ -18,22 +18,13 @@ from typing import Union
 
 from pydantic import BaseModel
 
+from th_cli.shared_constants import MessageTypeEnum
+
 MESSAGE_EVENT_KEY = "message_event"
 RESPONSE_KEY = "response"
 STATUS_CODE_KEY = "status_code"
 
 
-# Enum Keys for different types of messages currently supported by the tool
-class MessageTypeEnum(str, Enum):
-    PROMPT_REQUEST = "prompt_request"
-    PROMPT_RESPONSE = "prompt_response"
-    OPTIONS_REQUEST = "options_request"
-    TEST_UPDATE = "test_update"
-    FILE_UPLOAD_REQUEST = "file_upload_request"
-    TIME_OUT_NOTIFICATION = "time_out_notification"
-    TEST_LOG_RECORDS = "test_log_records"
-    INVALID_MESSAGE = "invalid_message"
-    STREAM_VERIFICATION_REQUEST = "stream_verification_request"
 
 
 class TestStateEnum(str, Enum):

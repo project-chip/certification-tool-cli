@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional, Union  # noqa
 
 from pydantic import BaseModel, Field
 
+from th_cli.shared_constants import DutPairingModeEnum
+
 
 class BodyCreateTestRunExecutionApiV1TestRunExecutionsPost(BaseModel):
     test_run_execution_in: "TestRunExecutionCreate" = Field(..., alias="test_run_execution_in")
@@ -37,13 +39,6 @@ class DutConfig(BaseModel):
     trace_log: "bool" = Field(..., alias="trace_log")
     chip_timeout: "Optional[str]" = Field(None, alias="chip_timeout")
     chip_use_paa_certs: "Optional[bool]" = Field(False, alias="chip_use_paa_certs")
-
-
-class DutPairingModeEnum(str, Enum):
-    ETHERNET = "ethernet"
-    ONNETWORK = "onnetwork"
-    BLE_WIFI = "ble-wifi"
-    BLE_THREAD = "ble-thread"
 
 
 class HTTPValidationError(BaseModel):

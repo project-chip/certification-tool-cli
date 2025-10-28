@@ -30,10 +30,17 @@ fi
 
 # --- Variables ---
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
+BACKEND_ROOT="$PROJECT_ROOT/../backend"
 COMPLETION_FILE=".th-cli-complete"
+SHARED_CONST_DIR="$BACKEND_ROOT/app/constants"
+SHARED_CONST_FILE="shared_constants.py"
+CHANGE_WARNING="# WARNING: This file was copied from the backend's $SHARED_CONST_FILE. \n# Do not edit here."
 # --- End of Variables ---
 
 echo "Installing Matter CLI..."
+# Copy requirements from backend
+cp -r $SHARED_CONST_DIR/$SHARED_CONST_FILE $PROJECT_ROOT/th_cli/
+sed -i "1s/^/#\n$CHANGE_WARNING\n/" $PROJECT_ROOT/th_cli/$SHARED_CONST_FILE # Add warning to the copied file
 
 # Check if pipx is installed
 if ! command -v pipx &> /dev/null; then

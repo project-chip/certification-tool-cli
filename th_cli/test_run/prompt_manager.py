@@ -14,16 +14,13 @@
 # limitations under the License.
 #
 import asyncio
-import datetime
 import json
 import os
 import re
 import socket
-from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import aioconsole
-import aiofiles
 import click
 import httpx
 
@@ -32,9 +29,9 @@ from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
 from th_cli.config import config
+from th_cli.shared_constants import MessageTypeEnum
 
 from .socket_schemas import (
-    MessageTypeEnum,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
