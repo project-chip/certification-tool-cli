@@ -27,6 +27,3 @@ dmypy.json
 /.coverage
 output_logs
 config.json
-
-# Shared constants file (copied from backend during installation)
-shared_constants.py

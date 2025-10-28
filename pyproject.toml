@@ -59,12 +59,6 @@ packages = [
     {include = "api_lib_autogen", from = "th_cli"},
 ]
 
-# Poetry respects .gitignore rules during package building
-# Force include shared_constants.py even if it's ignored
-include = [
-    "th_cli/shared_constants.py"
-]
-
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.2.0"
 black = "^22.3.0"
