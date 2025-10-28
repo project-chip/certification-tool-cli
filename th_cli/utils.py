@@ -200,9 +200,12 @@ def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
     Returns:
         Updated configuration dictionary with properties values mapped to the correct structure
     """
-    config_dict = copy.deepcopy(default_config)
-    # Convert default_config to dict if it's not already
-    config_dict = config_dict.__dict__ if hasattr(config_dict, "__dict__") else config_dict
+    if hasattr(default_config, "__dict__"):
+        default_dict = convert_nested_to_dict(default_config)
+    else:
+        default_dict = default_config
+
+    config_dict = copy.deepcopy(default_dict)
 
     def _convert_value(value: str, default_value: Any) -> Any:
         """Convert string value to appropriate type based on default value.
