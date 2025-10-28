@@ -39,6 +39,10 @@ CHANGE_WARNING="# WARNING: This file was copied from the backend's $SHARED_CONST
 
 echo "Installing Matter CLI..."
 # Copy requirements from backend
+if [ ! -f $SHARED_CONST_DIR/$SHARED_CONST_FILE ]; then
+  echo "Shared constants file not found in backend directory: $SHARED_CONST_DIR/$SHARED_CONST_FILE"
+  exit 1
+fi
 cp -r $SHARED_CONST_DIR/$SHARED_CONST_FILE $PROJECT_ROOT/th_cli/
 sed -i "1s/^/#\n$CHANGE_WARNING\n/" $PROJECT_ROOT/th_cli/$SHARED_CONST_FILE # Add warning to the copied file
 
