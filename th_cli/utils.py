@@ -223,12 +223,12 @@ def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
             try:
                 return int(value)
             except ValueError:
-                return value
+                raise CLIError(f"Invalid integer value '{value}' in properties file.")
         elif isinstance(default_value, float):
             try:
                 return float(value)
             except ValueError:
-                return value
+                raise CLIError(f"Invalid float value '{value}' in properties file.")
         return value
 
     def _deep_merge(target: dict, source: dict, default: dict) -> None:
