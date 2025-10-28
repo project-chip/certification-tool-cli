@@ -260,8 +260,12 @@ def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
     for section_name in config_data.keys():
         if section_name in config_dict:
             # Section exists in both - merge them
-            if isinstance(config_dict[section_name], dict) and isinstance(config_data[section_name], dict):
-                _deep_merge(config_dict[section_name], config_data[section_name], config_dict[section_name])
+            if (
+                isinstance(config_dict[section_name], dict)
+                and isinstance(config_data[section_name], dict)
+                and section_name in default_dict
+            ):
+                _deep_merge(config_dict[section_name], config_data[section_name], default_dict[section_name])
             else:
                 config_dict[section_name] = config_data[section_name]
         else:
