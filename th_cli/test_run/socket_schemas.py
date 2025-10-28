@@ -13,30 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import Union
 
 from pydantic import BaseModel
 
-from th_cli.shared_constants import MessageTypeEnum
+from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
 
 MESSAGE_EVENT_KEY = "message_event"
 RESPONSE_KEY = "response"
 STATUS_CODE_KEY = "status_code"
-
-
-
-
-class TestStateEnum(str, Enum):
-    __test__ = False  # Needed to indicate to PyTest that this is not a "test"
-    PENDING = "pending"
-    EXECUTING = "executing"
-    PENDING_ACTUATION = "pending_actuation"  # TODO: Do we need this
-    PASSED = "passed"  # Test Passed with no issued
-    FAILED = "failed"  # Test Failed
-    ERROR = "error"  # Test Error due to tool setup or environment
-    NOT_APPLICABLE = "not_applicable"  # TODO: Do we need this for full cert runs?
-    CANCELLED = "cancelled"
 
 
 class UserResponseStatusEnum(IntEnum):

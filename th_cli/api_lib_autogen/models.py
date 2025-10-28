@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Union  # noqa
 
 from pydantic import BaseModel, Field
 
-from th_cli.shared_constants import DutPairingModeEnum
+from th_cli.shared_constants import DutPairingModeEnum, TestStateEnum
 
 
 class BodyCreateTestRunExecutionApiV1TestRunExecutionsPost(BaseModel):
@@ -228,17 +228,6 @@ class TestRunnerState(str, Enum):
 class TestRunnerStatus(BaseModel):
     state: "TestRunnerState" = Field(..., alias="state")
     test_run_execution_id: "Optional[int]" = Field(None, alias="test_run_execution_id")
-
-
-class TestStateEnum(str, Enum):
-    PENDING = "pending"
-    EXECUTING = "executing"
-    PENDING_ACTUATION = "pending_actuation"
-    PASSED = "passed"
-    FAILED = "failed"
-    ERROR = "error"
-    NOT_APPLICABLE = "not_applicable"
-    CANCELLED = "cancelled"
 
 
 class TestStepExecution(BaseModel):
