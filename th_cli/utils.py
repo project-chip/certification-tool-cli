@@ -189,7 +189,7 @@ def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
     """Map properties values to the default_config structure.
 
     This function automatically merges properties from config_data into default_config
-    by iterating through all sections present in the default config. This approach
+    by iterating through all sections present in the provided config_data. This approach
     ensures that future updates to the default configuration don't require changes
     to this function.
 
