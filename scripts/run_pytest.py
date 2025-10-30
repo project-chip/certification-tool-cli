@@ -18,4 +18,4 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 #Using an array to store the arguments, to handle 'whitespaces' correctly
 args=("$@")
-poetry run --project="$PROJECT_ROOT" pytest "${args[@]}"
+poetry run --project="$PROJECT_ROOT" pytest --ignore=client_generator "${args[@]}"

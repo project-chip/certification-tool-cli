@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2025 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,10 +28,10 @@ from th_cli.api_lib_autogen.models import (
 )
 from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state
 from th_cli.config import config
+from th_cli.shared_constants import MessageTypeEnum
 
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
-    MessageTypeEnum,
     PromptRequest,
     SocketMessage,
     TestCaseUpdate,

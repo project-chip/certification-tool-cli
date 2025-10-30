@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2025 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +14,13 @@
 # limitations under the License.
 #
 import asyncio
-import datetime
 import json
 import os
 import re
 import socket
-from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import aioconsole
-import aiofiles
 import click
 import httpx
 
@@ -32,9 +29,9 @@ from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
 from th_cli.config import config
+from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .socket_schemas import (
-    MessageTypeEnum,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
@@ -352,8 +349,8 @@ async def _send_prompt_response(socket: WebSocketClientProtocol, input: Union[st
         message_id=prompt.message_id,
     )
     payload_dict = {
-        "type": "prompt_response",
-        "payload": response.dict(),
+        MessageKeysEnum.TYPE: "prompt_response",
+        MessageKeysEnum.PAYLOAD: response.dict(),
     }
     payload = json.dumps(payload_dict)
     await socket.send(payload)

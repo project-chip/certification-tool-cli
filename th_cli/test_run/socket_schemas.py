@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2025 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,39 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import Union
 
 from pydantic import BaseModel
 
+from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
+
 MESSAGE_EVENT_KEY = "message_event"
 RESPONSE_KEY = "response"
 STATUS_CODE_KEY = "status_code"
-
-
-# Enum Keys for different types of messages currently supported by the tool
-class MessageTypeEnum(str, Enum):
-    PROMPT_REQUEST = "prompt_request"
-    PROMPT_RESPONSE = "prompt_response"
-    OPTIONS_REQUEST = "options_request"
-    TEST_UPDATE = "test_update"
-    FILE_UPLOAD_REQUEST = "file_upload_request"
-    TIME_OUT_NOTIFICATION = "time_out_notification"
-    TEST_LOG_RECORDS = "test_log_records"
-    INVALID_MESSAGE = "invalid_message"
-    STREAM_VERIFICATION_REQUEST = "stream_verification_request"
-
-
-class TestStateEnum(str, Enum):
-    __test__ = False  # Needed to indicate to PyTest that this is not a "test"
-    PENDING = "pending"
-    EXECUTING = "executing"
-    PENDING_ACTUATION = "pending_actuation"  # TODO: Do we need this
-    PASSED = "passed"  # Test Passed with no issued
-    FAILED = "failed"  # Test Failed
-    ERROR = "error"  # Test Error due to tool setup or environment
-    NOT_APPLICABLE = "not_applicable"  # TODO: Do we need this for full cert runs?
-    CANCELLED = "cancelled"
 
 
 class UserResponseStatusEnum(IntEnum):

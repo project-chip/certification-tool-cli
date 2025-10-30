@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2025 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional, Union  # noqa
 
 from pydantic import BaseModel, Field
 
+from th_cli.shared_constants import DutPairingModeEnum, TestStateEnum
+
 
 class BodyCreateTestRunExecutionApiV1TestRunExecutionsPost(BaseModel):
     test_run_execution_in: "TestRunExecutionCreate" = Field(..., alias="test_run_execution_in")
@@ -37,13 +39,6 @@ class DutConfig(BaseModel):
     trace_log: "bool" = Field(..., alias="trace_log")
     chip_timeout: "Optional[str]" = Field(None, alias="chip_timeout")
     chip_use_paa_certs: "Optional[bool]" = Field(False, alias="chip_use_paa_certs")
-
-
-class DutPairingModeEnum(str, Enum):
-    ETHERNET = "ethernet"
-    ONNETWORK = "onnetwork"
-    BLE_WIFI = "ble-wifi"
-    BLE_THREAD = "ble-thread"
 
 
 class HTTPValidationError(BaseModel):
@@ -233,17 +228,6 @@ class TestRunnerState(str, Enum):
 class TestRunnerStatus(BaseModel):
     state: "TestRunnerState" = Field(..., alias="state")
     test_run_execution_id: "Optional[int]" = Field(None, alias="test_run_execution_id")
-
-
-class TestStateEnum(str, Enum):
-    PENDING = "pending"
-    EXECUTING = "executing"
-    PENDING_ACTUATION = "pending_actuation"
-    PASSED = "passed"
-    FAILED = "failed"
-    ERROR = "error"
-    NOT_APPLICABLE = "not_applicable"
-    CANCELLED = "cancelled"
 
 
 class TestStepExecution(BaseModel):
