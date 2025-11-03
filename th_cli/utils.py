@@ -188,6 +188,11 @@ def add_unmapped_property(properties: dict, key: str, value: str, current_sectio
 def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
     """Map properties values to the default_config structure.
 
+    This function automatically merges properties from config_data into default_config
+    by iterating through all sections present in the provided config_data. This approach
+    ensures that future updates to the default configuration don't require changes
+    to this function.
+
     Args:
         config_data: Dictionary with properties values organized by main sections
         default_config: Dictionary with default configuration values
@@ -195,45 +200,73 @@ def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
     Returns:
         Updated configuration dictionary with properties values mapped to the correct structure
     """
-    config_dict = copy.deepcopy(default_config)
-    # Convert default_config to dict if it's not already
-    config_dict = config_dict.__dict__ if hasattr(config_dict, "__dict__") else config_dict
+    if hasattr(default_config, "__dict__"):
+        default_dict = convert_nested_to_dict(default_config)
+    else:
+        default_dict = default_config
 
-    # Process network section if it exists
-    if "network" in config_data:
-        # Create new network section
-        new_network = {}
+    config_dict = copy.deepcopy(default_dict)
 
-        # Process thread section
-        if "thread" in config_data["network"]:
-            new_network["thread"] = config_data["network"]["thread"]
+    def _convert_value(value: str, default_value: Any) -> Any:
+        """Convert string value to appropriate type based on default value.
 
-        # Process wifi section
-        if "wifi" in config_data["network"]:
-            new_network["wifi"] = config_data["network"]["wifi"]
+        Args:
+            value: String value from properties file
+            default_value: Default value to infer type from
+
+        Returns:
+            Converted value matching the type of default_value
+        """
+        if isinstance(default_value, bool):
+            return value.lower() == "true"
+        elif isinstance(default_value, int):
+            try:
+                return int(value)
+            except ValueError:
+                raise CLIError(f"Invalid integer value '{value}' in properties file.")
+        elif isinstance(default_value, float):
+            try:
+                return float(value)
+            except ValueError:
+                raise CLIError(f"Invalid float value '{value}' in properties file.")
+        return value
+
+    def _deep_merge(target: dict, source: dict, default: dict) -> None:
+        """Recursively merge source into target, using default for type inference.
+
+        Args:
+            target: Target dictionary to merge into (modified in place)
+            source: Source dictionary to merge from
+            default: Default dictionary to infer types and structure from
+        """
+        for key, value in source.items():
+            if key not in target:
+                # Key doesn't exist in target, add it directly
+                target[key] = value
+            elif isinstance(value, dict) and isinstance(target.get(key), dict):
+                # Both are dictionaries, recurse
+                default_for_key = default.get(key, {}) if isinstance(default, dict) else {}
+                _deep_merge(target[key], value, default_for_key)
+            else:
+                # Leaf value - convert type if needed
+                default_value = default.get(key) if isinstance(default, dict) else None
+                if isinstance(value, str) and default_value is not None:
+                    target[key] = _convert_value(value, default_value)
+                else:
+                    target[key] = value
+
+    # Automatically merge all sections from config_data
+    # Process both sections that exist in default_config and new sections from config_data
+    for section_name, section_value in config_data.items():
+        if (
+            section_name in config_dict
+            and section_name in default_dict
+            and isinstance(config_dict[section_name], dict)
+            and isinstance(section_value, dict)
+        ):
+            _deep_merge(config_dict[section_name], section_value, default_dict[section_name])
         else:
-            new_network["wifi"] = config_dict["network"]["wifi"]
-
-        # Replace the entire network section
-        config_dict["network"] = new_network
-
-    # Process dut_config section
-    if "dut_config" in config_data:
-        dut_data = config_data["dut_config"]
-        if "pairing_mode" in dut_data:
-            config_dict["dut_config"]["pairing_mode"] = dut_data["pairing_mode"]
-        if "setup_code" in dut_data:
-            config_dict["dut_config"]["setup_code"] = dut_data["setup_code"]
-        if "discriminator" in dut_data:
-            config_dict["dut_config"]["discriminator"] = dut_data["discriminator"]
-        if "chip_use_paa_certs" in dut_data:
-            config_dict["dut_config"]["chip_use_paa_certs"] = dut_data["chip_use_paa_certs"].lower() == "true"
-        if "trace_log" in dut_data:
-            config_dict["dut_config"]["trace_log"] = dut_data["trace_log"].lower() == "true"
-
-    # Process test_parameters section
-    if "test_parameters" in config_data:
-        config_dict["test_parameters"] = config_data["test_parameters"]
+            config_dict[section_name] = section_value
 
     return config_dict
 
