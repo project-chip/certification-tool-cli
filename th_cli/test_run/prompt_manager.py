@@ -229,14 +229,28 @@ async def __prompt_user_for_text_input(prompt: TextInputPromptRequest) -> str:
     # Print Prompt
     click.echo(italic(prompt.prompt))
 
-    # TODO: default value, placeholder.
+    # Display placeholder text if available
+    if prompt.placeholder_text:
+        click.echo(f"  Hint: {prompt.placeholder_text}")
+
+    # Display default value if available
+    prompt_suffix = ""
+    if prompt.default_value is not None:
+        prompt_suffix = f" [default: {prompt.default_value}]"
+
+    click.echo(f"Enter value{prompt_suffix}: ", nl=False)
 
     # Wait for input async
-    input = await aioconsole.ainput()
+    user_input = await aioconsole.ainput()
+
+    # Use default value if input is empty and default exists
+    if not user_input.strip() and prompt.default_value is not None:
+        user_input = prompt.default_value
+        click.echo(f"Using default value: {user_input}")
 
     # validate input
-    if __valid_text_input(input=input, prompt=prompt):
-        return input
+    if __valid_text_input(input=user_input, prompt=prompt):
+        return user_input
 
     # Recursively Retry
     await asyncio.sleep(0.1)
