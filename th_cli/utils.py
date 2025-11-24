@@ -340,8 +340,10 @@ def parse_pics_xml(xml_content: str) -> dict:
         result = {"clusters": {cluster_name: {"name": cluster_name, "items": {}}}}
 
         # Parse usage items
-        usage_items = parse_pics_items(root.find(".//usage"))
-        result["clusters"][cluster_name]["items"].update(usage_items)
+        usage = root.find(".//usage")
+        if usage is not None:
+            usage_items = parse_pics_items(usage)
+            result["clusters"][cluster_name]["items"].update(usage_items)
 
         # Parse server side items
         server_side = root.find(".//clusterSide[@type='Server']")
