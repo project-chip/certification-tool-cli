@@ -340,7 +340,6 @@ def parse_pics_xml(xml_content: str) -> dict:
         result = {"clusters": {cluster_name: {"name": cluster_name, "items": {}}}}
 
         # Parse usage items
-        usage = root.find(".//usage")
         if (usage := root.find(".//usage")) is not None:
             result["clusters"][cluster_name]["items"].update(parse_pics_items(usage))
 
