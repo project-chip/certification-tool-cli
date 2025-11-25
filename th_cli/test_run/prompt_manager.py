@@ -316,12 +316,9 @@ async def __upload_file_and_send_response(
 
                 response = await client.post(upload_url, files=files)
 
-                if response.status_code == 200:
-                    click.echo("✅ File uploaded successfully")
-                    await _send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
-                else:
-                    click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
-                    await _send_prompt_response(socket=socket, input="", prompt=prompt)
+                response.raise_for_status()
+                click.echo("✅ File uploaded successfully")
+                await _send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
