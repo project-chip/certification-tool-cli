@@ -41,7 +41,9 @@ from .socket_schemas import (
 )
 
 # Constants
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 200MB in bytes
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
+UPLOAD_TIMEOUT_SECONDS = 300.0
+CONNECT_TIMEOUT_SECONDS = 10.0
 
 # Global video handler instance for reuse
 _video_handler_instance = None
