@@ -308,8 +308,8 @@ async def __upload_file_and_send_response(
             base_url = f"http://{base_url}"
         upload_url = f"{base_url}/api/v1/test_run_executions/file_upload/"
 
-        # Set timeout to 5 minutes for large file uploads
-        timeout = httpx.Timeout(300.0, connect=10.0)
+        # Set timeout for large file uploads
+        timeout = httpx.Timeout(UPLOAD_TIMEOUT_SECONDS, connect=CONNECT_TIMEOUT_SECONDS)
         async with httpx.AsyncClient(timeout=timeout) as client:
             with open(file_path, "rb") as file:
                 files = {"file": (os.path.basename(file_path), file, "application/octet-stream")}
