@@ -289,7 +289,7 @@ async def __upload_file_and_send_response(
     try:
         if not os.path.isfile(file_path):
             click.echo(f"Error: File '{file_path}' does not exist or is not accessible", err=True)
-            await __send_prompt_response(socket=socket, input="", prompt=prompt)
+            await _send_prompt_response(socket=socket, input="", prompt=prompt)
             return
 
         file_size = os.path.getsize(file_path)
@@ -297,7 +297,7 @@ async def __upload_file_and_send_response(
         # Check file size limit
         if file_size > MAX_FILE_SIZE:
             click.echo(f"❌ File too large: {file_size} bytes (max: {MAX_FILE_SIZE} bytes)", err=True)
-            await __send_prompt_response(socket=socket, input="", prompt=prompt)
+            await _send_prompt_response(socket=socket, input="", prompt=prompt)
             return
 
         click.echo(f"File selected: {file_path} (size: {file_size:,} bytes)")
@@ -308,7 +308,9 @@ async def __upload_file_and_send_response(
             base_url = f"http://{base_url}"
         upload_url = f"{base_url}/api/v1/test_run_executions/file_upload/"
 
-        async with httpx.AsyncClient() as client:
+        # Set timeout to 5 minutes for large file uploads
+        timeout = httpx.Timeout(300.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             with open(file_path, "rb") as file:
                 files = {"file": (os.path.basename(file_path), file, "application/octet-stream")}
 
@@ -316,20 +318,20 @@ async def __upload_file_and_send_response(
 
                 if response.status_code == 200:
                     click.echo("✅ File uploaded successfully")
-                    await __send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
+                    await _send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
                 else:
                     click.echo(f"❌ File upload failed: {response.status_code} - {response.text}", err=True)
-                    await __send_prompt_response(socket=socket, input="", prompt=prompt)
+                    await _send_prompt_response(socket=socket, input="", prompt=prompt)
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
-        await __send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, input="", prompt=prompt)
     except httpx.HTTPStatusError as e:
         click.echo(f"❌ HTTP error during file upload: {e.response.status_code} - {e.response.text}", err=True)
-        await __send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, input="", prompt=prompt)
     except Exception as e:
         click.echo(f"❌ Unexpected error uploading file: {str(e)}", err=True)
-        await __send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, input="", prompt=prompt)
 
 
 def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
