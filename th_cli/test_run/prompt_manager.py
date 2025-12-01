@@ -18,6 +18,7 @@ import json
 import os
 import re
 import socket
+import sys
 from typing import Any, Union
 
 import aioconsole
@@ -61,6 +62,26 @@ def _get_local_ip() -> str:
     except Exception:
         # Fallback to localhost if unable to determine IP
         return "localhost"
+
+
+async def _abort_test_run() -> bool:
+    """Abort the current test run."""
+    try:
+        from th_cli.api_lib_autogen.api_client import AsyncApis
+        from th_cli.client import get_client
+
+        client = get_client()
+        async_apis = AsyncApis(client)
+        test_run_executions_api = async_apis.test_run_executions_api
+
+        response = await test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post()
+        await client.aclose()
+
+        click.echo(colorize_error(f"\n🛑 Test run aborted: {response.get('detail', 'Testing aborted')}"), err=True)
+        return True
+    except Exception as e:
+        click.echo(colorize_error(f"\n⚠️  Failed to abort test run: {e}"), err=True)
+        return False
 
 
 async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest, message_type: str = None) -> None:
@@ -155,6 +176,29 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
 
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Video prompt timed out"), err=True)
+        # Clean up using the shared instance
+        await _cleanup_video_handler()
+    except RuntimeError as e:
+        error_message = str(e)
+        if "FFmpeg" in error_message:
+            from th_cli.th_utils.ffmpeg_converter import FFmpegStreamConverter
+
+            is_installed, full_error_msg = FFmpegStreamConverter.check_ffmpeg_installed()
+
+            click.echo("\n" + "=" * 70, err=True)
+            click.echo(colorize_error("❌ Video Streaming Error - Fatal"), err=True)
+            click.echo("=" * 70, err=True)
+
+            print(full_error_msg, file=sys.stderr)
+
+            click.echo("=" * 70, err=True)
+
+            click.echo(colorize_error("\n⚠️  Cannot continue without FFmpeg. Aborting test run..."), err=True)
+            await _abort_test_run()
+
+            click.echo(colorize_error("\n📝 Please install FFmpeg and restart the test.\n"), err=True)
+        else:
+            click.echo(colorize_error(f"Error handling video prompt: {e}"), err=True)
         # Clean up using the shared instance
         await _cleanup_video_handler()
     except Exception as e:

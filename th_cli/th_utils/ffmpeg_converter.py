@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 import queue
+import shutil
+import subprocess
 import threading
 from typing import Optional
 
@@ -31,24 +33,78 @@ class FFmpegStreamConverter:
         self.ffmpeg_process = None
         self.output_queue = queue.Queue()
 
+    @staticmethod
+    def check_ffmpeg_installed() -> tuple[bool, str]:
+        """
+        Check if FFmpeg is installed and available.
+
+        Returns:
+            tuple: (is_installed, error_message)
+        """
+        # Check if ffmpeg command exists
+        if shutil.which("ffmpeg") is None:
+            error_msg = (
+                "\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "❌ FFmpeg is NOT installed!\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "\n"
+                "FFmpeg is required for video streaming functionality.\n"
+                "\n"
+                "📦 Installation Instructions:\n"
+                "\n"
+                "    sudo apt-get update\n"
+                "    sudo apt-get install ffmpeg\n"
+                "\n"
+                "✅ After installation, verify with:\n"
+                "    ffmpeg -version\n"
+                "\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            )
+            return False, error_msg
+
+        # Check ffmpeg version and capabilities
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                version_info = result.stdout.split('\n')[0]
+                logger.info(f"FFmpeg detected: {version_info}")
+                return True, ""
+            else:
+                return False, "FFmpeg command failed to execute properly"
+        except subprocess.TimeoutExpired:
+            return False, "FFmpeg command timed out"
+        except Exception as e:
+            return False, f"Error checking FFmpeg: {e}"
+
     def start_conversion(self):
         """Start FFmpeg process for real-time conversion."""
+        # Check if FFmpeg is installed before starting
+        is_installed, error_msg = self.check_ffmpeg_installed()
+        if not is_installed:
+            logger.error(error_msg)
+            raise RuntimeError(
+                "FFmpeg is not installed. Video streaming requires FFmpeg. "
+                "See installation instructions above."
+            )
+
         try:
             # Create FFmpeg stream using ffmpeg-python
-            # Re-encode to browser-compatible H.264 baseline profile for live streaming
+            # Use stream copy (no re-encoding) for maximum HW acceleration compatibility
+            # This preserves the original H.264 encoding from the device
             stream = (
-                ffmpeg.input("pipe:0", format="h264")
+                ffmpeg.input("pipe:0", format="h264", analyzeduration="1000000", probesize="1000000")
                 .output(
                     "pipe:1",
                     format="mp4",
-                    vcodec="libx264",
-                    preset="ultrafast",  # Fast encoding for real-time
-                    tune="zerolatency",  # Minimize latency
-                    profile="baseline",  # Most compatible H.264 profile
-                    level="3.0",  # Compatible level
-                    pix_fmt="yuv420p",  # Browser-compatible pixel format
-                    movflags="frag_keyframe+empty_moov+default_base_moof",  # Optimized for streaming
-                    **{"g": 30, "keyint_min": 30},  # Keyframe every 30 frames for seeking
+                    vcodec="copy",  # Copy stream without re-encoding - best for HW decode
+                    movflags="frag_keyframe+empty_moov+default_base_moof+faststart",  # Fragmented MP4 for streaming
+                    fflags="nobuffer",  # No buffering for low latency
                 )
                 .overwrite_output()
             )
@@ -58,7 +114,7 @@ class FFmpegStreamConverter:
             # Start thread to read FFmpeg output
             threading.Thread(target=self._read_ffmpeg_output, daemon=True).start()
 
-            logger.info("FFmpeg converter started successfully with browser-compatible H.264 baseline profile")
+            logger.info("FFmpeg converter started with stream copy (no re-encoding) for optimal HW decode")
             return True
 
         except ffmpeg.Error as e:
