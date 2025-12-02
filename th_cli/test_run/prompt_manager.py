@@ -33,11 +33,14 @@ from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .socket_schemas import (
+    ImageVerificationPromptRequest,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
+    PushAVStreamVerificationRequest,
     StreamVerificationPromptRequest,
     TextInputPromptRequest,
+    TwoWayTalkVerificationRequest,
     UserResponseStatusEnum,
 )
 
@@ -88,8 +91,20 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
     """Handle all types of prompts with correct inheritance order."""
     click.echo("=======================================")
 
-    if message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
-        request, StreamVerificationPromptRequest
+    # Check if this is a video/stream verification request that needs special handling
+    if message_type in [
+        MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+        MessageTypeEnum.IMAGE_VERIFICATION_REQUEST,
+        MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+        MessageTypeEnum.PUSH_AV_STREAM_VERIFICATION_REQUEST,
+    ] or isinstance(
+        request,
+        (
+            StreamVerificationPromptRequest,
+            ImageVerificationPromptRequest,
+            TwoWayTalkVerificationRequest,
+            PushAVStreamVerificationRequest,
+        ),
     ):
         await __handle_stream_verification_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):

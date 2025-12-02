@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import asyncio
+
 import click
 import websockets
 from loguru import logger
@@ -30,6 +32,7 @@ from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_pr
 from th_cli.config import config
 from th_cli.shared_constants import MessageTypeEnum
 
+from .camera.webrtc_session import CLIWebRTCSession
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
     PromptRequest,
@@ -49,29 +52,39 @@ WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 class TestRunSocket:
     def __init__(self, run: TestRunExecutionWithChildren):
         self.run = run
+        self.webrtc_session = None  # Will be initialized during connection
+        self.webrtc_task = None  # Background task for WebRTC connection
 
     async def connect_websocket(self) -> None:
 
         async with websocket_connect(WEBSOCKET_URL, ping_timeout=None) as socket:
-            while True:
-                try:
-                    message = await socket.recv()
-                except websockets.exceptions.ConnectionClosedOK:
-                    return
+            # Initialize WebRTC peer connection for camera tests
+            # This must happen BEFORE tests start, so the peer is available when tests need it
+            await self._initialize_webrtc_peer()
 
-                # skip messages that are bytes, as we're expecting a string.\
-                if not isinstance(message, str):
-                    click.echo(
-                        colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
-                        err=True,
-                    )
-                    continue
-                try:
-                    message_obj = SocketMessage.parse_raw(message)
-                    await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
-                except ValidationError as e:
-                    click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
-                    click.echo(colorize_error(e.json()), err=True)
+            try:
+                while True:
+                    try:
+                        message = await socket.recv()
+                    except websockets.exceptions.ConnectionClosedOK:
+                        break
+
+                    # skip messages that are bytes, as we're expecting a string.\
+                    if not isinstance(message, str):
+                        click.echo(
+                            colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
+                            err=True,
+                        )
+                        continue
+                    try:
+                        message_obj = SocketMessage.parse_raw(message)
+                        await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
+                    except ValidationError as e:
+                        click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
+                        click.echo(colorize_error(e.json()), err=True)
+            finally:
+                # Clean up WebRTC session when test run ends
+                await self._cleanup_webrtc_peer()
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -96,6 +109,46 @@ class TestRunSocket:
                 colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
                 err=True,
             )
+
+    async def _initialize_webrtc_peer(self) -> None:
+        """Initialize WebRTC peer connection for camera tests.
+
+        This connects the CLI as a WebRTC peer so camera/video tests can use it
+        instead of requiring the frontend browser.
+        """
+        try:
+            logger.info("Initializing WebRTC peer connection for camera tests...")
+            self.webrtc_session = CLIWebRTCSession()
+
+            # Connect in background so it doesn't block test execution
+            # Some tests may not need WebRTC, so we continue even if it fails
+            connected = await self.webrtc_session.connect()
+
+            if connected:
+                logger.info("✅ WebRTC peer connection established - CLI ready for camera tests")
+                click.echo("✅ WebRTC peer connected - ready for camera tests")
+            else:
+                logger.warning("⚠️  WebRTC peer connection failed - camera tests may not work")
+                click.echo("⚠️  WebRTC peer connection failed - camera tests may not work")
+                self.webrtc_session = None
+
+        except Exception as e:
+            logger.warning(f"Failed to initialize WebRTC peer: {e}")
+            logger.warning("Camera tests requiring WebRTC peer may fail")
+            click.echo(f"⚠️  WebRTC initialization warning: {e}")
+            self.webrtc_session = None
+
+    async def _cleanup_webrtc_peer(self) -> None:
+        """Clean up WebRTC peer connection when test run ends."""
+        if self.webrtc_session:
+            try:
+                logger.info("Closing WebRTC peer connection...")
+                await self.webrtc_session.close()
+                logger.info("WebRTC peer connection closed")
+            except Exception as e:
+                logger.warning(f"Error closing WebRTC peer: {e}")
+            finally:
+                self.webrtc_session = None
 
     async def __handle_test_update(self, socket: WebSocketClientProtocol, update: TestUpdate) -> None:
         if isinstance(update.body, TestStepUpdate):

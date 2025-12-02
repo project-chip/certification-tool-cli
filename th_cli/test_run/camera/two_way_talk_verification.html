@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Two-Way Talk Verification</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }}
+
+        .matter-header {{
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+
+        .header-start {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+
+        .header-title {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }}
+
+        .header-end {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+
+        .cli-indicator {{
+            background: #2196F3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+
+        .main-content {{
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }}
+
+        .p-dialog {{
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-width: 700px;
+            width: 100%;
+            margin: 20px;
+        }}
+
+        .p-dialog-header {{
+            padding: 16px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #fafafa;
+            border-radius: 8px 8px 0 0;
+        }}
+
+        .p-dialog-title {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .p-dialog-content {{
+            padding: 20px;
+        }}
+
+        .subheader {{
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }}
+
+        .video-container {{
+            text-align: center;
+            margin: 20px 0;
+            background: #000;
+            border-radius: 4px;
+            padding: 10px;
+        }}
+
+        video {{
+            width: 640px;
+            height: 480px;
+            max-width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            background: #000;
+        }}
+
+        .audio-container {{
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }}
+
+        .audio-level-item {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }}
+
+        .audio-label {{
+            font-weight: 600;
+            min-width: 70px;
+            color: #333;
+        }}
+
+        .audio-icon {{
+            color: #2196F3;
+            font-size: 20px;
+        }}
+
+        .audio-level-bar-container {{
+            position: relative;
+            flex: 1;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }}
+
+        .audio-level-bar-background {{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #e0e0e0;
+        }}
+
+        .audio-level-bar {{
+            position: absolute;
+            height: 100%;
+            background: #4caf50;
+            transition: width 0.1s ease-out;
+            border-radius: 4px 0 0 4px;
+        }}
+
+        .audio-level-value {{
+            min-width: 45px;
+            text-align: right;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .state {{
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 14px;
+            color: #1976D2;
+            font-weight: 500;
+            text-align: center;
+        }}
+
+        .popup-radio-div {{
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }}
+
+        .popup-radio-row {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 100px;
+            justify-content: center;
+        }}
+
+        .popup-radio-row:hover {{
+            background: #f0f0f0;
+            border-color: #2196F3;
+        }}
+
+        .popup-radio-row.selected {{
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }}
+
+        input[type="radio"] {{
+            margin-right: 8px;
+            transform: scale(1.2);
+        }}
+
+        label {{
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .buttons-div {{
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }}
+
+        .popup-button {{
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 120px;
+        }}
+
+        .popup-button:hover {{
+            background: #1976D2;
+        }}
+
+        .popup-button:disabled {{
+            background: #ccc;
+            cursor: not-allowed;
+        }}
+
+        .submitting {{
+            background: #ff9800 !important;
+            cursor: wait !important;
+        }}
+    </style>
+    <script>
+        let selectedValue = null;
+        let audioContext = null;
+        let localAnalyser = null;
+        let remoteAnalyser = null;
+
+        function selectOption(value) {{
+            selectedValue = value;
+
+            // Update visual selection
+            document.querySelectorAll('.popup-radio-row').forEach(row => {{
+                row.classList.remove('selected');
+            }});
+            document.querySelector(`[data-value="${{value}}"]`).classList.add('selected');
+
+            // Update radio buttons
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {{
+                radio.checked = radio.value === value.toString();
+            }});
+
+            // Enable submit button
+            document.getElementById('submitBtn').disabled = false;
+        }}
+
+        async function submitResponse() {{
+            if (selectedValue) {{
+                const button = document.getElementById('submitBtn');
+                button.classList.add('submitting');
+                button.textContent = 'Submitting...';
+                button.disabled = true;
+
+                try {{
+                    const response = await fetch('/submit_response', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ response: selectedValue }})
+                    }});
+
+                    if (response.ok) {{
+                        button.textContent = 'Response Sent!';
+                        button.style.background = '#4caf50';
+                        setTimeout(() => {{
+                            button.textContent = 'Complete';
+                            button.disabled = true;
+                        }}, 1000);
+                    }} else {{
+                        throw new Error(`Server error: ${{response.status}}`);
+                    }}
+                }} catch (error) {{
+                    console.error('Error submitting response:', error);
+                    button.textContent = 'Error - Try Again';
+                    button.style.background = '#f44336';
+                    button.disabled = false;
+                    button.classList.remove('submitting');
+                    setTimeout(() => {{
+                        button.textContent = 'Submit';
+                        button.style.background = '#2196F3';
+                    }}, 3000);
+                }}
+            }}
+        }}
+
+        // Simulate audio levels for demonstration
+        function simulateAudioLevels() {{
+            // Generate random audio levels
+            const speakerLevel = Math.random() * 100;
+            const micLevel = Math.random() * 100;
+            updateAudioLevels(speakerLevel, micLevel);
+        }}
+
+        // Update audio levels with simulated data
+        function updateAudioLevels(speakerLevel, micLevel) {{
+            // Update speaker level
+            const speakerBar = document.querySelector('.audio-level-bar.speaker');
+            const speakerValue = document.querySelector('.audio-level-value.speaker');
+            speakerBar.style.width = speakerLevel + '%';
+            speakerBar.style.backgroundColor = getAudioLevelColor(speakerLevel);
+            speakerValue.textContent = Math.round(speakerLevel) + '%';
+
+            // Update mic level
+            const micBar = document.querySelector('.audio-level-bar.mic');
+            const micValue = document.querySelector('.audio-level-value.mic');
+            micBar.style.width = micLevel + '%';
+            micBar.style.backgroundColor = getAudioLevelColor(micLevel);
+            micValue.textContent = Math.round(micLevel) + '%';
+        }}
+
+        function getAudioLevelColor(level) {{
+            if (level < 30) return '#4caf50';  // Green
+            if (level < 70) return '#ff9800';  // Orange
+            return '#f44336';  // Red
+        }}
+
+        window.onload = function() {{
+            const video = document.getElementById('videoElement');
+            const videoStatus = document.getElementById('videoStatus');
+
+            // Show loading status
+            videoStatus.style.display = 'block';
+            videoStatus.textContent = 'Loading video...';
+
+            console.log('Page loaded, video element:', video);
+            console.log('Video src:', video.querySelector('source').src);
+            console.log('Video readyState:', video.readyState);
+            console.log('Video networkState:', video.networkState);
+
+            video.addEventListener('loadstart', () => {{
+                console.log('Video load started');
+                videoStatus.textContent = 'Loading video...';
+            }});
+
+            video.addEventListener('loadedmetadata', () => {{
+                console.log('Video metadata loaded');
+                videoStatus.textContent = 'Video metadata loaded';
+            }});
+
+            video.addEventListener('canplay', () => {{
+                console.log('Video can play');
+                videoStatus.textContent = 'Video ready';
+                setTimeout(() => {{ videoStatus.style.display = 'none'; }}, 2000);
+            }});
+
+            video.addEventListener('playing', () => {{
+                console.log('Video is playing');
+                videoStatus.style.display = 'none';
+            }});
+
+            video.addEventListener('error', (e) => {{
+                console.error('Video error event:', e);
+                console.error('Video error code:', video.error ? video.error.code : 'unknown');
+                console.error('Video error message:', video.error ? video.error.message : 'unknown');
+                console.error('Video networkState:', video.networkState);
+                console.error('Video readyState:', video.readyState);
+                videoStatus.textContent = 'Video error: ' + (video.error ? video.error.message : 'Unknown error');
+                videoStatus.style.background = 'rgba(255,0,0,0.7)';
+            }});
+
+            video.addEventListener('stalled', () => {{
+                console.warn('Video stalled');
+                videoStatus.textContent = 'Video stalled...';
+            }});
+
+            video.addEventListener('waiting', () => {{
+                console.warn('Video waiting for data');
+                videoStatus.textContent = 'Waiting for video data...';
+            }});
+
+            // Try to manually load the video
+            console.log('Attempting to load video...');
+            video.load();
+
+            // Start simulating audio levels
+            setInterval(simulateAudioLevels, 100);  // Update every 100ms
+
+            // Debug: Check if video starts loading after a delay
+            setTimeout(() => {{
+                console.log('After 2s - readyState:', video.readyState, 'networkState:', video.networkState);
+                if (video.readyState === 0 && video.networkState === 0) {{
+                    console.error('Video has not started loading after 2 seconds!');
+                    videoStatus.textContent = 'Video not loading - check network tab';
+                    videoStatus.style.background = 'rgba(255,165,0,0.7)';
+                }}
+            }}, 2000);
+        }};
+    </script>
+</head>
+<body>
+    <div class="matter-header">
+        <div class="header-start">
+            <div class="header-title">Matter Certification Tool</div>
+        </div>
+        <div class="header-end">
+            <div class="cli-indicator">CLI</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="p-dialog" role="dialog">
+            <div class="p-dialog-header">
+                <span class="p-dialog-title">Two-Way Talk Verification</span>
+            </div>
+
+            <div class="p-dialog-content">
+                <div class="subheader">
+                    {prompt_text}
+                </div>
+
+                <div class="video-container">
+                    <video id="videoElement" autoplay muted>
+                        <source src="/video_live.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div id="videoStatus" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px; font-size: 12px; display: none;">
+                        Loading video...
+                    </div>
+                </div>
+
+                <div class="audio-container">
+                    <div class="audio-level-item">
+                        <div class="audio-label">Speaker</div>
+                        <span class="audio-icon">🔊</span>
+                        <div class="audio-level-bar-container">
+                            <div class="audio-level-bar-background"></div>
+                            <div class="audio-level-bar speaker" style="width: 0%;"></div>
+                        </div>
+                        <div class="audio-level-value speaker">0%</div>
+                    </div>
+
+                    <div class="audio-level-item">
+                        <div class="audio-label">Mic</div>
+                        <span class="audio-icon">🎤</span>
+                        <div class="audio-level-bar-container">
+                            <div class="audio-level-bar-background"></div>
+                            <div class="audio-level-bar mic" style="width: 0%;"></div>
+                        </div>
+                        <div class="audio-level-value mic">0%</div>
+                    </div>
+                </div>
+
+                <div class="state">
+                    Peer Connection State: CONNECTED
+                </div>
+
+                <div class="popup-radio-div">
+                    {radio_options_html}
+                </div>
+
+                <div class="buttons-div">
+                    <button id="submitBtn" class="popup-button" onclick="submitResponse()" disabled>
+                        Submit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

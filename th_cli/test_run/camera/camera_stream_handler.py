@@ -23,18 +23,21 @@ from typing import Optional
 from loguru import logger
 
 from .camera_http_server import CameraHTTPServer
+from .webrtc_session import CLIWebRTCSession
 from .websocket_manager import VideoWebSocketManager
 
 
 class CameraStreamHandler:
     """Main coordinator for camera streaming functionality."""
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: Optional[str] = None, use_webrtc: bool = True):
         self.output_dir = Path(output_dir) if output_dir else Path.cwd() / "videos"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Components
         self.websocket_manager = VideoWebSocketManager()
+        self.webrtc_session: Optional[CLIWebRTCSession] = None
+        self.use_webrtc = use_webrtc  # Try WebRTC first for camera tests
         self.http_server = CameraHTTPServer()
 
         # State
@@ -88,8 +91,32 @@ class CameraStreamHandler:
             return False
 
     async def _initialize_video_capture(self) -> None:
-        """Initialize video capture with retry logic."""
-        # Try to connect and start capturing
+        """Initialize video capture with retry logic - tries WebRTC first, falls back to legacy."""
+        webrtc_connected = False
+
+        # Try WebRTC first if enabled
+        if self.use_webrtc:
+            logger.info("Attempting to establish WebRTC peer connection...")
+            try:
+                self.webrtc_session = CLIWebRTCSession()
+                webrtc_connected = await self.webrtc_session.connect()
+
+                if webrtc_connected:
+                    logger.info("✅ WebRTC connection established - CLI acting as WebRTC peer")
+                    self.stream_ready_event.set()
+                    logger.info("Video stream is ready for viewing via WebRTC")
+                    # WebRTC session will handle streaming in background
+                    return
+                else:
+                    logger.warning("WebRTC connection failed, falling back to legacy video WebSocket")
+                    self.webrtc_session = None
+
+            except Exception as e:
+                logger.warning(f"WebRTC initialization error: {e}, falling back to legacy video WebSocket")
+                self.webrtc_session = None
+
+        # Fall back to legacy video WebSocket
+        logger.info("Using legacy video WebSocket for streaming")
         if await self.websocket_manager.wait_and_connect_with_retry():
             # Signal that the stream is ready once connection is established
             self.stream_ready_event.set()
@@ -119,8 +146,26 @@ class CameraStreamHandler:
         logger.warning("User response timed out")
         return None
 
+    def get_audio_levels(self) -> dict:
+        """Get current audio levels from WebRTC session if active."""
+        if self.webrtc_session and self.webrtc_session.connected:
+            return self.webrtc_session.get_audio_levels()
+        else:
+            # Return default values if no WebRTC session
+            return {"speaker": 0, "mic": 0}
+
     async def stop_video_capture_and_stream(self) -> Optional[Path]:
         """Stop video capture and HTTP streaming."""
+        # Stop WebRTC session if active
+        if self.webrtc_session:
+            try:
+                await self.webrtc_session.close()
+                logger.info("Closed WebRTC session")
+            except Exception as e:
+                logger.warning(f"Error closing WebRTC session: {e}")
+            finally:
+                self.webrtc_session = None
+
         # Stop WebSocket manager
         await self.websocket_manager.stop()
 

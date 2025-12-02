@@ -91,6 +91,18 @@ class StreamVerificationPromptRequest(OptionsSelectPromptRequest):
     pass
 
 
+class ImageVerificationPromptRequest(OptionsSelectPromptRequest):
+    image_hex_str: str
+
+
+class TwoWayTalkVerificationRequest(OptionsSelectPromptRequest):
+    pass
+
+
+class PushAVStreamVerificationRequest(OptionsSelectPromptRequest):
+    pass
+
+
 class PromptResponse(BaseModel):
     response: Union[int, str]
     status_code: UserResponseStatusEnum
@@ -103,6 +115,9 @@ class SocketMessage(BaseModel):
         OptionsSelectPromptRequest,
         TextInputPromptRequest,
         StreamVerificationPromptRequest,
+        ImageVerificationPromptRequest,
+        TwoWayTalkVerificationRequest,
+        PushAVStreamVerificationRequest,
         PromptRequest,
         PromptResponse,
         TestUpdate,
