@@ -34,7 +34,7 @@ BACKEND_ROOT="$PROJECT_ROOT/../backend"
 COMPLETION_FILE=".th-cli-complete"
 SHARED_CONST_DIR="$BACKEND_ROOT/app/constants"
 SHARED_CONST_FILE="shared_constants.py"
-CHANGE_WARNING="# WARNING: This file was copied from the backend's $SHARED_CONST_FILE. \n# Do not edit here."
+CHANGE_WARNING="# WARNING: This file was copied from the backend's $SHARED_CONST_FILE.\n# Do not edit here."
 # --- End of Variables ---
 
 echo "Installing Matter CLI..."
