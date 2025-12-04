@@ -112,7 +112,7 @@ class FFmpegStreamConverter:
             # Start thread to read FFmpeg output
             threading.Thread(target=self._read_ffmpeg_output, daemon=True).start()
 
-            logger.info("FFmpeg converter started with stream copy (no re-encoding) for optimal HW decode")
+            logger.info("FFmpeg converter started successfully with browser-compatible H.264 baseline profile")
             return True
 
         except ffmpeg.Error as e:
