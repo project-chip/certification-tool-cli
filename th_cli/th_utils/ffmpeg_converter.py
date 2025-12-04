@@ -95,16 +95,20 @@ class FFmpegStreamConverter:
 
         try:
             # Create FFmpeg stream using ffmpeg-python
-            # Use stream copy (no re-encoding) for maximum HW acceleration compatibility
-            # This preserves the original H.264 encoding from the device
+            # Re-encode to browser-compatible H.264 baseline profile for live streaming
             stream = (
-                ffmpeg.input("pipe:0", format="h264", analyzeduration="1000000", probesize="1000000")
+                ffmpeg.input("pipe:0", format="h264")
                 .output(
                     "pipe:1",
                     format="mp4",
-                    vcodec="copy",  # Copy stream without re-encoding - best for HW decode
-                    movflags="frag_keyframe+empty_moov+default_base_moof+faststart",  # Fragmented MP4 for streaming
-                    fflags="nobuffer",  # No buffering for low latency
+                    vcodec="libx264",
+                    preset="ultrafast",  # Fast encoding for real-time
+                    tune="zerolatency",  # Minimize latency
+                    profile="baseline",  # Most compatible H.264 profile
+                    level="3.0",  # Compatible level
+                    pix_fmt="yuv420p",  # Browser-compatible pixel format
+                    movflags="frag_keyframe+empty_moov+default_base_moof",  # Optimized for streaming
+                    **{"g": 30, "keyint_min": 30},  # Keyframe every 30 frames for seeking
                 )
                 .overwrite_output()
             )
