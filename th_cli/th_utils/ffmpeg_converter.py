@@ -25,6 +25,25 @@ from loguru import logger
 # Constants
 CHUNK_SIZE = 8192  # 8KB chunks for optimal streaming performance
 
+FFMPEG_NOT_INSTALLED_MSG = (
+    "\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "❌ FFmpeg is NOT installed!\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "\n"
+    "FFmpeg is required for video streaming functionality.\n"
+    "\n"
+    "📦 Installation Instructions:\n"
+    "\n"
+    "    sudo apt-get update\n"
+    "    sudo apt-get install ffmpeg\n"
+    "\n"
+    "✅ After installation, verify with:\n"
+    "    ffmpeg -version\n"
+    "\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+)
+
 
 class FFmpegStreamConverter:
     """Converts H.264 raw stream to MP4 in real-time using FFmpeg."""
@@ -43,25 +62,7 @@ class FFmpegStreamConverter:
         """
         # Check if ffmpeg command exists
         if shutil.which("ffmpeg") is None:
-            error_msg = (
-                "\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "❌ FFmpeg is NOT installed!\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "\n"
-                "FFmpeg is required for video streaming functionality.\n"
-                "\n"
-                "📦 Installation Instructions:\n"
-                "\n"
-                "    sudo apt-get update\n"
-                "    sudo apt-get install ffmpeg\n"
-                "\n"
-                "✅ After installation, verify with:\n"
-                "    ffmpeg -version\n"
-                "\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            )
-            return False, error_msg
+            return False, FFMPEG_NOT_INSTALLED_MSG
 
         # Check ffmpeg version and capabilities
         try:

@@ -47,6 +47,14 @@ from .socket_schemas import (
 
 WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
+webrtc_indicators = [
+    "browserpeerconnection",
+    "webrtc",
+    "browser peer",
+    "ws://backend/api/v1/ws/webrtc",
+    "create_browser_peer",
+]
+
 
 class TestRunSocket:
     def __init__(self, run: TestRunExecutionWithChildren):
@@ -165,13 +173,6 @@ class TestRunSocket:
                 error_text = " ".join(all_errors).lower()
                 logger.debug(f"Checking error text for WebRTC indicators: {error_text[:200]}")
                 # Check for common WebRTC/browser-related error indicators
-                webrtc_indicators = [
-                    "browserpeerconnection",
-                    "webrtc",
-                    "browser peer",
-                    "ws://backend/api/v1/ws/webrtc",
-                    "create_browser_peer",
-                ]
                 if any(indicator in error_text for indicator in webrtc_indicators):
                     is_webrtc_test = True
 
