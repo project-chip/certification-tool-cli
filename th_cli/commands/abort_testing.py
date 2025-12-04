@@ -44,7 +44,7 @@ def abort_testing() -> None:
         click.echo(colorize_success(response.get("detail", "Testing aborted")))
     except ResponseHandlingException as e:
         # Handle timeout and connection errors
-        if "ReadTimeout" in str(e) or "timeout" in str(e).lower():
+        if isinstance(e.source, TimeoutException):
             click.echo(colorize_success("Abort request sent (backend may still be processing)"))
         else:
             click.echo(f"Error aborting test: {e}", err=True)
