@@ -205,9 +205,7 @@ class TestRunSocket:
         # Track test step errors for later use in test case update
         if update.errors:
             case_key = (update.test_suite_execution_index, update.test_case_execution_index)
-            if case_key not in self.test_case_step_errors:
-                self.test_case_step_errors[case_key] = []
-            self.test_case_step_errors[case_key].extend(update.errors)
+            self.test_case_step_errors.setdefault(case_key, []).extend(update.errors)
             logger.debug(f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}")
 
     def __handle_log_record(self, records: list[TestLogRecord]) -> None:
