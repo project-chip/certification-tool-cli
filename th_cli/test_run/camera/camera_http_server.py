@@ -30,7 +30,6 @@ from th_cli.th_utils.ffmpeg_converter import CHUNK_SIZE
 ENDPOINT_ROOT = "/"
 ENDPOINT_VIDEO_LIVE = "/video_live.mp4"
 ENDPOINT_SUBMIT_RESPONSE = "/submit_response"
-ENDPOINT_AUDIO_LEVELS = "/audio_levels"
 
 
 class VideoStreamingHandler(BaseHTTPRequestHandler):
@@ -42,8 +41,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             self.stream_live_video()
         elif self.path == ENDPOINT_ROOT:
             self.serve_player()
-        elif self.path == ENDPOINT_AUDIO_LEVELS:
-            self.get_audio_levels()
         else:
             logger.warning(f"404 for GET {self.path}")
             self.send_error(404)
@@ -107,28 +104,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             logger.error(f"LIVE MP4 streaming error: {e}")
 
         logger.info(f"HTTP LIVE MP4 stream ended, total bytes sent: {bytes_sent}")
-
-    def get_audio_levels(self):
-        """Return current audio levels from WebRTC session."""
-        try:
-            # Get video handler from server
-            video_handler = getattr(self.server, "video_handler", None)
-            if video_handler:
-                levels = video_handler.get_audio_levels()
-            else:
-                levels = {"speaker": 0, "mic": 0}
-
-            # Send JSON response
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(json.dumps(levels).encode("utf-8"))
-            logger.debug(f"Sent audio levels: {levels}")
-
-        except Exception as e:
-            logger.error(f"Error getting audio levels: {e}")
-            self.send_error(500, f"Error getting audio levels: {e}")
 
     def handle_response(self):
         """Handle user response from web UI."""

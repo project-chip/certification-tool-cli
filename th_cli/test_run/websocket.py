@@ -32,7 +32,6 @@ from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_pr
 from th_cli.config import config
 from th_cli.shared_constants import MessageTypeEnum
 
-from .camera.webrtc_session import CLIWebRTCSession
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
     PromptRequest,
@@ -52,16 +51,13 @@ WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 class TestRunSocket:
     def __init__(self, run: TestRunExecutionWithChildren):
         self.run = run
-        self.webrtc_session = None  # Will be initialized during connection
-        self.webrtc_task = None  # Background task for WebRTC connection
+        # Track test step errors for WebRTC detection
+        # Key: (suite_index, case_index), Value: list of error strings from all steps
+        self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
 
     async def connect_websocket(self) -> None:
 
         async with websocket_connect(WEBSOCKET_URL, ping_timeout=None) as socket:
-            # Initialize WebRTC peer connection for camera tests
-            # This must happen BEFORE tests start, so the peer is available when tests need it
-            await self._initialize_webrtc_peer()
-
             try:
                 while True:
                     try:
@@ -83,8 +79,7 @@ class TestRunSocket:
                         click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
                         click.echo(colorize_error(e.json()), err=True)
             finally:
-                # Clean up WebRTC session when test run ends
-                await self._cleanup_webrtc_peer()
+                pass  # Cleanup if needed
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -109,46 +104,6 @@ class TestRunSocket:
                 colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
                 err=True,
             )
-
-    async def _initialize_webrtc_peer(self) -> None:
-        """Initialize WebRTC peer connection for camera tests.
-
-        This connects the CLI as a WebRTC peer so camera/video tests can use it
-        instead of requiring the frontend browser.
-        """
-        try:
-            logger.info("Initializing WebRTC peer connection for camera tests...")
-            self.webrtc_session = CLIWebRTCSession()
-
-            # Connect in background so it doesn't block test execution
-            # Some tests may not need WebRTC, so we continue even if it fails
-            connected = await self.webrtc_session.connect()
-
-            if connected:
-                logger.info("✅ WebRTC peer connection established - CLI ready for camera tests")
-                click.echo("✅ WebRTC peer connected - ready for camera tests")
-            else:
-                logger.warning("⚠️  WebRTC peer connection failed - camera tests may not work")
-                click.echo("⚠️  WebRTC peer connection failed - camera tests may not work")
-                self.webrtc_session = None
-
-        except Exception as e:
-            logger.warning(f"Failed to initialize WebRTC peer: {e}")
-            logger.warning("Camera tests requiring WebRTC peer may fail")
-            click.echo(f"⚠️  WebRTC initialization warning: {e}")
-            self.webrtc_session = None
-
-    async def _cleanup_webrtc_peer(self) -> None:
-        """Clean up WebRTC peer connection when test run ends."""
-        if self.webrtc_session:
-            try:
-                logger.info("Closing WebRTC peer connection...")
-                await self.webrtc_session.close()
-                logger.info("WebRTC peer connection closed")
-            except Exception as e:
-                logger.warning(f"Error closing WebRTC peer: {e}")
-            finally:
-                self.webrtc_session = None
 
     async def __handle_test_update(self, socket: WebSocketClientProtocol, update: TestUpdate) -> None:
         if isinstance(update.body, TestStepUpdate):
@@ -178,9 +133,61 @@ class TestRunSocket:
     def __log_test_case_update(self, update: TestCaseUpdate) -> None:
         case = self.__case(index=update.test_case_execution_index, suite_index=update.test_suite_execution_index)
         title = case.test_case_metadata.title
+        public_id = case.test_case_metadata.public_id
         colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_CASE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
+
+        # Check if test failed/errored due to WebRTC/browser requirements
+        # Collect errors from both the test case update and tracked step errors
+        if update.state.value in ("failed", "error"):
+            all_errors = []
+
+            # Add test case errors from the update
+            if update.errors:
+                all_errors.extend(update.errors)
+                logger.debug(f"Test case has {len(update.errors)} error(s): {update.errors}")
+
+            # Add any test step errors we tracked for this test case
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            if case_key in self.test_case_step_errors:
+                all_errors.extend(self.test_case_step_errors[case_key])
+                logger.debug(
+                    f"Found {len(self.test_case_step_errors[case_key])} tracked step error(s): {self.test_case_step_errors[case_key]}"
+                )
+            else:
+                logger.debug(f"No tracked step errors found for test case {case_key}")
+
+            # Fallback: Check if this is a known WebRTC test by public_id
+            is_webrtc_test = public_id in ["TC_WEBRTC_1_6"]
+
+            if all_errors:
+                error_text = " ".join(all_errors).lower()
+                logger.debug(f"Checking error text for WebRTC indicators: {error_text[:200]}")
+                # Check for common WebRTC/browser-related error indicators
+                webrtc_indicators = [
+                    "browserpeerconnection",
+                    "webrtc",
+                    "browser peer",
+                    "ws://backend/api/v1/ws/webrtc",
+                    "create_browser_peer",
+                ]
+                if any(indicator in error_text for indicator in webrtc_indicators):
+                    is_webrtc_test = True
+
+            # Display warning if this is a WebRTC test
+            if is_webrtc_test:
+                click.echo("")
+                click.echo(colorize_error("⚠️  TWO-WAY TALK TEST NOT SUPPORTED IN CLI"), err=True)
+                click.echo(colorize_error(f"   {title} requires a browser WebRTC implementation."), err=True)
+                click.echo(colorize_error("   This test cannot run from the CLI. Please use the Web UI."), err=True)
+                click.echo("")
+            elif not all_errors:
+                logger.debug(f"Test case {public_id} ({case_key}) failed but has no error messages")
+
+            # Clean up tracked errors for this test case
+            if case_key in self.test_case_step_errors:
+                del self.test_case_step_errors[case_key]
 
     def __log_test_step_update(self, update: TestStepUpdate) -> None:
         step = self.__step(
@@ -193,6 +200,16 @@ class TestRunSocket:
             colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_STEP.value)
             colored_state = colorize_state(update.state.value)
             click.echo(f"            - {colored_title} {colored_state}")
+
+        # Track test step errors for later use in test case update
+        if update.errors:
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            if case_key not in self.test_case_step_errors:
+                self.test_case_step_errors[case_key] = []
+            self.test_case_step_errors[case_key].extend(update.errors)
+            logger.debug(
+                f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}"
+            )
 
     def __handle_log_record(self, records: list[TestLogRecord]) -> None:
         for record in records:
