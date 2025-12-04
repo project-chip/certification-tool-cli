@@ -159,7 +159,7 @@ class TestRunSocket:
                 logger.debug(f"No tracked step errors found for test case {case_key}")
 
             # Fallback: Check if this is a known WebRTC test by public_id
-            is_webrtc_test = public_id in ["TC_WEBRTC_1_6"]
+            is_webrtc_test = public_id in {"TC_WEBRTC_1_6"}
 
             if all_errors:
                 error_text = " ".join(all_errors).lower()
