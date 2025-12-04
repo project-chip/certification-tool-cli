@@ -1,5 +1,5 @@
 #
-# WARNING: This file was copied from the backend's shared_constants.py. 
+# WARNING: This file was copied from the backend's shared_constants.py.
 # Do not edit here.
 #
 # Copyright (c) 2025 Project CHIP Authors

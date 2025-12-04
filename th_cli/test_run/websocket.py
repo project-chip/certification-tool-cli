@@ -207,9 +207,7 @@ class TestRunSocket:
             if case_key not in self.test_case_step_errors:
                 self.test_case_step_errors[case_key] = []
             self.test_case_step_errors[case_key].extend(update.errors)
-            logger.debug(
-                f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}"
-            )
+            logger.debug(f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}")
 
     def __handle_log_record(self, records: list[TestLogRecord]) -> None:
         for record in records:

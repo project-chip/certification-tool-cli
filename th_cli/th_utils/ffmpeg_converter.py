@@ -65,14 +65,9 @@ class FFmpegStreamConverter:
 
         # Check ffmpeg version and capabilities
         try:
-            result = subprocess.run(
-                ["ffmpeg", "-version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                version_info = result.stdout.split('\n')[0]
+                version_info = result.stdout.split("\n")[0]
                 logger.info(f"FFmpeg detected: {version_info}")
                 return True, ""
             else:
@@ -89,8 +84,7 @@ class FFmpegStreamConverter:
         if not is_installed:
             logger.error(error_msg)
             raise RuntimeError(
-                "FFmpeg is not installed. Video streaming requires FFmpeg. "
-                "See installation instructions above."
+                "FFmpeg is not installed. Video streaming requires FFmpeg. " "See installation instructions above."
             )
 
         try:
