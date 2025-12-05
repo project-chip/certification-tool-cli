@@ -16,7 +16,6 @@
 import asyncio
 import datetime
 import json
-import os
 
 import click
 
@@ -34,7 +33,6 @@ from th_cli.colorize import (
     italic,
     set_colors_enabled,
 )
-from th_cli.config import get_package_root
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
@@ -123,32 +121,21 @@ async def run_tests(
     try:
         client = get_client()
         async_apis = AsyncApis(client)
-        projects_api = async_apis.projects_api
         test_collections_api = async_apis.test_collections_api
 
         # Configure new log output for test.
         log_path = test_logging.configure_logger_for_run(title=title)
 
-        # Get default config and convert to dict
-        default_config = await projects_api.default_config_api_v1_projects_default_config_get()
-        default_config_dict = convert_nested_to_dict(default_config)
+        # Get project config and convert to dict
+        project_config = await __project_config(async_apis, project_id)
+        project_config_dict = convert_nested_to_dict(project_config)
+        click.echo(colorize_key_value("Project Config", project_config_dict))
 
-        # If config file is provided, read and parse it
-        if not config:
-            config = "default_config.properties"
-            # If default config not found in current directory, try package directory
-            if not os.path.exists(config):
-                # The config file is in the th_cli package directory
-                from pathlib import Path
-
-                package_config = Path(__file__).parent.parent / "default_config.properties"
-                if package_config.exists():
-                    config = str(package_config)
-
-        config_data = read_properties_file(config)
-        click.echo(colorize_key_value("Read config from file", config_data))
-        cli_config_dict = merge_properties_to_config(config_data, default_config_dict)
-        click.echo(colorize_key_value("CLI Config for test run execution", cli_config_dict))
+        # If config file is provided, read and merge into project config
+        if config:
+            config_data = read_properties_file(config)
+            project_config_dict = merge_properties_to_config(config_data, project_config_dict)
+            click.echo(colorize_key_value("CLI Test Run Execution Config", project_config_dict))
 
         # Read PICS configuration if provided
         pics = read_pics_config(pics_config_folder)
@@ -164,7 +151,7 @@ async def run_tests(
             async_apis,
             selected_tests=selected_tests_dict,
             title=title,
-            config=cli_config_dict,
+            config=project_config_dict,
             pics=pics,
             project_id=project_id,
         )
@@ -181,6 +168,26 @@ async def run_tests(
     finally:
         if client:
             await client.aclose()
+
+
+async def __project_config(
+    async_apis: AsyncApis, project_id: int | None = None
+) -> m.TestEnvironmentConfig:
+    """Retrieve project configuration for given project ID or default configuration if none provided."""
+    projects_api = async_apis.projects_api
+
+    if project_id is not None:
+        try:
+            project = await projects_api.read_project_api_v1_projects_id_get(id=project_id)
+            return project.config
+        except UnexpectedResponse as e:
+            msg = (
+                f"Could not retrieve configuration for project ID '{project_id}': {e}"
+                "Falling back to default configuration."
+            )
+            click.echo(colorize_key_value("Warning:", msg))
+
+    return await projects_api.default_config_api_v1_projects_default_config_get()
 
 
 async def __create_new_test_run_cli(
