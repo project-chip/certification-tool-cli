@@ -181,8 +181,11 @@ async def __project_config(
             project = await projects_api.read_project_api_v1_projects_id_get(id=project_id)
             return project.config
         except UnexpectedResponse as e:
-            """Ignore error retrieving project and return default configuration."""
-            pass
+            msg = (
+                f"Could not retrieve configuration for project ID '{project_id}': {e}"
+                "Falling back to default configuration."
+            )
+            click.echo(colorize_key_value("Warning:", msg))
 
     return await projects_api.default_config_api_v1_projects_default_config_get()
 

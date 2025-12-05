@@ -24,7 +24,7 @@ from th_cli.exceptions import CLIError
 
 def known_cli_path() -> Path:
     """Return the known CLI path from the home directory."""
-    return Path(f"{Path.home()}/certification-tool/cli")
+    return Path.home() / "certification-tool" / "cli"
 
 
 def get_package_root() -> Path:
