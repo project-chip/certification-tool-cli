@@ -15,9 +15,10 @@
 #
 
 import click
+from httpx import Timeout
 
 from th_cli.api_lib_autogen.api_client import SyncApis
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.client import get_client
 from th_cli.colorize import colorize_cmd_help, colorize_help, colorize_success
 from th_cli.exceptions import CLIError, handle_api_error
@@ -31,12 +32,22 @@ def abort_testing() -> None:
     """Abort the current test run execution"""
     client = None
     try:
+        # Create client with extended timeout for abort operation
+        timeout = Timeout(30.0, connect=10.0)  # 30s total, 10s connect
         client = get_client()
+        client._async_client.timeout = timeout
+
         sync_apis = SyncApis(client)
         test_run_executions_api = sync_apis.test_run_executions_api
 
         response = test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post()
         click.echo(colorize_success(response.get("detail", "Testing aborted")))
+    except ResponseHandlingException as e:
+        # Handle timeout and connection errors
+        if isinstance(e.source, TimeoutException):
+            click.echo(colorize_success("Abort request sent (backend may still be processing)"))
+        else:
+            click.echo(f"Error aborting test: {e}", err=True)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse as e:

@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import asyncio
+
 import click
 import websockets
 from loguru import logger
@@ -45,33 +47,47 @@ from .socket_schemas import (
 
 WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
+webrtc_indicators = [
+    "browserpeerconnection",
+    "webrtc",
+    "browser peer",
+    "ws://backend/api/v1/ws/webrtc",
+    "create_browser_peer",
+]
+
 
 class TestRunSocket:
     def __init__(self, run: TestRunExecutionWithChildren):
         self.run = run
+        # Track test step errors for WebRTC detection
+        # Key: (suite_index, case_index), Value: list of error strings from all steps
+        self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
 
     async def connect_websocket(self) -> None:
 
         async with websocket_connect(WEBSOCKET_URL, ping_timeout=None) as socket:
-            while True:
-                try:
-                    message = await socket.recv()
-                except websockets.exceptions.ConnectionClosedOK:
-                    return
+            try:
+                while True:
+                    try:
+                        message = await socket.recv()
+                    except websockets.exceptions.ConnectionClosedOK:
+                        break
 
-                # skip messages that are bytes, as we're expecting a string.\
-                if not isinstance(message, str):
-                    click.echo(
-                        colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
-                        err=True,
-                    )
-                    continue
-                try:
-                    message_obj = SocketMessage.parse_raw(message)
-                    await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
-                except ValidationError as e:
-                    click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
-                    click.echo(colorize_error(e.json()), err=True)
+                    # skip messages that are bytes, as we're expecting a string.\
+                    if not isinstance(message, str):
+                        click.echo(
+                            colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
+                            err=True,
+                        )
+                        continue
+                    try:
+                        message_obj = SocketMessage.parse_raw(message)
+                        await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
+                    except ValidationError as e:
+                        click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
+                        click.echo(colorize_error(e.json()), err=True)
+            finally:
+                pass  # Cleanup if needed
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -125,9 +141,54 @@ class TestRunSocket:
     def __log_test_case_update(self, update: TestCaseUpdate) -> None:
         case = self.__case(index=update.test_case_execution_index, suite_index=update.test_suite_execution_index)
         title = case.test_case_metadata.title
+        public_id = case.test_case_metadata.public_id
         colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_CASE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
+
+        # Check if test failed/errored due to WebRTC/browser requirements
+        # Collect errors from both the test case update and tracked step errors
+        if update.state.value in ("failed", "error"):
+            all_errors = []
+
+            # Add test case errors from the update
+            if update.errors:
+                all_errors.extend(update.errors)
+                logger.debug(f"Test case has {len(update.errors)} error(s): {update.errors}")
+
+            # Add any test step errors we tracked for this test case
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            if case_key in self.test_case_step_errors:
+                all_errors.extend(self.test_case_step_errors[case_key])
+                logger.debug(
+                    f"Found {len(self.test_case_step_errors[case_key])} tracked step error(s): {self.test_case_step_errors[case_key]}"
+                )
+            else:
+                logger.debug(f"No tracked step errors found for test case {case_key}")
+
+            # Fallback: Check if this is a known WebRTC test by public_id
+            is_webrtc_test = public_id in {"TC_WEBRTC_1_6"}
+
+            if all_errors:
+                error_text = " ".join(all_errors).lower()
+                logger.debug(f"Checking error text for WebRTC indicators: {error_text[:200]}")
+                # Check for common WebRTC/browser-related error indicators
+                if any(indicator in error_text for indicator in webrtc_indicators):
+                    is_webrtc_test = True
+
+            # Display warning if this is a WebRTC test
+            if is_webrtc_test:
+                click.echo("")
+                click.echo(colorize_error("⚠️  TWO-WAY TALK TEST NOT SUPPORTED IN CLI"), err=True)
+                click.echo(colorize_error(f"   {title} requires a browser WebRTC implementation."), err=True)
+                click.echo(colorize_error("   This test cannot run from the CLI. Please use the Web UI."), err=True)
+                click.echo("")
+            elif not all_errors:
+                logger.debug(f"Test case {public_id} ({case_key}) failed but has no error messages")
+
+            # Clean up tracked errors for this test case
+            if case_key in self.test_case_step_errors:
+                del self.test_case_step_errors[case_key]
 
     def __log_test_step_update(self, update: TestStepUpdate) -> None:
         step = self.__step(
@@ -140,6 +201,12 @@ class TestRunSocket:
             colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_STEP.value)
             colored_state = colorize_state(update.state.value)
             click.echo(f"            - {colored_title} {colored_state}")
+
+        # Track test step errors for later use in test case update
+        if update.errors:
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            self.test_case_step_errors.setdefault(case_key, []).extend(update.errors)
+            logger.debug(f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}")
 
     def __handle_log_record(self, records: list[TestLogRecord]) -> None:
         for record in records:
