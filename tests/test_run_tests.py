@@ -721,8 +721,8 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 0
-        assert "Read config from file" in result.output
-        assert "CLI Config for test run execution" in result.output
+        assert "Project Config" in result.output
+        assert "CLI Test Run Execution Config" in result.output
         # Should show the configuration data
         assert "dut_config" in result.output
         assert "network" in result.output
