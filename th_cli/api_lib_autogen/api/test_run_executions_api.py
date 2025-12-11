@@ -114,6 +114,18 @@ class _TestRunExecutionsApi:
             url="/api/v1/test_run_executions/status",
         )
 
+    def _build_for_get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
+        self,
+    ) -> Awaitable[m.ChipServerInfo]:
+        """
+        Retrieve ChipServer node information.
+        """
+        return self.api_client.request(
+            type_=m.ChipServerInfo,
+            method="GET",
+            url="/api/v1/test_run_executions/chip-server/info",
+        )
+
     def _build_for_read_test_run_execution_api_v1_test_run_executions_id_get(
         self, id: int
     ) -> Awaitable[m.TestRunExecutionWithChildren]:
@@ -271,6 +283,14 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         Retrieve status of the Test Engine.  When the Test Engine is actively running the status will include the current test_run and the details of the states.
         """
         return await self._build_for_get_test_runner_status_api_v1_test_run_executions_status_get()
+
+    async def get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
+        self,
+    ) -> m.ChipServerInfo:
+        """
+        Retrieve ChipServer node information.
+        """
+        return await self._build_for_get_chip_server_info_api_v1_test_run_executions_chip_server_info_get()
 
     async def read_test_run_execution_api_v1_test_run_executions_id_get(
         self, id: int

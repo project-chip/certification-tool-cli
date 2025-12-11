@@ -222,7 +222,17 @@ async def __start_test_run(
     id = colorize_key_value("ID", str(test_run.id))
 
     click.echo("")
-    click.echo(f"{header}:\n- {title}\n- {id}\n")
+    click.echo(f"{header}:\n- {title}\n- {id}")
+
+    # Fetch and display ChipServer node ID information
+    try:
+        test_run_executions_api = async_apis.test_run_executions_api
+        chip_info = await test_run_executions_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get()
+        node_id_hex = colorize_key_value("Node ID (Hex)", chip_info.node_id_hex)
+        click.echo(f"- {node_id_hex}\n")
+    except Exception as e:
+        # If we can't fetch node_id, don't fail - just skip displaying it
+        click.echo(f"Could not fetch ChipServer node ID information: {e}")
 
     try:
         test_run_executions_api = async_apis.test_run_executions_api

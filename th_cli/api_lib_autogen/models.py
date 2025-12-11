@@ -230,6 +230,11 @@ class TestRunnerStatus(BaseModel):
     test_run_execution_id: "Optional[int]" = Field(None, alias="test_run_execution_id")
 
 
+class ChipServerInfo(BaseModel):
+    node_id: "str" = Field(..., alias="node_id")
+    node_id_hex: "str" = Field(..., alias="node_id_hex")
+
+
 class TestStepExecution(BaseModel):
     state: "TestStateEnum" = Field(..., alias="state")
     title: "str" = Field(..., alias="title")
