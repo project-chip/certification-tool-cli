@@ -64,8 +64,16 @@ class TestRunSocket:
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
 
     async def connect_websocket(self) -> None:
+        # Configure WebSocket with larger max_size
+        max_size = 32 * 1024 * 1024  # 32MB
 
-        async with websocket_connect(WEBSOCKET_URL, ping_timeout=None) as socket:
+        async with websocket_connect(
+            WEBSOCKET_URL,
+            ping_timeout=None,
+            max_size=max_size,
+            read_limit=max_size,
+            write_limit=max_size
+        ) as socket:
             try:
                 while True:
                     try:
