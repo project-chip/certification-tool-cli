@@ -67,7 +67,6 @@ class TestTestRunExecutionCommand:
         assert "ID" in result.output
         assert "Title" in result.output
         assert "State" in result.output
-        assert "Error" in result.output
         assert "Test Run 1" in result.output
         assert "Test Run 2" in result.output
         assert "PASSED" in result.output
@@ -297,15 +296,13 @@ class TestTestRunExecutionCommand:
                 id=1,
                 title="Long Test Run Title That Should Be Formatted Properly",
                 state=api_models.TestStateEnum.PASSED,
-                project_id=1,
-                error="No Error"
+                project_id=1
             ),
             api_models.TestRunExecution(
                 id=2,
                 title="Short Title",
                 state=api_models.TestStateEnum.FAILED,
-                project_id=1,
-                error="Some error occurred"
+                project_id=1
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
@@ -371,14 +368,13 @@ class TestTestRunExecutionCommand:
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
     ) -> None:
-        """Test that error information is properly displayed."""
+        """Test that error state is properly displayed in the State column."""
         # Arrange
         test_execution = api_models.TestRunExecution(
             id=1,
             title="Failed Test Run",
             state=api_models.TestStateEnum.ERROR,
-            project_id=1,
-            error="Test execution failed due to network timeout"
+            project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
 
@@ -389,21 +385,20 @@ class TestTestRunExecutionCommand:
 
         # Assert
         assert result.exit_code == 0
-        assert "Test execution failed due to network timeout" in str(result.output)
+        assert "ERROR" in str(result.output)
 
-    def test_test_run_execution_no_error_display(
+    def test_test_run_execution_passed_state_display(
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
     ) -> None:
-        """Test that 'No Error' is displayed when error is None."""
+        """Test that PASSED state is properly displayed."""
         # Arrange
         test_execution = api_models.TestRunExecution(
             id=1,
             title="Successful Test Run",
             state=api_models.TestStateEnum.PASSED,
-            project_id=1,
-            error=None
+            project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
 
@@ -414,7 +409,7 @@ class TestTestRunExecutionCommand:
 
         # Assert
         assert result.exit_code == 0
-        assert "No Error" in str(result.output)
+        assert "PASSED" in str(result.output)
 
     @pytest.mark.parametrize("json_flag", [True, False])
     def test_test_run_execution_output_modes(
