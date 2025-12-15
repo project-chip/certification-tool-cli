@@ -24,8 +24,8 @@ from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, c
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
-table_format_header = "{:<5} {:47} {:17} {:8}"
-table_format = "{:<5} {:55} {:30} {}"
+table_format_header = "{:<5} {:47} {:17}"
+table_format = "{:<5} {:55} {:30}"
 
 
 @click.command(
@@ -156,10 +156,9 @@ def __print_table_test_execution(item: dict, print_header=True) -> None:
             item.get("id"),
             italic(item.get("title")),
             colorize_state((item.get("state")).value),
-            item.get("error", "No Error"),
         )
     )
 
 
 def __print_table_header() -> None:
-    click.echo(colorize_header(table_format_header.format("ID", "Title", "State", "Error")))
+    click.echo(colorize_header(table_format_header.format("ID", "Title", "State")))
