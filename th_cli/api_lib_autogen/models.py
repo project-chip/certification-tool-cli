@@ -162,6 +162,7 @@ class TestRunExecution(BaseModel):
     completed_at: "Optional[datetime]" = Field(None, alias="completed_at")
     archived_at: "Optional[datetime]" = Field(None, alias="archived_at")
     operator: "Optional[Operator]" = Field(None, alias="operator")
+    error: "Optional[str]" = Field(None, alias="error")
 
 
 class TestRunExecutionCreate(BaseModel):

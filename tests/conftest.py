@@ -146,6 +146,12 @@ def mock_api_client() -> Mock:
     mock_client = Mock(spec=ApiClient)
     mock_client.close = Mock()
     mock_client.aclose = AsyncMock()
+
+    # Add the _async_client attribute that the real ApiClient has
+    mock_async_client = Mock()
+    mock_async_client.timeout = None  # Allow timeout to be set
+    mock_client._async_client = mock_async_client
+
     return mock_client
 
 
