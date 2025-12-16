@@ -763,6 +763,28 @@
                 }
             }
         },
+        "/api/v1/test_run_executions/chip-server/info": {
+            "get": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Get Chip Server Info",
+                "description": "Retrieve ChipServer node ID information.\n\nReturns:\n    ChipServerInfo: Contains node_id (int) and node_id_hex (str) values.",
+                "operationId": "get_chip_server_info_api_v1_test_run_executions_chip_server_info_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChipServerInfo"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test_run_executions/status": {
             "get": {
                 "tags": [
@@ -1434,6 +1456,25 @@
                         "format": "binary"
                     }
                 }
+            },
+            "ChipServerInfo": {
+                "title": "ChipServerInfo",
+                "required": [
+                    "node_id",
+                    "node_id_hex"
+                ],
+                "type": "object",
+                "properties": {
+                    "node_id": {
+                        "title": "Node Id",
+                        "type": "integer"
+                    },
+                    "node_id_hex": {
+                        "title": "Node Id Hex",
+                        "type": "string"
+                    }
+                },
+                "description": "Schema for ChipServer information."
             },
             "DutConfig": {
                 "title": "DutConfig",
