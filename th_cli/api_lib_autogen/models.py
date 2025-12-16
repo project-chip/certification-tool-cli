@@ -231,7 +231,7 @@ class TestRunnerStatus(BaseModel):
 
 
 class ChipServerInfo(BaseModel):
-    node_id: "str" = Field(..., alias="node_id")
+    node_id: "int" = Field(..., alias="node_id")
     node_id_hex: "str" = Field(..., alias="node_id_hex")
 
 
