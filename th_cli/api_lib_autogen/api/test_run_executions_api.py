@@ -148,9 +148,10 @@ class _TestRunExecutionsApi:
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> Awaitable[List[m.TestRunExecutionWithStats]]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.     sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.  Returns:     List of test runs with execution statistics.
         """
         query_params = {}
         if project_id is not None:
@@ -163,6 +164,8 @@ class _TestRunExecutionsApi:
             query_params["skip"] = str(skip)
         if limit is not None:
             query_params["limit"] = str(limit)
+        if sort_order is not None:
+            query_params["sort_order"] = str(sort_order)
 
         return self.api_client.request(
             type_=List[m.TestRunExecutionWithStats],
@@ -307,12 +310,18 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> List[m.TestRunExecutionWithStats]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.     sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.  Returns:     List of test runs with execution statistics.
         """
         return await self._build_for_read_test_run_executions_api_v1_test_run_executions_get(
-            project_id=project_id, archived=archived, search_query=search_query, skip=skip, limit=limit
+            project_id=project_id,
+            archived=archived,
+            search_query=search_query,
+            skip=skip,
+            limit=limit,
+            sort_order=sort_order,
         )
 
     async def remove_test_run_execution_api_v1_test_run_executions_id_delete(
@@ -419,12 +428,18 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> List[m.TestRunExecutionWithStats]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.     sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.  Returns:     List of test runs with execution statistics.
         """
         coroutine = self._build_for_read_test_run_executions_api_v1_test_run_executions_get(
-            project_id=project_id, archived=archived, search_query=search_query, skip=skip, limit=limit
+            project_id=project_id,
+            archived=archived,
+            search_query=search_query,
+            skip=skip,
+            limit=limit,
+            sort_order=sort_order,
         )
         return get_event_loop().run_until_complete(coroutine)
 

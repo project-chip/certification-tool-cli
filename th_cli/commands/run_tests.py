@@ -170,9 +170,7 @@ async def run_tests(
             await client.aclose()
 
 
-async def __project_config(
-    async_apis: AsyncApis, project_id: int | None = None
-) -> m.TestEnvironmentConfig:
+async def __project_config(async_apis: AsyncApis, project_id: int | None = None) -> m.TestEnvironmentConfig:
     """Retrieve project configuration for given project ID or default configuration if none provided."""
     projects_api = async_apis.projects_api
 
