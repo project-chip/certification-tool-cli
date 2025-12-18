@@ -71,6 +71,7 @@ class TestTestRunExecutionCommand:
         assert "Test Run 2" in result.output
         assert "PASSED" in result.output
         api.assert_called_once_with(skip=None, limit=None, sort_order="desc")
+        mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_success_specific_id(
         self,
