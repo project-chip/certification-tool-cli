@@ -32,13 +32,13 @@ from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .socket_schemas import (
+    MessagePromptRequest,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
     StreamVerificationPromptRequest,
     TextInputPromptRequest,
     UserResponseStatusEnum,
-    MessagePromptRequest,
 )
 
 # Constants
