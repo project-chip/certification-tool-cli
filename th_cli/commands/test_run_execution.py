@@ -147,10 +147,9 @@ def __print_filters_info(skip: int | None, limit: int | None, sort_order: str, s
         filters.append("Results: ALL RECORDS")
     else:
         # Skip info
-        effective_skip = skip if skip is not None else 0
         if skip is not None:
             filters.append(f"Skip: {skip}")
-        elif effective_skip == 0:
+        else:
             filters.append("Skip: 0 (from start)")
 
         # Limit info
