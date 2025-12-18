@@ -817,6 +817,7 @@ Escape sequences: \n\t\r"""
         assert result.exit_code == 0
         assert "Old Test Run" in result.output
         api.assert_called_once_with(skip=None, limit=None, sort_order="asc")
+        mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_sort_parameter_desc_default(
         self,
