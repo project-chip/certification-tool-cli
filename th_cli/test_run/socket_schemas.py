@@ -87,6 +87,11 @@ class TextInputPromptRequest(PromptRequest):
     regex_pattern: str | None
 
 
+class MessagePromptRequest(PromptRequest):
+    """Simple message prompt that only requires acknowledgment."""
+    pass
+
+
 class StreamVerificationPromptRequest(OptionsSelectPromptRequest):
     pass
 
@@ -114,6 +119,7 @@ class SocketMessage(BaseModel):
     payload: Union[
         OptionsSelectPromptRequest,
         TextInputPromptRequest,
+        MessagePromptRequest,
         StreamVerificationPromptRequest,
         ImageVerificationPromptRequest,
         TwoWayTalkVerificationRequest,

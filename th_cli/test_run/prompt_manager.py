@@ -38,6 +38,7 @@ from .socket_schemas import (
     StreamVerificationPromptRequest,
     TextInputPromptRequest,
     UserResponseStatusEnum,
+    MessagePromptRequest,
 )
 
 # Constants
@@ -71,6 +72,8 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
         request, StreamVerificationPromptRequest
     ):
         await __handle_stream_verification_prompt(socket=socket, prompt=request)
+    elif message_type == MessageTypeEnum.MESSAGE_REQUEST or isinstance(request, MessagePromptRequest):
+        await __handle_message_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):
         await __handle_options_prompt(socket=socket, prompt=request)
     elif isinstance(request, TextInputPromptRequest):
@@ -177,6 +180,15 @@ async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: Optio
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Prompt timed out"), err=True)
         pass
+
+
+async def __handle_message_prompt(socket: WebSocketClientProtocol, prompt: PromptRequest) -> None:
+    """Handle simple message prompts that only require acknowledgment."""
+    try:
+        click.echo(italic(prompt.prompt))
+        await _send_prompt_response(socket=socket, input="ACK", prompt=prompt)
+    except asyncio.exceptions.TimeoutError:
+        click.echo(colorize_error("Prompt timed out"), err=True)
 
 
 async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:

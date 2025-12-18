@@ -321,14 +321,6 @@ def parse_pics_xml(xml_content: str) -> dict:
         dict: Dictionary containing the PICS configuration in the required format
     """
 
-    def parse_pics_items(element) -> dict[str, Any]:
-        items = {}
-        for pics_item in element.findall(".//picsItem"):
-            item_number = pics_item.find("itemNumber").text
-            support = pics_item.find("support").text.lower() == "true"
-            items[item_number] = {"number": item_number, "enabled": support}
-        return items
-
     try:
         root = fromstring(xml_content)
         cluster_name_element = root.find("name")
@@ -339,20 +331,23 @@ def parse_pics_xml(xml_content: str) -> dict:
         # Initialize the result structure
         result = {"clusters": {cluster_name: {"name": cluster_name, "items": {}}}}
 
-        # Parse usage items
-        if (usage := root.find(".//usage")) is not None:
-            result["clusters"][cluster_name]["items"].update(parse_pics_items(usage))
+        # Parse ALL picsItem elements in the XML content
+        for pics_item in root.iter("picsItem"):
+            item_number_element = pics_item.find("itemNumber")
+            support_element = pics_item.find("support")
 
-        # Parse server side items
-        server_side = root.find(".//clusterSide[@type='Server']")
-        if server_side is not None:
-            # Parse attributes
-            attr_items = parse_pics_items(server_side.find(".//attributes"))
-            result["clusters"][cluster_name]["items"].update(attr_items)
+            if item_number_element is not None and item_number_element.text:
+                item_number = item_number_element.text
 
-            # Parse events
-            event_items = parse_pics_items(server_side.find(".//events"))
-            result["clusters"][cluster_name]["items"].update(event_items)
+                # Handle support element - default to false if missing or empty
+                support = False
+                if support_element is not None and support_element.text:
+                    support = support_element.text.lower() == "true"
+
+                result["clusters"][cluster_name]["items"][item_number] = {
+                    "number": item_number,
+                    "enabled": support
+                }
 
         return result
 
