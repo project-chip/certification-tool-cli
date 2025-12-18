@@ -17,7 +17,6 @@ import queue
 import shutil
 import subprocess
 import threading
-from typing import Optional
 
 import ffmpeg
 from loguru import logger

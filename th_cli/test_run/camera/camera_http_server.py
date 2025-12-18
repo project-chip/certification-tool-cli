@@ -15,7 +15,6 @@
 #
 import html
 import json
-import os
 import queue
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,8 +22,6 @@ from pathlib import Path
 from typing import Optional
 
 from loguru import logger
-
-from th_cli.th_utils.ffmpeg_converter import CHUNK_SIZE
 
 # HTTP Endpoints
 ENDPOINT_ROOT = "/"

@@ -118,7 +118,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         video_handler.set_prompt_data(prompt.prompt, prompt.options)
 
         # Start capturing with streaming
-        video_file = await video_handler.start_video_capture_and_stream(str(prompt.message_id))
+        _ = await video_handler.start_video_capture_and_stream(str(prompt.message_id))
 
         # Wait for stream to be ready instead of fixed delay
         stream_ready = await video_handler.wait_for_stream_ready(timeout=10.0)
@@ -152,7 +152,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
             click.echo(f"✅ User response: {user_answer}")
 
         # Stop video capture and streaming
-        final_video_file = await video_handler.stop_video_capture_and_stream()
+        _ = await video_handler.stop_video_capture_and_stream()
 
         await _send_prompt_response(socket=socket, input=user_answer, prompt=prompt)
 
