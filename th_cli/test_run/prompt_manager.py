@@ -184,11 +184,8 @@ async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: Optio
 
 async def __handle_message_prompt(socket: WebSocketClientProtocol, prompt: PromptRequest) -> None:
     """Handle simple message prompts that only require acknowledgment."""
-    try:
-        click.echo(italic(prompt.prompt))
-        await _send_prompt_response(socket=socket, input="ACK", prompt=prompt)
-    except asyncio.exceptions.TimeoutError:
-        click.echo(colorize_error("Prompt timed out"), err=True)
+    click.echo(italic(prompt.prompt))
+    await _send_prompt_response(socket=socket, input="ACK", prompt=prompt)
 
 
 async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:
