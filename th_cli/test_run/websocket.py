@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import asyncio
-
 import click
 import websockets
 from loguru import logger

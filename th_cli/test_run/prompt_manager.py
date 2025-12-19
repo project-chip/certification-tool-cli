@@ -32,6 +32,7 @@ from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .socket_schemas import (
+    MessagePromptRequest,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
@@ -71,6 +72,8 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
         request, StreamVerificationPromptRequest
     ):
         await __handle_stream_verification_prompt(socket=socket, prompt=request)
+    elif message_type == MessageTypeEnum.MESSAGE_REQUEST or isinstance(request, MessagePromptRequest):
+        await __handle_message_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):
         await __handle_options_prompt(socket=socket, prompt=request)
     elif isinstance(request, TextInputPromptRequest):
@@ -115,7 +118,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         video_handler.set_prompt_data(prompt.prompt, prompt.options)
 
         # Start capturing with streaming
-        video_file = await video_handler.start_video_capture_and_stream(str(prompt.message_id))
+        _ = await video_handler.start_video_capture_and_stream(str(prompt.message_id))
 
         # Wait for stream to be ready instead of fixed delay
         stream_ready = await video_handler.wait_for_stream_ready(timeout=10.0)
@@ -149,7 +152,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
             click.echo(f"✅ User response: {user_answer}")
 
         # Stop video capture and streaming
-        final_video_file = await video_handler.stop_video_capture_and_stream()
+        _ = await video_handler.stop_video_capture_and_stream()
 
         await _send_prompt_response(socket=socket, input=user_answer, prompt=prompt)
 
@@ -177,6 +180,12 @@ async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: Optio
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Prompt timed out"), err=True)
         pass
+
+
+async def __handle_message_prompt(socket: WebSocketClientProtocol, prompt: PromptRequest) -> None:
+    """Handle simple message prompts that only require acknowledgment."""
+    click.echo(italic(prompt.prompt))
+    await _send_prompt_response(socket=socket, input="ACK", prompt=prompt)
 
 
 async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:
