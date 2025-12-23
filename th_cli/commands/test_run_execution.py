@@ -24,8 +24,8 @@ from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, c
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
-table_format_header = "{:<5} {:<55} {:<30}"
-table_format = "{:<5} {:<55} {:<30}"
+table_format_header = "{:<6} {:<55} {}"
+table_format = "{:<6} {:<55} {}"
 
 
 @click.command(
@@ -114,6 +114,9 @@ def test_run_execution(
 
     if log and json:
         raise click.ClickException("--json option is not applicable when fetching logs (--log)")
+
+    if log and sort != "desc":
+        raise click.ClickException("--sort option is not applicable when fetching logs (--log)")
 
     if all and limit is not None:
         raise click.ClickException("--all and --limit cannot be used together")
@@ -221,12 +224,22 @@ def __test_run_execution_batch(
                 # Add all test executions
                 if isinstance(test_run_executions, list):
                     for item in test_run_executions:
+                        # Get raw values to calculate proper padding
+                        title_value = item.title
+
+                        # Apply styling
+                        styled_title = italic(title_value)
+
+                        # Calculate padding needed for title (55 chars total)
+                        title_padding = max(0, 55 - len(title_value))
+
                         output_lines.append(
-                            table_format.format(
+                            "{:<6} {} {}".format(
                                 item.id,
-                                italic(item.title),
-                                colorize_state(item.state.value),
+                                styled_title,
+                                " " * title_padding,
                             )
+                            + colorize_state((item.state).value)
                         )
 
                 # Use pager to display all content
@@ -269,12 +282,23 @@ def __print_table_test_executions(test_execution: list) -> None:
 
 def __print_table_test_execution(item: dict, print_header=True) -> None:
     print_header and __print_table_header()
+
+    # Get raw values to calculate proper padding
+    title_value = item.get("title")
+
+    # Apply styling
+    styled_title = italic(title_value)
+
+    # Calculate padding needed for title (55 chars total)
+    title_padding = max(0, 55 - len(title_value))
+
     click.echo(
-        table_format.format(
+        "{:<6} {} {}".format(
             item.get("id"),
-            italic(item.get("title")),
-            colorize_state((item.get("state")).value),
+            styled_title,
+            " " * title_padding,
         )
+        + colorize_state((item.get("state")).value)
     )
 
 
