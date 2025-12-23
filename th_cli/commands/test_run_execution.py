@@ -234,7 +234,7 @@ def __test_run_execution_batch(
                         title_padding = max(0, 55 - len(title_value))
 
                         output_lines.append(
-                            "{:<6} {} {}".format(
+                            table_format.format(
                                 item.id,
                                 styled_title,
                                 " " * title_padding,
@@ -293,7 +293,7 @@ def __print_table_test_execution(item: dict, print_header=True) -> None:
     title_padding = max(0, 55 - len(title_value))
 
     click.echo(
-        "{:<6} {} {}".format(
+        table_format.format(
             item.get("id"),
             styled_title,
             " " * title_padding,
