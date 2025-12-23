@@ -66,6 +66,14 @@ table_format = "{:<5} {:<55} {:<30}"
     help=colorize_help("Sort order for test runs by ID. 'desc' shows highest ID first, 'asc' shows lowest ID first"),
 )
 @click.option(
+    "--project-id",
+    "-p",
+    default=None,
+    required=False,
+    type=int,
+    help=colorize_help("Filter test runs by project ID"),
+)
+@click.option(
     "--log",
     is_flag=True,
     default=False,
@@ -83,12 +91,12 @@ table_format = "{:<5} {:<55} {:<30}"
     default=False,
     help=colorize_help("Fetch all test run executions with screen pagination (cannot be used with --limit)"),
 )
-def test_run_execution(id: int | None, skip: int | None, limit: int | None, sort: str, log: bool, json: bool, all: bool) -> None:
+def test_run_execution(id: int | None, skip: int | None, limit: int | None, sort: str, project_id: int | None, log: bool, json: bool, all: bool) -> None:
     """Manage test run executions - list history or fetch logs"""
 
     # Validate options
-    if log and (skip is not None or limit is not None):
-        raise click.ClickException("--skip and --limit options are not applicable when fetching logs (--log)")
+    if log and (skip is not None or limit is not None or project_id is not None):
+        raise click.ClickException("--skip, --limit, and --project-id options are not applicable when fetching logs (--log)")
 
     if log and id is None:
         raise click.ClickException("--log requires --id to specify which test run execution to fetch logs for")
@@ -114,7 +122,7 @@ def test_run_execution(id: int | None, skip: int | None, limit: int | None, sort
             elif id is not None:
                 __test_run_execution_by_id(sync_apis, id, json)
             else:
-                __test_run_execution_batch(sync_apis, json, skip, limit, sort, all)
+                __test_run_execution_batch(sync_apis, json, skip, limit, sort, all, project_id)
 
     except CLIError:
         raise  # Re-raise CLI Errors as-is
@@ -132,9 +140,13 @@ def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None
         handle_api_error(e, "get test run execution")
 
 
-def __print_filters_info(skip: int | None, limit: int | None, sort_order: str, show_all: bool = False) -> str:
+def __print_filters_info(skip: int | None, limit: int | None, sort_order: str, show_all: bool = False, project_id: int | None = None) -> str:
     """Generate comprehensive filter and pagination information text."""
     filters = []
+
+    # Project filter
+    if project_id is not None:
+        filters.append(f"Project ID: {project_id}")
 
     # Order information (more descriptive than just "Sort: DESC")
     if sort_order == "desc":
@@ -162,7 +174,7 @@ def __print_filters_info(skip: int | None, limit: int | None, sort_order: str, s
 
 
 def __test_run_execution_batch(
-    sync_apis: SyncApis, json: bool | None, skip: int | None = None, limit: int | None = None, sort_order: str = "desc", show_all: bool = False
+    sync_apis: SyncApis, json: bool | None, skip: int | None = None, limit: int | None = None, sort_order: str = "desc", show_all: bool = False, project_id: int | None = None
 ) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
@@ -171,7 +183,7 @@ def __test_run_execution_batch(
         effective_limit = 0 if show_all else limit
 
         test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions_get(
-            skip=skip, limit=effective_limit, sort_order=sort_order
+            skip=skip, limit=effective_limit, sort_order=sort_order, project_id=project_id
         )
 
         if json:
@@ -180,7 +192,7 @@ def __test_run_execution_batch(
             if show_all:
                 # Use click's pager for --all option (like git log)
                 output_lines = []
-                output_lines.append(click.style(__print_filters_info(skip, limit, sort_order, show_all), fg='cyan', bold=True))
+                output_lines.append(click.style(__print_filters_info(skip, limit, sort_order, show_all, project_id), fg='cyan', bold=True))
                 output_lines.append("")  # Empty line
 
                 # Add header
@@ -200,7 +212,7 @@ def __test_run_execution_batch(
                 click.echo_via_pager("\n".join(output_lines))
             else:
                 # Regular output with filter info
-                click.echo(click.style(__print_filters_info(skip, limit, sort_order, show_all), fg='cyan', bold=True))
+                click.echo(click.style(__print_filters_info(skip, limit, sort_order, show_all, project_id), fg='cyan', bold=True))
                 click.echo()  # Add empty line for readability
                 __print_table_test_executions(test_run_executions)
     except UnexpectedResponse as e:
