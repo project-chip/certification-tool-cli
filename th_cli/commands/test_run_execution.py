@@ -115,9 +115,6 @@ def test_run_execution(
     if log and json:
         raise click.ClickException("--json option is not applicable when fetching logs (--log)")
 
-    if log and sort != "desc":
-        raise click.ClickException("--sort option is not applicable when fetching logs (--log)")
-
     if all and limit is not None:
         raise click.ClickException("--all and --limit cannot be used together")
 
@@ -223,13 +220,12 @@ def __test_run_execution_batch(
 
                 # Add all test executions
                 if isinstance(test_run_executions, list):
-                    for item_dict in test_run_executions:
-                        item = item_dict.dict()
+                    for item in test_run_executions:
                         output_lines.append(
                             table_format.format(
-                                item.get("id"),
-                                italic(item.get("title")),
-                                colorize_state((item.get("state")).value),
+                                item.id,
+                                italic(item.title),
+                                colorize_state(item.state.value),
                             )
                         )
 
