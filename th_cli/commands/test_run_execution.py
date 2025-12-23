@@ -25,7 +25,7 @@ from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
 table_format_header = "{:<6} {:<55} {}"
-table_format = "{:<6} {:<55} {}"
+table_format = "{:<6} {} {}"
 
 
 @click.command(
