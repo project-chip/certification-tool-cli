@@ -15,7 +15,7 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import IO, TYPE_CHECKING, Any, Awaitable, Dict, List, Optional
+from typing import IO, TYPE_CHECKING, Any, Awaitable
 
 from fastapi.encoders import jsonable_encoder
 
@@ -31,12 +31,12 @@ class _TestRunExecutionsApi:
 
     def _build_for_abort_testing_api_v1_test_run_executions_abort_testing_post(
         self,
-    ) -> Awaitable[Dict[str, str]]:
+    ) -> Awaitable[dict[str, str]]:
         """
         Cancel the current testing
         """
         return self.api_client.request(
-            type_=Dict[str, str],
+            type_=dict[str, str],
             method="POST",
             url="/api/v1/test_run_executions/abort-testing",
         )
@@ -81,7 +81,7 @@ class _TestRunExecutionsApi:
         )
 
     def _build_for_download_log_api_v1_test_run_executions_id_log_get(
-        self, id: int, json_entries: Optional[bool] = None, download: Optional[bool] = None
+        self, id: int, json_entries: bool | None = None, download: bool | None = None
     ) -> Awaitable[None]:
         """
         Download the logs from a test run.
@@ -121,14 +121,32 @@ class _TestRunExecutionsApi:
 
     def _build_for_get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
         self,
+        discriminator: str | None = None,
+        setup_pin_code: str | None = None,
+        version: int | None = None,
+        vendor_id: int | None = None,
+        product_id: int | None = None,
     ) -> Awaitable[m.ChipServerInfo]:
         """
-        Retrieve ChipServer node information.
+        Retrieve ChipServer node ID information and optionally generate manual pairing code.
         """
+        query_params = {}
+        if discriminator is not None:
+            query_params["discriminator"] = str(discriminator)
+        if setup_pin_code is not None:
+            query_params["setup_pin_code"] = str(setup_pin_code)
+        if version is not None:
+            query_params["version"] = str(version)
+        if vendor_id is not None:
+            query_params["vendor_id"] = str(vendor_id)
+        if product_id is not None:
+            query_params["product_id"] = str(product_id)
+
         return self.api_client.request(
             type_=m.ChipServerInfo,
             method="GET",
             url="/api/v1/test_run_executions/chip-server/info",
+            params=query_params,
         )
 
     def _build_for_read_test_run_execution_api_v1_test_run_executions_id_get(
@@ -148,13 +166,13 @@ class _TestRunExecutionsApi:
 
     def _build_for_read_test_run_executions_api_v1_test_run_executions_get(
         self,
-        project_id: Optional[int] = None,
-        archived: Optional[bool] = None,
-        search_query: Optional[str] = None,
-        skip: Optional[int] = None,
-        limit: Optional[int] = None,
-        sort_order: Optional[str] = None,
-    ) -> Awaitable[List[m.TestRunExecutionWithStats]]:
+        project_id: int | None = None,
+        archived: bool | None = None,
+        search_query: str | None = None,
+        skip: int | None = None,
+        limit: int | None = None,
+        sort_order: str | None = None,
+    ) -> Awaitable[list[m.TestRunExecutionWithStats]]:
         """
         Retrieve test runs, including statistics.
         Args:
@@ -181,7 +199,7 @@ class _TestRunExecutionsApi:
             query_params["sort_order"] = str(sort_order)
 
         return self.api_client.request(
-            type_=List[m.TestRunExecutionWithStats],
+            type_=list[m.TestRunExecutionWithStats],
             method="GET",
             url="/api/v1/test_run_executions/",
             params=query_params,
@@ -242,8 +260,8 @@ class _TestRunExecutionsApi:
         """
         Upload a file to the specified path of the current test run.  Args:     file: The file to upload.
         """
-        files: Dict[str, IO[Any]] = {}  # noqa F841
-        data: Dict[str, Any] = {}  # noqa F841
+        files: dict[str, IO[Any]] = {}  # noqa F841
+        data: dict[str, Any] = {}  # noqa F841
         files["file"] = file
 
         return self.api_client.request(
@@ -254,7 +272,7 @@ class _TestRunExecutionsApi:
 class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
     async def abort_testing_api_v1_test_run_executions_abort_testing_post(
         self,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Cancel the current testing
         """
@@ -289,7 +307,7 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         )
 
     async def download_log_api_v1_test_run_executions_id_log_get(
-        self, id: int, json_entries: Optional[bool] = None, download: Optional[bool] = None
+        self, id: int, json_entries: bool | None = None, download: bool | None = None
     ) -> None:
         """
         Download the logs from a test run.   Args:     id (int): Id of the TestRunExectution the log is requested for     json_entries (bool, optional): When set, return each log line as a json object     download (bool, optional): When set, return as attachment
@@ -308,11 +326,22 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
 
     async def get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
         self,
+        discriminator: str | None = None,
+        setup_pin_code: str | None = None,
+        version: int | None = None,
+        vendor_id: int | None = None,
+        product_id: int | None = None,
     ) -> m.ChipServerInfo:
         """
-        Retrieve ChipServer node information.
+        Retrieve ChipServer node ID information and optionally generate manual pairing code.
         """
-        return await self._build_for_get_chip_server_info_api_v1_test_run_executions_chip_server_info_get()
+        return await self._build_for_get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
+            discriminator=discriminator,
+            setup_pin_code=setup_pin_code,
+            version=version,
+            vendor_id=vendor_id,
+            product_id=product_id,
+        )
 
     async def read_test_run_execution_api_v1_test_run_executions_id_get(
         self, id: int
@@ -324,13 +353,13 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
 
     async def read_test_run_executions_api_v1_test_run_executions_get(
         self,
-        project_id: Optional[int] = None,
-        archived: Optional[bool] = None,
-        search_query: Optional[str] = None,
-        skip: Optional[int] = None,
-        limit: Optional[int] = None,
-        sort_order: Optional[str] = None,
-    ) -> List[m.TestRunExecutionWithStats]:
+        project_id: int | None = None,
+        archived: bool | None = None,
+        search_query: str | None = None,
+        skip: int | None = None,
+        limit: int | None = None,
+        sort_order: str | None = None,
+    ) -> list[m.TestRunExecutionWithStats]:
         """
         Retrieve test runs, including statistics.
         Args:
@@ -383,7 +412,7 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
 class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
     def abort_testing_api_v1_test_run_executions_abort_testing_post(
         self,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Cancel the current testing
         """
@@ -428,7 +457,7 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         return get_event_loop().run_until_complete(coroutine)
 
     def download_log_api_v1_test_run_executions_id_log_get(
-        self, id: int, json_entries: Optional[bool] = None, download: Optional[bool] = None
+        self, id: int, json_entries: bool | None = None, download: bool | None = None
     ) -> None:
         """
         Download the logs from a test run.
@@ -461,13 +490,13 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
 
     def read_test_run_executions_api_v1_test_run_executions_get(
         self,
-        project_id: Optional[int] = None,
-        archived: Optional[bool] = None,
-        search_query: Optional[str] = None,
-        skip: Optional[int] = None,
-        limit: Optional[int] = None,
-        sort_order: Optional[str] = None,
-    ) -> List[m.TestRunExecutionWithStats]:
+        project_id: int | None = None,
+        archived: bool | None = None,
+        search_query: str | None = None,
+        skip: int | None = None,
+        limit: int | None = None,
+        sort_order: str | None = None,
+    ) -> list[m.TestRunExecutionWithStats]:
         """
         Retrieve test runs, including statistics.
         Args:
