@@ -130,17 +130,14 @@ class _TestRunExecutionsApi:
         """
         Retrieve ChipServer node ID information and optionally generate manual pairing code.
         """
-        query_params = {}
-        if discriminator is not None:
-            query_params["discriminator"] = str(discriminator)
-        if setup_pin_code is not None:
-            query_params["setup_pin_code"] = str(setup_pin_code)
-        if version is not None:
-            query_params["version"] = str(version)
-        if vendor_id is not None:
-            query_params["vendor_id"] = str(vendor_id)
-        if product_id is not None:
-            query_params["product_id"] = str(product_id)
+        all_params = {
+            "discriminator": discriminator,
+            "setup_pin_code": setup_pin_code,
+            "version": version,
+            "vendor_id": vendor_id,
+            "product_id": product_id,
+        }
+        query_params = {k: str(v) for k, v in all_params.items() if v is not None}
 
         return self.api_client.request(
             type_=m.ChipServerInfo,

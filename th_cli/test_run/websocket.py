@@ -220,8 +220,8 @@ class TestRunSocket:
             if case_key in self.test_case_step_errors:
                 all_errors.extend(self.test_case_step_errors[case_key])
                 logger.debug(
-                    f"Found {len(self.test_case_step_errors[case_key])} "
-                    "tracked step error(s): {self.test_case_step_errors[case_key]}"
+                    f"Found {len(self.test_case_step_errors[case_key])} tracked step error(s): "
+                    f"{self.test_case_step_errors[case_key]}"
                 )
             else:
                 logger.debug(f"No tracked step errors found for test case {case_key}")
