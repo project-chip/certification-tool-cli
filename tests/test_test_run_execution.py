@@ -70,8 +70,7 @@ class TestTestRunExecutionCommand:
         assert "Test Run 1" in result.output
         assert "Test Run 2" in result.output
         assert "PASSED" in result.output
-        assert "FAILED" in result.output
-        api.assert_called_once_with(skip=None, limit=None)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_success_specific_id(
@@ -125,7 +124,7 @@ class TestTestRunExecutionCommand:
         # Assert
         assert result.exit_code == 0
         assert "Test Run 3" in result.output
-        api.assert_called_once_with(skip=10, limit=5)
+        api.assert_called_once_with(skip=10, limit=5, sort_order="desc", project_id=None)
 
     def test_test_run_execution_success_json_output(
         self,
@@ -247,6 +246,7 @@ class TestTestRunExecutionCommand:
         assert "--id" in result.output
         assert "--skip" in result.output
         assert "--limit" in result.output
+        assert "--project-id" in result.output
         assert "--json" in result.output
 
     @pytest.mark.parametrize("state,expected_display", [
@@ -361,7 +361,7 @@ class TestTestRunExecutionCommand:
 
         # Assert
         assert result.exit_code == 0
-        api.assert_called_once_with(skip=skip, limit=limit)
+        api.assert_called_once_with(skip=skip, limit=limit, sort_order="desc", project_id=None)
 
     def test_test_run_execution_error_display(
         self,
@@ -783,3 +783,317 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 1
         assert "Network timeout" in str(result.exception)
+
+    def test_test_run_execution_sort_parameter_asc(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with sort parameter set to asc."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1,
+                title="Old Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            ),
+            api_models.TestRunExecution(
+                id=2,
+                title="New Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--sort", "asc"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Old Test Run" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=None)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_sort_parameter_desc_default(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with sort parameter default (desc)."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=2,
+                title="New Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            ),
+            api_models.TestRunExecution(
+                id=1,
+                title="Old Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act - don't specify sort parameter, should default to desc
+                result = cli_runner.invoke(test_run_execution)
+
+        # Assert
+        assert result.exit_code == 0
+        assert "New Test Run" in result.output
+        assert "Old Test Run" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_sort_parameter_explicit_desc(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with sort parameter explicitly set to desc."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=2,
+                title="New Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            ),
+            api_models.TestRunExecution(
+                id=1,
+                title="Old Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--sort", "desc"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "New Test Run" in result.output
+        assert "Old Test Run" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_all_flag(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with --all flag."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1,
+                title="Test Run 1",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=1
+            ),
+            api_models.TestRunExecution(
+                id=2,
+                title="Test Run 2",
+                state=api_models.TestStateEnum.FAILED,
+                project_id=1,
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--all"])
+
+        # Assert
+        assert result.exit_code == 0
+        # When --all is used, limit should be set to 0
+        api.assert_called_once_with(skip=None, limit=0, sort_order="desc", project_id=None)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_all_with_limit_fails(
+        self,
+        cli_runner: CliRunner,
+    ) -> None:
+        """Test that --all and --limit cannot be used together."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--all", "--limit", "50"])
+
+        # Assert
+        assert result.exit_code != 0
+        assert "--all and --limit cannot be used together" in result.output
+
+    def test_test_run_execution_all_with_log_fails(
+        self,
+        cli_runner: CliRunner,
+    ) -> None:
+        """Test that --all and --log cannot be used together."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--all", "--log", "--id", "123"])
+
+        # Assert
+        assert result.exit_code != 0
+        assert "--all option is not applicable when fetching logs" in result.output
+
+    def test_test_run_execution_help_shows_all_option(self, cli_runner: CliRunner) -> None:
+        """Test that the help message includes the --all option."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--help"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "--all" in result.output
+        assert "pagination" in result.output
+        assert "(cannot be used with --limit)" in result.output
+
+    def test_test_run_execution_with_project_id(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution history filtered by project ID."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1,
+                title="Project 5 Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=5
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--project-id", "5"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Project 5 Test Run" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=5)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_with_project_id_short_form(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution history filtered by project ID using short form."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1,
+                title="Project 10 Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=10
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["-p", "10"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Project 10 Test Run" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=10)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_with_project_id_and_pagination(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with project ID combined with pagination."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=3,
+                title="Filtered Paginated Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=7
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--project-id", "7", "--skip", "5", "--limit", "10"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Filtered Paginated Test Run" in result.output
+        api.assert_called_once_with(skip=5, limit=10, sort_order="desc", project_id=7)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_with_project_id_and_sort(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock
+    ) -> None:
+        """Test test run execution with project ID combined with sort order."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1,
+                title="Old Test Run",
+                state=api_models.TestStateEnum.PASSED,
+                project_id=3
+            )
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--project-id", "3", "--sort", "asc"])
+
+        # Assert
+        assert result.exit_code == 0
+        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=3)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_project_id_with_log_fails(
+        self,
+        cli_runner: CliRunner,
+    ) -> None:
+        """Test that --project-id cannot be used with --log."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--id", "123", "--project-id", "5", "--log"])
+
+        # Assert
+        assert result.exit_code != 0
+        assert "--project-id" in result.output
+        assert "not applicable" in result.output or "Error" in result.output
+

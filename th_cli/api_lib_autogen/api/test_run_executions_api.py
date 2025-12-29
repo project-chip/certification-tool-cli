@@ -84,7 +84,11 @@ class _TestRunExecutionsApi:
         self, id: int, json_entries: Optional[bool] = None, download: Optional[bool] = None
     ) -> Awaitable[None]:
         """
-        Download the logs from a test run.   Args:     id (int): Id of the TestRunExectution the log is requested for     json_entries (bool, optional): When set, return each log line as a json object     download (bool, optional): When set, return as attachment
+        Download the logs from a test run.
+        Args:
+            id (int): Id of the TestRunExectution the log is requested for
+            json_entries (bool, optional): When set, return each log line as a json object
+            download (bool, optional): When set, return as attachment
         """
         path_params = {"id": str(id)}
 
@@ -106,7 +110,8 @@ class _TestRunExecutionsApi:
         self,
     ) -> Awaitable[m.TestRunnerStatus]:
         """
-        Retrieve status of the Test Engine.  When the Test Engine is actively running the status will include the current test_run and the details of the states.
+        Retrieve status of the Test Engine.
+        When the Test Engine is actively running the status will include the current test_run and the details of the states.
         """
         return self.api_client.request(
             type_=m.TestRunnerStatus,
@@ -148,9 +153,18 @@ class _TestRunExecutionsApi:
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> Awaitable[List[m.TestRunExecutionWithStats]]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.
+        Args:
+            project_id: Filter test runs by project.
+            archived: Get archived test runs, when true will return archived test runs only, when false only non-archived test runs are returned.
+            skip: Pagination offset.
+            limit: Max number of records to return.
+            sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.
+        Returns:
+            List of test runs with execution statistics.
         """
         query_params = {}
         if project_id is not None:
@@ -163,6 +177,8 @@ class _TestRunExecutionsApi:
             query_params["skip"] = str(skip)
         if limit is not None:
             query_params["limit"] = str(limit)
+        if sort_order is not None:
+            query_params["sort_order"] = str(sort_order)
 
         return self.api_client.request(
             type_=List[m.TestRunExecutionWithStats],
@@ -205,7 +221,13 @@ class _TestRunExecutionsApi:
         self, id: int
     ) -> Awaitable[m.TestRunExecution]:
         """
-        Unarchive test run execution by id.  Args:     id (int): test run execution id  Raises:     HTTPException: if no test run execution exists for provided id  Returns:     TestRunExecution: test run execution record that was unarchived
+        Unarchive test run execution by id.
+        Args:
+            id (int): test run execution id
+        Raises:
+            HTTPException: if no test run execution exists for provided id
+        Returns:
+            TestRunExecution: test run execution record that was unarchived
         """
         path_params = {"id": str(id)}
 
@@ -307,12 +329,26 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> List[m.TestRunExecutionWithStats]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.
+        Args:
+            project_id: Filter test runs by project.
+            archived: Get archived test runs, when true will return archived test runs only, when false only non-archived test runs are returned.
+            skip: Pagination offset.
+            limit: Max number of records to return.
+            sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.
+        Returns:
+            List of test runs with execution statistics.
         """
         return await self._build_for_read_test_run_executions_api_v1_test_run_executions_get(
-            project_id=project_id, archived=archived, search_query=search_query, skip=skip, limit=limit
+            project_id=project_id,
+            archived=archived,
+            search_query=search_query,
+            skip=skip,
+            limit=limit,
+            sort_order=sort_order,
         )
 
     async def remove_test_run_execution_api_v1_test_run_executions_id_delete(
@@ -356,7 +392,13 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
 
     def archive_api_v1_test_run_executions_id_archive_post(self, id: int) -> m.TestRunExecution:
         """
-        Archive test run execution by id.  Args:     id (int): test run execution id  Raises:     HTTPException: if no test run execution exists for provided id  Returns:     TestRunExecution: test run execution record that was archived
+        Archive test run execution by id.
+        Args:
+            id (int): test run execution id
+        Raises:
+            HTTPException: if no test run execution exists for provided id
+        Returns:
+            TestRunExecution: test run execution record that was archived
         """
         coroutine = self._build_for_archive_api_v1_test_run_executions_id_archive_post(id=id)
         return get_event_loop().run_until_complete(coroutine)
@@ -389,7 +431,11 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         self, id: int, json_entries: Optional[bool] = None, download: Optional[bool] = None
     ) -> None:
         """
-        Download the logs from a test run.   Args:     id (int): Id of the TestRunExectution the log is requested for     json_entries (bool, optional): When set, return each log line as a json object     download (bool, optional): When set, return as attachment
+        Download the logs from a test run.
+            Args:
+                id (int): Id of the TestRunExectution the log is requested for
+                json_entries (bool, optional): When set, return each log line as a json object
+                download (bool, optional): When set, return as attachment
         """
         coroutine = self._build_for_download_log_api_v1_test_run_executions_id_log_get(
             id=id, json_entries=json_entries, download=download
@@ -400,7 +446,8 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         self,
     ) -> m.TestRunnerStatus:
         """
-        Retrieve status of the Test Engine.  When the Test Engine is actively running the status will include the current test_run and the details of the states.
+        Retrieve status of the Test Engine.
+        When the Test Engine is actively running the status will include the current test_run and the details of the states.
         """
         coroutine = self._build_for_get_test_runner_status_api_v1_test_run_executions_status_get()
         return get_event_loop().run_until_complete(coroutine)
@@ -419,12 +466,26 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         search_query: Optional[str] = None,
         skip: Optional[int] = None,
         limit: Optional[int] = None,
+        sort_order: Optional[str] = None,
     ) -> List[m.TestRunExecutionWithStats]:
         """
-        Retrieve test runs, including statistics.  Args:     project_id: Filter test runs by project.     archived: Get archived test runs, when true will return archived         test runs only, when false only non-archived test runs are returned.     skip: Pagination offset.     limit: Max number of records to return.  Returns:     List of test runs with execution statistics.
+        Retrieve test runs, including statistics.
+        Args:
+            project_id: Filter test runs by project.
+            archived: Get archived test runs, when true will return archived test runs only, when false only non-archived test runs are returned.
+            skip: Pagination offset.
+            limit: Max number of records to return.
+            sort_order: Sort order for results. Either "asc" or "desc". Defaults to "asc". Results are sorted by ID.
+        Returns:
+            List of test runs with execution statistics.
         """
         coroutine = self._build_for_read_test_run_executions_api_v1_test_run_executions_get(
-            project_id=project_id, archived=archived, search_query=search_query, skip=skip, limit=limit
+            project_id=project_id,
+            archived=archived,
+            search_query=search_query,
+            skip=skip,
+            limit=limit,
+            sort_order=sort_order,
         )
         return get_event_loop().run_until_complete(coroutine)
 
@@ -446,14 +507,22 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
 
     def unarchive_api_v1_test_run_executions_id_unarchive_post(self, id: int) -> m.TestRunExecution:
         """
-        Unarchive test run execution by id.  Args:     id (int): test run execution id  Raises:     HTTPException: if no test run execution exists for provided id  Returns:     TestRunExecution: test run execution record that was unarchived
+        Unarchive test run execution by id.
+        Args:
+            id (int): test run execution id
+        Raises:
+            HTTPException: if no test run execution exists for provided id
+        Returns:
+            TestRunExecution: test run execution record that was unarchived
         """
         coroutine = self._build_for_unarchive_api_v1_test_run_executions_id_unarchive_post(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
     def upload_file_api_v1_test_run_executions_file_upload_post(self, file: IO[Any]) -> m.Any:
         """
-        Upload a file to the specified path of the current test run.  Args:     file: The file to upload.
+        Upload a file to the specified path of the current test run.
+        Args:
+            file: The file to upload.
         """
         coroutine = self._build_for_upload_file_api_v1_test_run_executions_file_upload_post(file=file)
         return get_event_loop().run_until_complete(coroutine)
