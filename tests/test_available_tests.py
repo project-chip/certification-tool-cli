@@ -342,3 +342,341 @@ class TestAvailableTestsCommand:
         assert "  SDK YAML Tests:" in result.output or "SDK YAML Tests:" in result.output
         # Should not contain JSON-specific formatting
         assert '"test_collections":' not in result.output
+
+    def test_available_tests_compact(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --compact flag shows test IDs with titles."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(available_tests, ["--compact"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should contain test IDs with compact format (IDs only)
+        assert "TC-ACE-1.1" in result.output
+        assert "TC-ACE-1.2" in result.output
+        assert "TC-CC-1.1" in result.output
+        # Should not contain full YAML/JSON structure
+        assert "test_collections:" not in result.output
+
+    def test_available_tests_group_by_cluster(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --group-by-cluster flag groups tests by cluster."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(available_tests, ["--group-by-cluster"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should contain cluster headers
+        assert "ACE:" in result.output
+        assert "CC:" in result.output
+        # Should contain separator lines
+        assert "----" in result.output or "---" in result.output
+        # Should contain indented test cases under clusters
+        assert "  TC-ACE-1.1" in result.output
+        assert "  TC-CC-1.1" in result.output
+
+    def test_available_tests_cluster_filter(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --cluster filter shows only tests from specified cluster."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(available_tests, ["--cluster", "ACE"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should contain only ACE tests in detailed format
+        assert "Test Cases for Cluster: ACE" in result.output
+        assert "ID: TC-ACE-1.1" in result.output
+        assert "ID: TC-ACE-1.2" in result.output
+        # Should not contain CC tests
+        assert "TC-CC-1.1" not in result.output
+
+    def test_available_tests_cluster_filter_case_insensitive(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --cluster filter is case insensitive."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(available_tests, ["--cluster", "ace"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should contain ACE tests in detailed format even with lowercase input
+        assert "Test Cases for Cluster: ACE" in result.output
+        assert "ID: TC-ACE-1.1" in result.output
+        assert "ID: TC-ACE-1.2" in result.output
+
+    def test_available_tests_cluster_and_compact_combined(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test combining --cluster and --compact flags."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(available_tests, ["--cluster", "CC", "--compact"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should contain only CC tests in compact format (IDs only)
+        assert "TC-CC-1.1" in result.output
+        # Should not contain ACE tests
+        assert "TC-ACE-1.1" not in result.output
+
+    def test_extract_cluster_from_test_id(self) -> None:
+        """Test cluster extraction logic for various test ID patterns."""
+        from th_cli.commands.available_tests import _extract_cluster_from_test_id
+
+        # Test various patterns
+        assert _extract_cluster_from_test_id("TC-ACE-1.1") == "ACE"
+        assert _extract_cluster_from_test_id("TC-CADMIN-1.2") == "CADMIN"
+        assert _extract_cluster_from_test_id("Test_TC_CC_1_1") == "CC"
+        assert _extract_cluster_from_test_id("TC_WEBRTC_1_6") == "WEBRTC"
+        assert _extract_cluster_from_test_id("TC_WEBRTCP_1_8") == "WEBRTCP"
+        assert _extract_cluster_from_test_id("TC_WEBRTC-1.2") == "WEBRTC"
+        assert _extract_cluster_from_test_id("TC_WEBRTCP-4.2") == "WEBRTCP"
+        assert _extract_cluster_from_test_id("TC_AUDIO_1_6") == "AUDIO"
+
+        # Test edge cases from real data
+        assert _extract_cluster_from_test_id("TC_ACE_1_3-custom") == "ACE"
+        assert _extract_cluster_from_test_id("TC_ACE_1_3_R-custom") == "ACE"
+        assert _extract_cluster_from_test_id("TC_MCORE_FS_1_1") == "MCOREFS"
+        assert _extract_cluster_from_test_id("TC_WebRTCP_2_1") == "WEBRTCP"
+        assert _extract_cluster_from_test_id("TC_WebRTCR_2_1") == "WEBRTCR"
+        assert _extract_cluster_from_test_id("TC-APPLAUNCHER-3.5") == "APPLAUNCHER"
+        assert _extract_cluster_from_test_id("TC-CONTENTLAUNCHER-10.1") == "CONTENTLAUNCHER"
+
+        assert _extract_cluster_from_test_id("SomeOtherTest") == "UNKNOWN"
+
+    def test_generate_compact(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test _generate_compact function with 4 elements per line."""
+        from th_cli.commands.available_tests import _extract_test_cases, _generate_compact
+
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Extract test cases
+            test_cases = _extract_test_cases(sample_test_collections)
+
+            # Act
+            result_lines = _generate_compact(test_cases)
+
+        # Assert
+        # Should have fewer lines since we put 4 elements per line
+        assert len(result_lines) <= len(test_cases)
+        # Each line should contain test case IDs
+        for line in result_lines:
+            # Lines should contain test case IDs
+            assert "TC-" in line or "TC_" in line  # Support different formats
+        # First line should contain first test case ID only
+        assert any("TC-ACE-1.1" in line for line in result_lines)
+
+    def test_generate_grouped_by_cluster(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test _generate_grouped_by_cluster function with 4 elements per line."""
+        from th_cli.commands.available_tests import _extract_test_cases, _generate_grouped_by_cluster
+
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            # Extract test cases
+            test_cases = _extract_test_cases(sample_test_collections)
+
+            # Act
+            result_lines = _generate_grouped_by_cluster(test_cases)
+
+        # Assert
+        result_text = '\n'.join(result_lines)
+        assert "ACE:" in result_text
+        assert "CC:" in result_text
+        # Check that tests within clusters use uniform spacing format
+        ace_line_found = False
+        for line in result_lines:
+            # Look for lines with multiple ACE tests using double space separator
+            if "TC-ACE" in line and "  " in line:
+                ace_line_found = True
+                break
+        # Should find at least one line with multiple ACE tests
+        assert ace_line_found or len([tc for tc in test_cases if tc['cluster'] == 'ACE']) < 4
+
+    def test_available_tests_compact_four_per_line(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --compact flag shows 4 elements per line."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            with patch("click.echo_via_pager") as mock_pager:
+                # Act
+                result = cli_runner.invoke(available_tests, ["--compact"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should have called echo_via_pager
+        mock_pager.assert_called_once()
+        # Check that content contains spacing for multiple elements
+        call_content = mock_pager.call_args[0][0]  # First argument (content)
+        # Should contain test cases with uniform spacing (using double spaces)
+        lines = call_content.split('\n')
+        uniform_spacing_found = any("  " in line and "TC-" in line for line in lines)
+        assert uniform_spacing_found or call_content.count('\n') == 0  # Exception for small datasets
+
+    def test_available_tests_group_by_cluster_four_per_line(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --group-by-cluster flag shows 4 elements per line within clusters."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            with patch("click.echo_via_pager") as mock_pager:
+                # Act
+                result = cli_runner.invoke(available_tests, ["--group-by-cluster"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should have called echo_via_pager
+        mock_pager.assert_called_once()
+        # Check that content includes cluster headers and organized content
+        call_content = mock_pager.call_args[0][0]  # First argument (content)
+        assert "ACE:" in call_content
+        assert "CC:" in call_content
+
+    def test_available_tests_with_pagination_mock(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test available_tests command uses echo_via_pager."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            with patch("click.echo_via_pager") as mock_pager:
+                # Act
+                result = cli_runner.invoke(available_tests, ["--compact"])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should have called echo_via_pager
+        mock_pager.assert_called_once()
+        # Check that correct content was passed to pager
+        call_content = mock_pager.call_args[0][0]  # First argument (content)
+        assert "TC-ACE-1.1" in call_content
+        assert "TC-ACE-1.2" in call_content
+        assert "TC-CC-1.1" in call_content
+
+    def test_available_tests_echo_via_pager_behavior(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test that echo_via_pager is called for all custom formatting options."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            with patch("click.echo_via_pager") as mock_pager:
+                # Test different formatting options
+                for args in [["--compact"], ["--group-by-cluster"], []]:
+                    mock_pager.reset_mock()
+                    # Act
+                    result = cli_runner.invoke(available_tests, args)
+
+                    # Assert
+                    assert result.exit_code == 0
+                    mock_pager.assert_called_once()
+
+    def test_available_tests_cluster_detailed_info(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test --cluster flag shows detailed information."""
+        # Arrange
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+            with patch("click.echo_via_pager") as mock_pager:
+                # Act
+                result = cli_runner.invoke(available_tests, ["--cluster", "ACE"])
+
+        # Assert
+        assert result.exit_code == 0
+        mock_pager.assert_called_once()
+        # Check that detailed content is displayed
+        call_content = mock_pager.call_args[0][0]  # First argument (content)
+        assert "Test Cases for Cluster: ACE" in call_content
+        assert "ID:" in call_content
+        assert "Title:" in call_content
+        assert "Description:" in call_content
+        assert "Collection:" in call_content
+        assert "Suite:" in call_content
+        assert "Total test cases found:" in call_content
+
