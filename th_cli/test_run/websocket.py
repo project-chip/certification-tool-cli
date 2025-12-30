@@ -156,7 +156,7 @@ class TestRunSocket:
             if not discriminator or not setup_pin_code:
                 return  # No device config available
 
-            # Extract vendor_id and product_id from test_parameters if available
+            # Extract version, vendor_id and product_id from test_parameters if available
             test_parameters = self.project_config_dict.get("test_parameters", {})
             version = test_parameters.get("version")
             vendor_id = test_parameters.get("vendor_id")
