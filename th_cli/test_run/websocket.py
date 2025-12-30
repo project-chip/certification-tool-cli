@@ -20,13 +20,22 @@ from pydantic import ValidationError
 from websockets.client import WebSocketClientProtocol
 from websockets.client import connect as websocket_connect
 
+from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.models import (
     TestCaseExecution,
     TestRunExecutionWithChildren,
     TestStepExecution,
     TestSuiteExecution,
 )
-from th_cli.colorize import HierarchyEnum, colorize_error, colorize_hierarchy_prefix, colorize_state
+from th_cli.client import get_client
+from th_cli.colorize import (
+    HierarchyEnum,
+    colorize_error,
+    colorize_header,
+    colorize_hierarchy_prefix,
+    colorize_key_value,
+    colorize_state,
+)
 from th_cli.config import config
 from th_cli.shared_constants import MessageTypeEnum
 
@@ -55,8 +64,10 @@ webrtc_indicators = [
 
 
 class TestRunSocket:
-    def __init__(self, run: TestRunExecutionWithChildren):
+    def __init__(self, run: TestRunExecutionWithChildren, project_config_dict: dict | None = None):
         self.run = run
+        self.project_config_dict = project_config_dict or {}
+        self._chip_server_info_displayed = False
         # Track test step errors for WebRTC detection
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -119,15 +130,65 @@ class TestRunSocket:
         elif isinstance(update.body, TestSuiteUpdate):
             self.__log_test_suite_update(update.body)
         elif isinstance(update.body, TestRunUpdate):
-            self.__log_test_run_update(update.body)
+            await self.__log_test_run_update(update.body)
             if update.body.state != "executing":
                 # Test run ended disconnect.
                 await socket.close()
 
-    def __log_test_run_update(self, update: TestRunUpdate) -> None:
+    async def __log_test_run_update(self, update: TestRunUpdate) -> None:
+        # Display CHIP server info when test run starts executing (SDK container already running)
+        if update.state.value == "executing" and not self._chip_server_info_displayed:
+            await self.__display_manual_pairing_code()
+            self._chip_server_info_displayed = True
+
         test_run_text = colorize_hierarchy_prefix("Test Run", HierarchyEnum.TEST_RUN.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"{test_run_text} {colored_state}")
+
+    async def __display_manual_pairing_code(self) -> None:
+        """Fetch and display manual pairing code after SDK container has started."""
+        try:
+            # Extract device configuration
+            dut_config = self.project_config_dict.get("dut_config", {})
+            discriminator = dut_config.get("discriminator")
+            setup_pin_code = dut_config.get("setup_code")
+
+            if not discriminator or not setup_pin_code:
+                return  # No device config available
+
+            # Extract version, vendor_id and product_id from test_parameters if available
+            test_parameters = self.project_config_dict.get("test_parameters", {})
+            version = test_parameters.get("version")
+            vendor_id = test_parameters.get("vendor_id")
+            product_id = test_parameters.get("product_id")
+
+            # Create API client and fetch chip server info
+            client = get_client()
+            try:
+                test_run_api = AsyncApis(client).test_run_executions_api
+                chip_info = await test_run_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
+                    discriminator=discriminator,
+                    setup_pin_code=setup_pin_code,
+                    version=version,
+                    vendor_id=vendor_id,
+                    product_id=product_id,
+                )
+
+                if chip_info.manual_pairing_code:
+                    node_id = colorize_key_value("Node ID", chip_info.node_id_hex)
+                    manual_code = colorize_key_value("Manual Pairing Code", chip_info.manual_pairing_code)
+                    click.echo("═══════════════════════════════════════════════════════")
+                    click.echo(colorize_header("CHIP Server Information:"))
+                    click.echo(f"- {node_id}")
+                    click.echo(f"- {manual_code}")
+                    click.echo("═══════════════════════════════════════════════════════")
+                    click.echo("")
+            finally:
+                await client.aclose()
+
+        except Exception as e:
+            logger.debug(f"Could not fetch manual pairing code: {e}")
+            # Don't fail the test run if we can't get the pairing code
 
     def __log_test_suite_update(self, update: TestSuiteUpdate) -> None:
         suite = self.__suite(update.test_suite_execution_index)
@@ -159,7 +220,8 @@ class TestRunSocket:
             if case_key in self.test_case_step_errors:
                 all_errors.extend(self.test_case_step_errors[case_key])
                 logger.debug(
-                    f"Found {len(self.test_case_step_errors[case_key])} tracked step error(s): {self.test_case_step_errors[case_key]}"
+                    f"Found {len(self.test_case_step_errors[case_key])} tracked step error(s): "
+                    f"{self.test_case_step_errors[case_key]}"
                 )
             else:
                 logger.debug(f"No tracked step errors found for test case {case_key}")

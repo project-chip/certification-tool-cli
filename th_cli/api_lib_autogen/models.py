@@ -234,6 +234,7 @@ class TestRunnerStatus(BaseModel):
 class ChipServerInfo(BaseModel):
     node_id: "int" = Field(..., alias="node_id")
     node_id_hex: "str" = Field(..., alias="node_id_hex")
+    manual_pairing_code: "str | None" = Field(None, alias="manual_pairing_code")
 
 
 class TestStepExecution(BaseModel):
