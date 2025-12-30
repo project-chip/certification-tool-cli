@@ -27,6 +27,9 @@ from th_cli.colorize import colorize_cmd_help, colorize_dump, colorize_help
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __json_string, __print_json
 
+# Constants
+COLUMN_WIDTH = 23  # Fixed width for test ID columns with proper spacing
+
 
 @click.command(
     short_help=colorize_help("List all available test cases"),
@@ -125,9 +128,6 @@ def _generate_compact(test_cases: List[Dict[str, str]]) -> List[str]:
 
     lines = []
 
-    # Use a larger fixed width for IDs with more spacing between columns
-    column_width = 23  # Increased from 18 to 23 (added 5 spaces)
-
     # Extract only the IDs
     test_ids = [test_case["id"] for test_case in test_cases]
 
@@ -138,12 +138,12 @@ def _generate_compact(test_cases: List[Dict[str, str]]) -> List[str]:
 
         for j, test_id in enumerate(batch):
             if j < len(batch) - 1:  # Not the last element in the line
-                # Pad to column_width for uniform spacing
-                if len(test_id) > column_width:
+                # Pad to COLUMN_WIDTH for uniform spacing
+                if len(test_id) > COLUMN_WIDTH:
                     # If the ID is too long, truncate
-                    padded = test_id[:column_width]
+                    padded = test_id[:COLUMN_WIDTH]
                 else:
-                    padded = test_id.ljust(column_width)
+                    padded = test_id.ljust(COLUMN_WIDTH)
                 line_parts.append(padded)
             else:
                 # Last element doesn't need padding
@@ -164,9 +164,6 @@ def _generate_grouped_by_cluster(test_cases: List[Dict[str, str]]) -> List[str]:
     for test_case in test_cases:
         clusters[test_case["cluster"]].append(test_case)
 
-    # Use a larger fixed width for IDs with more spacing between columns
-    column_width = 23  # Increased from 18 to 23 (added 5 spaces)
-
     # Generate lines for each cluster
     for cluster_name in sorted(clusters.keys()):
         lines.append(f"\n{cluster_name}:")
@@ -181,12 +178,12 @@ def _generate_grouped_by_cluster(test_cases: List[Dict[str, str]]) -> List[str]:
             for j, test_case in enumerate(batch):
                 test_id = test_case["id"]
                 if j < len(batch) - 1:  # Not the last element in the line
-                    # Pad to column_width for uniform spacing
-                    if len(test_id) > column_width:
+                    # Pad to COLUMN_WIDTH for uniform spacing
+                    if len(test_id) > COLUMN_WIDTH:
                         # If the ID is too long, truncate
-                        padded = test_id[:column_width]
+                        padded = test_id[:COLUMN_WIDTH]
                     else:
-                        padded = test_id.ljust(column_width)
+                        padded = test_id.ljust(COLUMN_WIDTH)
                     line_parts.append(padded)
                 else:
                     # Last element doesn't need padding
