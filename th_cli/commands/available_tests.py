@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import re
-from collections import defaultdict
 from typing import Any, Dict, List, Optional
+import re
+import textwrap
+from collections import defaultdict
 
 import click
 import yaml
@@ -29,6 +30,27 @@ from th_cli.utils import __json_string, __print_json
 
 # Constants
 COLUMN_WIDTH = 23  # Fixed width for test ID columns with proper spacing
+
+
+def _format_test_ids_line(test_ids: List[str]) -> str:
+    """Format a list of test IDs into a padded, columnar line with 4 elements per line."""
+    line_parts = []
+
+    for j, test_id in enumerate(test_ids):
+        if j < len(test_ids) - 1:  # Not the last element in the line
+            # Pad to COLUMN_WIDTH for uniform spacing
+            if len(test_id) > COLUMN_WIDTH:
+                # If the ID is too long, truncate
+                padded = test_id[:COLUMN_WIDTH]
+            else:
+                padded = test_id.ljust(COLUMN_WIDTH)
+            line_parts.append(padded)
+        else:
+            # Last element doesn't need padding
+            line_parts.append(test_id)
+
+    # Join with minimal spacing
+    return "  ".join(line_parts)
 
 
 @click.command(
@@ -90,9 +112,6 @@ def available_tests(
             elif cluster:
                 # When filtering by cluster, show detailed information
                 content_lines = _generate_detailed_cluster_info(test_cases, cluster)
-            else:
-                # Default to compact format for any custom formatting
-                content_lines = _generate_compact(test_cases)
 
             # Display with Click's echo_via_pager
             content = "\n".join(content_lines)
@@ -134,23 +153,7 @@ def _generate_compact(test_cases: List[Dict[str, str]]) -> List[str]:
     # Process in batches of 4
     for i in range(0, len(test_ids), 4):
         batch = test_ids[i : i + 4]
-        line_parts = []
-
-        for j, test_id in enumerate(batch):
-            if j < len(batch) - 1:  # Not the last element in the line
-                # Pad to COLUMN_WIDTH for uniform spacing
-                if len(test_id) > COLUMN_WIDTH:
-                    # If the ID is too long, truncate
-                    padded = test_id[:COLUMN_WIDTH]
-                else:
-                    padded = test_id.ljust(COLUMN_WIDTH)
-                line_parts.append(padded)
-            else:
-                # Last element doesn't need padding
-                line_parts.append(test_id)
-
-        # Join with minimal spacing
-        lines.append("  ".join(line_parts))
+        lines.append(_format_test_ids_line(batch))
 
     return lines
 
@@ -173,24 +176,10 @@ def _generate_grouped_by_cluster(test_cases: List[Dict[str, str]]) -> List[str]:
         cluster_tests = sorted(clusters[cluster_name], key=lambda x: x["id"])
         for i in range(0, len(cluster_tests), 4):
             batch = cluster_tests[i : i + 4]
-            line_parts = []
+            test_ids_batch = [test_case["id"] for test_case in batch]
 
-            for j, test_case in enumerate(batch):
-                test_id = test_case["id"]
-                if j < len(batch) - 1:  # Not the last element in the line
-                    # Pad to COLUMN_WIDTH for uniform spacing
-                    if len(test_id) > COLUMN_WIDTH:
-                        # If the ID is too long, truncate
-                        padded = test_id[:COLUMN_WIDTH]
-                    else:
-                        padded = test_id.ljust(COLUMN_WIDTH)
-                    line_parts.append(padded)
-                else:
-                    # Last element doesn't need padding
-                    line_parts.append(test_id)
-
-            # Add indentation and join with minimal spacing
-            lines.append("  " + "  ".join(line_parts))
+            # Add indentation to the formatted line
+            lines.append("  " + _format_test_ids_line(test_ids_batch))
 
     return lines
 
@@ -209,21 +198,14 @@ def _generate_detailed_cluster_info(test_cases: List[Dict[str, str]], cluster_na
         lines.append(f"ID: {test_case['id']}")
         lines.append(f"Title: {test_case['title']}")
         if "description" in test_case and test_case["description"]:
-            # Wrap long descriptions
             description = test_case["description"]
-            if len(description) > 80:
-                # Break description into lines of 80 characters
-                words = description.split()
-                current_line = "Description: "
-                for word in words:
-                    if len(current_line) + len(word) + 1 <= 80:
-                        current_line += word + " "
-                    else:
-                        lines.append(current_line.rstrip())
-                        current_line = "             " + word + " "  # Indent continuation
-                lines.append(current_line.rstrip())
-            else:
-                lines.append(f"Description: {description}")
+            description_lines = textwrap.wrap(
+                description,
+                width=80,
+                initial_indent="Description: ",
+                subsequent_indent="             ",
+            )
+            lines.extend(description_lines)
         lines.append(f"Collection: {test_case['collection']}")
         lines.append(f"Suite: {test_case['suite']}")
         lines.append("-" * 60)
@@ -275,10 +257,6 @@ def _extract_cluster_from_test_id(test_id: str) -> str:
         # Pattern 4: TC_CLUSTER_numbers (underscore separated)
         # Handle mixed case clusters (like WebRTCP, WebRTCR, MCORE_FS)
         r"^TC_([A-Za-z_]+?)_\d+",  # Mixed case clusters with underscores
-        # Pattern 5: TC_CLUSTER_numbers (all uppercase, underscore separated)
-        # Special handling for clusters that end with TC or TCP (like WEBRTC, WEBRTCP)
-        r"^TC_([A-Z]*TCP?)_\d+",  # Matches clusters ending in TC or TCP first
-        r"^TC_([A-Z]+)_\d+",  # Then regular clusters
     ]
 
     for pattern in patterns:

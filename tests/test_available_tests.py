@@ -679,4 +679,3 @@ class TestAvailableTestsCommand:
         assert "Collection:" in call_content
         assert "Suite:" in call_content
         assert "Total test cases found:" in call_content
-
