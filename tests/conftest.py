@@ -263,6 +263,14 @@ def sample_test_collections() -> api_models.TestCollections:
                                     title="Test Case ACE 1.2",
                                     description="Access Control Entry test 2"
                                 )
+                            ),
+                            "TC-CC-1.1": api_models.TestCase(
+                                metadata=api_models.TestMetadata(
+                                    public_id="TC-CC-1.1",
+                                    version="1.0",
+                                    title="Test Case CC 1.1",
+                                    description="Color Control test"
+                                )
                             )
                         }
                     )
