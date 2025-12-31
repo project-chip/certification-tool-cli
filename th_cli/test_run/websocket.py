@@ -174,15 +174,15 @@ class TestRunSocket:
                     product_id=product_id,
                 )
 
+                node_id = colorize_key_value("Node ID", chip_info.node_id_hex)
+                click.echo("═══════════════════════════════════════════════════════")
+                click.echo(colorize_header("CHIP Server Information:"))
+                click.echo(f"- {node_id}")
                 if chip_info.manual_pairing_code:
-                    node_id = colorize_key_value("Node ID", chip_info.node_id_hex)
                     manual_code = colorize_key_value("Manual Pairing Code", chip_info.manual_pairing_code)
-                    click.echo("═══════════════════════════════════════════════════════")
-                    click.echo(colorize_header("CHIP Server Information:"))
-                    click.echo(f"- {node_id}")
                     click.echo(f"- {manual_code}")
-                    click.echo("═══════════════════════════════════════════════════════")
-                    click.echo("")
+                click.echo("═══════════════════════════════════════════════════════")
+                click.echo("")
             finally:
                 await client.aclose()
 

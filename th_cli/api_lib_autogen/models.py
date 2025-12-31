@@ -125,6 +125,7 @@ class TestCollections(BaseModel):
 class TestEnvironmentConfig(BaseModel):
     network: "NetworkConfig" = Field(..., alias="network")
     dut_config: "DutConfig" = Field(..., alias="dut_config")
+    test_parameters: "Optional[Dict[str, Any]]" = Field(None, alias="test_parameters")
 
 
 class TestMetadata(BaseModel):
