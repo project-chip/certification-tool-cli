@@ -62,6 +62,8 @@ webrtc_indicators = [
     "create_browser_peer",
 ]
 
+WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
+
 
 class TestRunSocket:
     def __init__(self, run: TestRunExecutionWithChildren, project_config_dict: dict | None = None):
@@ -74,7 +76,13 @@ class TestRunSocket:
 
     async def connect_websocket(self) -> None:
 
-        async with websocket_connect(WEBSOCKET_URL, ping_timeout=None) as socket:
+        async with websocket_connect(
+            WEBSOCKET_URL,
+            ping_timeout=None,
+            max_size=WEBSOCKET_MAX_MESSAGE_SIZE,
+            read_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
+            write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
+        ) as socket:
             try:
                 while True:
                     try:
