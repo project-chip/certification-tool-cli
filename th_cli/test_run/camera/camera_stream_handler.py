@@ -112,24 +112,19 @@ class CameraStreamHandler:
                 logger.error("Failed to establish video stream connection")
                 self.initialization_error = "Failed to establish video stream connection"
                 # Don't set the event if connection failed
-        except RuntimeError as e:
-            # Catch FFmpeg installation errors and log them properly
-            error_msg = str(e)
-            if "FFmpeg is not installed" in error_msg:
-                # Import here to avoid circular dependency
-                from th_cli.th_utils.ffmpeg_converter import FFMPEG_NOT_INSTALLED_MSG
+        except Exception as e:
+            # Import FFmpeg exception for type checking
+            from th_cli.th_utils.ffmpeg_converter import FFmpegNotInstalledError
 
-                logger.error(FFMPEG_NOT_INSTALLED_MSG)
-                self.initialization_error = FFMPEG_NOT_INSTALLED_MSG
+            if isinstance(e, FFmpegNotInstalledError):
+                # FFmpeg is not installed - use the detailed error message from the exception
+                logger.error(e.message)
+                self.initialization_error = e.message
             else:
-                error_message = f"Runtime error during video capture initialization: {e}"
+                # Other unexpected errors
+                error_message = f"Unexpected error during video capture initialization: {e}"
                 logger.error(error_message)
                 self.initialization_error = error_message
-            # Don't set the event if initialization failed
-        except Exception as e:
-            error_message = f"Unexpected error during video capture initialization: {e}"
-            logger.error(error_message)
-            self.initialization_error = error_message
             # Don't set the event if initialization failed
 
     async def wait_for_user_response(self, timeout: float) -> Optional[int]:

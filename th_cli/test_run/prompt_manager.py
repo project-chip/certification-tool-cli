@@ -130,11 +130,11 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
                 click.echo(colorize_error("Video stream failed to initialize"), err=True)
 
             # Send CANCELLED response to abort test execution
-            await _send_prompt_error_response(
+            await _send_prompt_response(
                 socket=socket,
                 prompt=prompt,
+                response="Video stream initialization failed",
                 status_code=UserResponseStatusEnum.CANCELLED,
-                error_message="Video stream initialization failed",
             )
             return
 
@@ -166,7 +166,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         # Stop video capture and streaming
         _ = await video_handler.stop_video_capture_and_stream()
 
-        await _send_prompt_response(socket=socket, input=user_answer, prompt=prompt)
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
 
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Video prompt timed out"), err=True)
@@ -188,7 +188,7 @@ async def handle_file_upload_request(socket: WebSocketClientProtocol, request: P
 async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: OptionsSelectPromptRequest) -> None:
     try:
         user_answer = await asyncio.wait_for(_prompt_user_for_option(prompt), float(prompt.timeout))
-        await _send_prompt_response(socket=socket, input=user_answer, prompt=prompt)
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Prompt timed out"), err=True)
         pass
@@ -197,7 +197,7 @@ async def __handle_options_prompt(socket: WebSocketClientProtocol, prompt: Optio
 async def __handle_message_prompt(socket: WebSocketClientProtocol, prompt: PromptRequest) -> None:
     """Handle simple message prompts that only require acknowledgment."""
     click.echo(italic(prompt.prompt))
-    await _send_prompt_response(socket=socket, input="ACK", prompt=prompt)
+    await _send_prompt_response(socket=socket, response="ACK", prompt=prompt)
 
 
 async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:
@@ -228,7 +228,7 @@ async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:
 async def __handle_text_prompt(socket: WebSocketClientProtocol, prompt: TextInputPromptRequest) -> None:
     try:
         user_answer = await asyncio.wait_for(__prompt_user_for_text_input(prompt), float(prompt.timeout))
-        await _send_prompt_response(socket=socket, input=user_answer, prompt=prompt)
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
     except asyncio.exceptions.TimeoutError:
         click.echo(colorize_error("Prompt timed out"), err=True)
         pass
@@ -242,7 +242,7 @@ async def __handle_file_upload_prompt(socket: WebSocketClientProtocol, prompt: P
             await __upload_file_and_send_response(socket=socket, file_path=file_path, prompt=prompt)
         else:
             # User cancelled or provided empty path
-            await _send_prompt_response(socket=socket, input="", prompt=prompt)
+            await _send_prompt_response(socket=socket, response="", prompt=prompt)
     except asyncio.exceptions.TimeoutError:
         click.echo("File upload prompt timed out", err=True)
         pass
@@ -312,7 +312,7 @@ async def __upload_file_and_send_response(
     try:
         if not os.path.isfile(file_path):
             click.echo(f"Error: File '{file_path}' does not exist or is not accessible", err=True)
-            await _send_prompt_response(socket=socket, input="", prompt=prompt)
+            await _send_prompt_response(socket=socket, response="", prompt=prompt)
             return
 
         file_size = os.path.getsize(file_path)
@@ -320,7 +320,7 @@ async def __upload_file_and_send_response(
         # Check file size limit
         if file_size > MAX_FILE_SIZE:
             click.echo(f"❌ File too large: {file_size} bytes (max: {MAX_FILE_SIZE} bytes)", err=True)
-            await _send_prompt_response(socket=socket, input="", prompt=prompt)
+            await _send_prompt_response(socket=socket, response="", prompt=prompt)
             return
 
         click.echo(f"File selected: {file_path} (size: {file_size:,} bytes)")
@@ -341,17 +341,17 @@ async def __upload_file_and_send_response(
 
                 response.raise_for_status()
                 click.echo("✅ File uploaded successfully")
-                await _send_prompt_response(socket=socket, input="SUCCESS", prompt=prompt)
+                await _send_prompt_response(socket=socket, response="SUCCESS", prompt=prompt)
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, response="", prompt=prompt)
     except httpx.HTTPStatusError as e:
         click.echo(f"❌ HTTP error during file upload: {e.response.status_code} - {e.response.text}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, response="", prompt=prompt)
     except Exception as e:
         click.echo(f"❌ Unexpected error uploading file: {str(e)}", err=True)
-        await _send_prompt_response(socket=socket, input="", prompt=prompt)
+        await _send_prompt_response(socket=socket, response="", prompt=prompt)
 
 
 def __valid_text_input(input: Any, prompt: TextInputPromptRequest) -> bool:
@@ -378,35 +378,29 @@ def __valid_file_upload(file_path: str, prompt: PromptRequest) -> bool:
     return True
 
 
-async def _send_prompt_response(socket: WebSocketClientProtocol, input: Union[str, int], prompt: PromptRequest) -> None:
-    response = PromptResponse(
-        response=input,
-        status_code=UserResponseStatusEnum.OKAY,
-        message_id=prompt.message_id,
-    )
-    payload_dict = {
-        MessageKeysEnum.TYPE: "prompt_response",
-        MessageKeysEnum.PAYLOAD: response.dict(),
-    }
-    payload = json.dumps(payload_dict)
-    await socket.send(payload)
-
-
-async def _send_prompt_error_response(
+async def _send_prompt_response(
     socket: WebSocketClientProtocol,
     prompt: PromptRequest,
-    status_code: UserResponseStatusEnum,
-    error_message: str = "",
+    response: Union[str, int],
+    status_code: UserResponseStatusEnum = UserResponseStatusEnum.OKAY,
 ) -> None:
-    """Send an error response for a prompt (CANCELLED, TIMEOUT, INVALID)."""
-    response = PromptResponse(
-        response=error_message,
+    """
+    Send a prompt response to the backend.
+
+    Args:
+        socket: WebSocket connection to send the response through
+        prompt: The original prompt request
+        response: The response data (user input, error message, etc.)
+        status_code: Status of the response (OKAY, CANCELLED, TIMEOUT, INVALID)
+    """
+    response_obj = PromptResponse(
+        response=response,
         status_code=status_code,
         message_id=prompt.message_id,
     )
     payload_dict = {
         MessageKeysEnum.TYPE: "prompt_response",
-        MessageKeysEnum.PAYLOAD: response.dict(),
+        MessageKeysEnum.PAYLOAD: response_obj.dict(),
     }
     payload = json.dumps(payload_dict)
     await socket.send(payload)
