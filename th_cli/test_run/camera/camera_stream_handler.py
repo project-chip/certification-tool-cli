@@ -46,6 +46,7 @@ class CameraStreamHandler:
 
         # Stream readiness signaling
         self.stream_ready_event = asyncio.Event()
+        self.initialization_error: Optional[str] = None  # Store initialization errors
 
     def set_prompt_data(self, prompt_text: str, options: dict):
         """Set prompt text and options for the web UI."""
@@ -61,8 +62,9 @@ class CameraStreamHandler:
 
         logger.info(f"Starting video capture to: {self.current_stream_file}")
 
-        # Reset the stream ready event
+        # Reset the stream ready event and clear any previous errors
         self.stream_ready_event.clear()
+        self.initialization_error = None
 
         # Start HTTP server with current prompt data
         self.http_server.start(
@@ -89,16 +91,46 @@ class CameraStreamHandler:
 
     async def _initialize_video_capture(self) -> None:
         """Initialize video capture with retry logic."""
-        # Try to connect and start capturing
-        if await self.websocket_manager.wait_and_connect_with_retry():
-            # Signal that the stream is ready once connection is established
-            self.stream_ready_event.set()
-            logger.info("Video stream is ready for viewing")
+        try:
+            # Pre-check FFmpeg installation before connecting
+            from th_cli.th_utils.ffmpeg_converter import FFmpegStreamConverter
 
-            await self.websocket_manager.start_capture_and_stream(self.current_stream_file, self.mp4_queue)
-        else:
-            logger.error("Failed to establish video stream connection")
-            # Don't set the event if connection failed
+            is_installed, error_msg = FFmpegStreamConverter.check_ffmpeg_installed()
+            if not is_installed:
+                logger.error(error_msg)
+                self.initialization_error = error_msg
+                return
+
+            # Try to connect and start capturing
+            if await self.websocket_manager.wait_and_connect_with_retry():
+                # Signal that the stream is ready once connection is established
+                self.stream_ready_event.set()
+                logger.info("Video stream is ready for viewing")
+
+                await self.websocket_manager.start_capture_and_stream(self.current_stream_file, self.mp4_queue)
+            else:
+                logger.error("Failed to establish video stream connection")
+                self.initialization_error = "Failed to establish video stream connection"
+                # Don't set the event if connection failed
+        except RuntimeError as e:
+            # Catch FFmpeg installation errors and log them properly
+            error_msg = str(e)
+            if "FFmpeg is not installed" in error_msg:
+                # Import here to avoid circular dependency
+                from th_cli.th_utils.ffmpeg_converter import FFMPEG_NOT_INSTALLED_MSG
+
+                logger.error(FFMPEG_NOT_INSTALLED_MSG)
+                self.initialization_error = FFMPEG_NOT_INSTALLED_MSG
+            else:
+                error_message = f"Runtime error during video capture initialization: {e}"
+                logger.error(error_message)
+                self.initialization_error = error_message
+            # Don't set the event if initialization failed
+        except Exception as e:
+            error_message = f"Unexpected error during video capture initialization: {e}"
+            logger.error(error_message)
+            self.initialization_error = error_message
+            # Don't set the event if initialization failed
 
     async def wait_for_user_response(self, timeout: float) -> Optional[int]:
         """Wait for user response from web UI."""

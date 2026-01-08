@@ -80,14 +80,12 @@ class ApiClient:
     @overload
     async def request(
         self, *, type_: Type[T], method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload  # noqa F811
     async def request(
         self, *, type_: None, method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
-    ) -> str:
-        ...
+    ) -> str: ...
 
     async def request(  # noqa F811
         self, *, type_: Any, method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
@@ -99,12 +97,10 @@ class ApiClient:
         return await self.send(request, type_)
 
     @overload
-    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T:
-        ...
+    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T: ...
 
     @overload  # noqa F811
-    def request_sync(self, *, type_: None, **kwargs: Any) -> str:
-        ...
+    def request_sync(self, *, type_: None, **kwargs: Any) -> str: ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:  # noqa F811
         """

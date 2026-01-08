@@ -89,6 +89,7 @@ class TextInputPromptRequest(PromptRequest):
 
 class MessagePromptRequest(PromptRequest):
     """Simple message prompt that only requires acknowledgment."""
+
     pass
 
 

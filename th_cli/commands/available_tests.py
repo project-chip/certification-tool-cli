@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from typing import Any, Dict, List, Optional
 import re
 import textwrap
 from collections import defaultdict
+from typing import Any, Dict, List, Optional
 
 import click
 import yaml

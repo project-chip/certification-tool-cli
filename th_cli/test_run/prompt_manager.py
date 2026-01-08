@@ -123,7 +123,19 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         # Wait for stream to be ready instead of fixed delay
         stream_ready = await video_handler.wait_for_stream_ready(timeout=10.0)
         if not stream_ready:
-            click.echo(colorize_error("Video stream failed to initialize"), err=True)
+            # Display specific error if available
+            if video_handler.initialization_error:
+                click.echo(video_handler.initialization_error, err=True)
+            else:
+                click.echo(colorize_error("Video stream failed to initialize"), err=True)
+
+            # Send CANCELLED response to abort test execution
+            await _send_prompt_error_response(
+                socket=socket,
+                prompt=prompt,
+                status_code=UserResponseStatusEnum.CANCELLED,
+                error_message="Video stream initialization failed",
+            )
             return
 
         click.echo(italic(prompt.prompt))
@@ -370,6 +382,26 @@ async def _send_prompt_response(socket: WebSocketClientProtocol, input: Union[st
     response = PromptResponse(
         response=input,
         status_code=UserResponseStatusEnum.OKAY,
+        message_id=prompt.message_id,
+    )
+    payload_dict = {
+        MessageKeysEnum.TYPE: "prompt_response",
+        MessageKeysEnum.PAYLOAD: response.dict(),
+    }
+    payload = json.dumps(payload_dict)
+    await socket.send(payload)
+
+
+async def _send_prompt_error_response(
+    socket: WebSocketClientProtocol,
+    prompt: PromptRequest,
+    status_code: UserResponseStatusEnum,
+    error_message: str = "",
+) -> None:
+    """Send an error response for a prompt (CANCELLED, TIMEOUT, INVALID)."""
+    response = PromptResponse(
+        response=error_message,
+        status_code=status_code,
         message_id=prompt.message_id,
     )
     payload_dict = {
