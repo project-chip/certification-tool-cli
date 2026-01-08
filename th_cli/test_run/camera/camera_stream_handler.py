@@ -22,6 +22,8 @@ from typing import Optional
 
 from loguru import logger
 
+from th_cli.th_utils.ffmpeg_converter import FFmpegNotInstalledError
+
 from .camera_http_server import CameraHTTPServer
 from .websocket_manager import VideoWebSocketManager
 
@@ -112,20 +114,13 @@ class CameraStreamHandler:
                 logger.error("Failed to establish video stream connection")
                 self.initialization_error = "Failed to establish video stream connection"
                 # Don't set the event if connection failed
+        except FFmpegNotInstalledError as e:
+            logger.error(e.message)
+            self.initialization_error = e.message
         except Exception as e:
-            # Import FFmpeg exception for type checking
-            from th_cli.th_utils.ffmpeg_converter import FFmpegNotInstalledError
-
-            if isinstance(e, FFmpegNotInstalledError):
-                # FFmpeg is not installed - use the detailed error message from the exception
-                logger.error(e.message)
-                self.initialization_error = e.message
-            else:
-                # Other unexpected errors
-                error_message = f"Unexpected error during video capture initialization: {e}"
-                logger.error(error_message)
-                self.initialization_error = error_message
-            # Don't set the event if initialization failed
+            error_message = f"Unexpected error during video capture initialization: {e}"
+            logger.error(error_message)
+            self.initialization_error = error_message
 
     async def wait_for_user_response(self, timeout: float) -> Optional[int]:
         """Wait for user response from web UI."""
