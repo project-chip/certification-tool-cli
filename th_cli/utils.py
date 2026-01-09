@@ -344,10 +344,7 @@ def parse_pics_xml(xml_content: str) -> dict:
                 if support_element is not None and support_element.text:
                     support = support_element.text.lower() == "true"
 
-                result["clusters"][cluster_name]["items"][item_number] = {
-                    "number": item_number,
-                    "enabled": support
-                }
+                result["clusters"][cluster_name]["items"][item_number] = {"number": item_number, "enabled": support}
 
         return result
 

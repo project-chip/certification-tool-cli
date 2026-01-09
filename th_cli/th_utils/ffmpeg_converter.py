@@ -44,6 +44,15 @@ FFMPEG_NOT_INSTALLED_MSG = (
 )
 
 
+# Custom Exceptions
+class FFmpegNotInstalledError(RuntimeError):
+    """Raised when FFmpeg is not installed or not found in PATH."""
+
+    def __init__(self, message: str = FFMPEG_NOT_INSTALLED_MSG):
+        self.message = message
+        super().__init__(self.message)
+
+
 class FFmpegStreamConverter:
     """Converts H.264 raw stream to MP4 in real-time using FFmpeg."""
 
@@ -83,9 +92,7 @@ class FFmpegStreamConverter:
         is_installed, error_msg = self.check_ffmpeg_installed()
         if not is_installed:
             logger.error(error_msg)
-            raise RuntimeError(
-                "FFmpeg is not installed. Video streaming requires FFmpeg. " "See installation instructions above."
-            )
+            raise FFmpegNotInstalledError(error_msg)
 
         try:
             # Create FFmpeg stream using ffmpeg-python
