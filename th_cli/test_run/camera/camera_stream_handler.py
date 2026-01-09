@@ -22,7 +22,7 @@ from typing import Optional
 
 from loguru import logger
 
-from th_cli.th_utils.ffmpeg_converter import FFmpegNotInstalledError
+from th_cli.th_utils.ffmpeg_converter import FFmpegNotInstalledError, FFmpegStreamConverter
 
 from .camera_http_server import CameraHTTPServer
 from .websocket_manager import VideoWebSocketManager
@@ -94,9 +94,6 @@ class CameraStreamHandler:
     async def _initialize_video_capture(self) -> None:
         """Initialize video capture with retry logic."""
         try:
-            # Pre-check FFmpeg installation before connecting
-            from th_cli.th_utils.ffmpeg_converter import FFmpegStreamConverter
-
             is_installed, error_msg = FFmpegStreamConverter.check_ffmpeg_installed()
             if not is_installed:
                 logger.error(error_msg)
