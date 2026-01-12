@@ -104,7 +104,7 @@ async def run_tests(
     no_color: bool = False,
 ) -> None:
     """Execute a CLI test run from selected test cases.
-    
+
     Args:
         title: Name/title for the test run execution
         tests_list: Comma-separated list of test case identifiers
@@ -112,7 +112,7 @@ async def run_tests(
         pics_config_folder: Optional path to directory containing PICS XML files
         project_id: Optional project ID for the test run
         no_color: Flag to disable colored output
-        
+
     Raises:
         CLIError: If there are validation or execution errors
     """
@@ -187,14 +187,14 @@ async def run_tests(
 
 async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> m.TestEnvironmentConfig:
     """Retrieve project configuration for given project ID or default configuration.
-    
+
     Args:
         async_apis: AsyncApis instance for making API calls
         project_id: Optional project ID to retrieve configuration from
-        
+
     Returns:
         TestEnvironmentConfig object containing project configuration
-        
+
     Raises:
         May raise API-related exceptions if default config retrieval fails
     """
@@ -223,7 +223,7 @@ async def _create_new_test_run_cli(
     project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
     """Create a new test run execution via the CLI.
-    
+
     Args:
         async_apis: AsyncApis instance for making API calls
         selected_tests: Dictionary of selected test cases
@@ -231,10 +231,10 @@ async def _create_new_test_run_cli(
         config: Optional configuration dictionary
         pics: Optional PICS configuration dictionary
         project_id: Optional project ID
-        
+
     Returns:
         Created TestRunExecutionWithChildren object
-        
+
     Raises:
         CLIError: If test run creation fails
     """
@@ -258,14 +258,14 @@ async def _start_test_run(
     async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren
 ) -> m.TestRunExecutionWithChildren:
     """Start a test run execution.
-    
+
     Args:
         async_apis: AsyncApis instance for making API calls
         test_run: TestRunExecutionWithChildren object to start
-        
+
     Returns:
         Updated TestRunExecutionWithChildren object after starting
-        
+
     Raises:
         CLIError: If test run start fails
     """

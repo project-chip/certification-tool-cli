@@ -104,32 +104,32 @@ def build_test_selection(test_collections, tests_list) -> dict:
 
 def load_json_config(config_path: str) -> dict[str, Any]:
     """Load and parse a JSON configuration file with format detection.
-    
+
     This function reads a JSON file and automatically detects the format:
     - Full project format: {"name": "...", "config": {...}} → Returns config dict
     - Config-only format: {...} → Returns entire dict
-    
+
     This allows the same configuration file to be used with both:
     - `th-cli project create/update` (requires full format)
     - `th-cli run-tests --config` (accepts either format)
-    
+
     Args:
         config_path: Path to the JSON configuration file
-        
+
     Returns:
         Parsed configuration dictionary. If the JSON contains a top-level
         "config" key, only that value is returned. Otherwise, the entire
         JSON object is returned.
-        
+
     Raises:
         CLIError: If file cannot be read, JSON is invalid, or format is incorrect
-        
+
     Examples:
         Full project format (extracts config):
         >>> # File: {"name": "My Project", "config": {"network": {...}}}
         >>> config = load_json_config("project.json")
         >>> print(config["network"])  # Just the config part
-        
+
         Config-only format (uses as-is):
         >>> # File: {"network": {...}, "dut_config": {...}}
         >>> config = load_json_config("config.json")
@@ -138,7 +138,7 @@ def load_json_config(config_path: str) -> dict[str, Any]:
     try:
         with open(config_path, "r", encoding=DEFAULT_FILE_ENCODING) as config_file:
             data = json.load(config_file)
-        
+
         # Format detection: Check if this is full project format
         if isinstance(data, dict) and "config" in data:
             # Validate that "config" value is a dictionary
@@ -149,16 +149,16 @@ def load_json_config(config_path: str) -> dict[str, Any]:
                 )
             # Extract and return just the config section
             return data["config"]
-        
+
         # Otherwise, treat entire JSON as config
         if not isinstance(data, dict):
             raise CLIError(
                 f"Invalid config file format in '{config_path}': "
                 f"Expected a JSON object (dictionary), got {type(data).__name__}"
             )
-        
+
         return data
-        
+
     except FileNotFoundError as e:
         handle_file_error(e, "config file")
     except json.JSONDecodeError as e:
@@ -172,22 +172,22 @@ def load_json_config(config_path: str) -> dict[str, Any]:
 
 def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) -> dict[str, Any]:
     """Deep merge override configuration into base configuration.
-    
+
     This function recursively merges two dictionaries, with values from
     override_config taking precedence over base_config. Nested dictionaries
     are merged recursively, while other values are replaced.
-    
+
     This is the recommended function for merging JSON configurations and
     is simpler than merge_properties_to_config which handles type conversion
     from properties files.
-    
+
     Args:
         base_config: Base configuration dictionary to merge into
         override_config: Configuration dictionary to merge from (takes precedence)
-        
+
     Returns:
         New dictionary containing the merged configuration
-        
+
     Example:
         >>> base = {"a": {"b": 1, "c": 2}, "d": 3}
         >>> override = {"a": {"b": 10}, "e": 4}
@@ -195,10 +195,10 @@ def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) 
         {"a": {"b": 10, "c": 2}, "d": 3, "e": 4}
     """
     result = copy.deepcopy(base_config)
-    
+
     def _deep_merge(target: dict[str, Any], source: dict[str, Any]) -> None:
         """Recursively merge source dictionary into target dictionary.
-        
+
         Args:
             target: Target dictionary to merge into (modified in place)
             source: Source dictionary to merge from
@@ -210,7 +210,7 @@ def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) 
             else:
                 # Override with source value for non-dict or new keys
                 target[key] = value
-    
+
     _deep_merge(result, override_config)
     return result
 

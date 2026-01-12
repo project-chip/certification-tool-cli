@@ -543,11 +543,11 @@ class TestLoadJsonConfig:
             "network": {"wifi": {"ssid": "same_network"}},
             "dut_config": {"pairing_mode": "onnetwork"}
         }
-        
+
         # Create config-only format file
         config_only_file = temp_dir / "config_only.json"
         config_only_file.write_text(json.dumps(config_content))
-        
+
         # Create full project format file
         full_format_file = temp_dir / "full_format.json"
         full_format_data = {"name": "Project", "config": config_content}
@@ -751,7 +751,7 @@ class TestMergeConfigs:
         # Assert Network Thread should be preserved
         assert result["network"]["thread"]["channel"] == 15
         assert result["network"]["thread"]["panid"] == "0x1234"
-        # Assert DUT config 
+        # Assert DUT config
         assert result["dut_config"]["discriminator"] == "3402"
         assert result["dut_config"]["trace_log"] is False
         assert result["dut_config"]["pairing_mode"] == "onnetwork"
