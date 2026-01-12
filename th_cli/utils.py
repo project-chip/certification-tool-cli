@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,9 @@
 # limitations under the License.
 #
 import copy
-import errno
 import json
 import os
 import subprocess
-from configparser import ConfigParser
 from typing import Any
 from xml.etree.ElementTree import ParseError, fromstring
 
@@ -29,8 +27,11 @@ from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
 from th_cli.colorize import colorize_dump
-from th_cli.config import ATTRIBUTE_MAPPING, VALID_PAIRING_MODES, find_git_root, get_package_root
+from th_cli.config import find_git_root, get_package_root
 from th_cli.exceptions import CLIError, handle_file_error
+
+# Constants
+DEFAULT_FILE_ENCODING = "utf-8"
 
 
 def __print_json(object: Any) -> None:
@@ -101,50 +102,117 @@ def build_test_selection(test_collections, tests_list) -> dict:
     return selected_tests
 
 
-def read_properties_file(file_path: str) -> dict:
-    """Read a properties file with sections and return its contents as a dictionary.
-
+def load_json_config(config_path: str) -> dict[str, Any]:
+    """Load and parse a JSON configuration file with format detection.
+    
+    This function reads a JSON file and automatically detects the format:
+    - Full project format: {"name": "...", "config": {...}} → Returns config dict
+    - Config-only format: {...} → Returns entire dict
+    
+    This allows the same configuration file to be used with both:
+    - `th-cli project create/update` (requires full format)
+    - `th-cli run-tests --config` (accepts either format)
+    
     Args:
-        file_path (str): Path to the properties file
-
+        config_path: Path to the JSON configuration file
+        
     Returns:
-        dict: Dictionary containing the parsed properties
-
+        Parsed configuration dictionary. If the JSON contains a top-level
+        "config" key, only that value is returned. Otherwise, the entire
+        JSON object is returned.
+        
     Raises:
-        FileNotFoundError: If the properties file is not found
-        ValueError: If there are invalid values in the properties file
-        Exception: For other unexpected errors
+        CLIError: If file cannot be read, JSON is invalid, or format is incorrect
+        
+    Examples:
+        Full project format (extracts config):
+        >>> # File: {"name": "My Project", "config": {"network": {...}}}
+        >>> config = load_json_config("project.json")
+        >>> print(config["network"])  # Just the config part
+        
+        Config-only format (uses as-is):
+        >>> # File: {"network": {...}, "dut_config": {...}}
+        >>> config = load_json_config("config.json")
+        >>> print(config["network"])  # Entire file content
     """
-    properties = {}
-
     try:
-        config = ConfigParser()
-
-        if not config.read(file_path):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), file_path)
-
-        for section in config.sections():
-            properties[section] = {}
-            for key, value in config[section].items():
-                if key == "pairing_mode":
-                    if value not in VALID_PAIRING_MODES:
-                        raise CLIError(
-                            f"Invalid pairing_mode value: {value}. "
-                            f"Valid values are: {', '.join(VALID_PAIRING_MODES)}"
-                        )
-
-                if key in ATTRIBUTE_MAPPING:
-                    add_mapped_property(properties, key, value, ATTRIBUTE_MAPPING[key])
-                else:
-                    add_unmapped_property(properties, key, value, section)
-
-        return properties
+        with open(config_path, "r", encoding=DEFAULT_FILE_ENCODING) as config_file:
+            data = json.load(config_file)
+        
+        # Format detection: Check if this is full project format
+        if isinstance(data, dict) and "config" in data:
+            # Validate that "config" value is a dictionary
+            if not isinstance(data["config"], dict):
+                raise CLIError(
+                    f"Invalid config file format in '{config_path}': "
+                    f'"config" key must contain a dictionary, got {type(data["config"]).__name__}'
+                )
+            # Extract and return just the config section
+            return data["config"]
+        
+        # Otherwise, treat entire JSON as config
+        if not isinstance(data, dict):
+            raise CLIError(
+                f"Invalid config file format in '{config_path}': "
+                f"Expected a JSON object (dictionary), got {type(data).__name__}"
+            )
+        
+        return data
+        
     except FileNotFoundError as e:
-        handle_file_error(e, "properties file")
-    except ValueError as e:
-        raise CLIError(f"Invalid properties file: {str(e)}")
-    except Exception as e:
-        raise CLIError(f"Failed reading properties file: {e}")
+        handle_file_error(e, "config file")
+    except json.JSONDecodeError as e:
+        raise CLIError(
+            f"Invalid JSON in config file '{config_path}': {e.msg} "
+            f"(line {e.lineno}, column {e.colno})"
+        )
+    except OSError as e:
+        raise CLIError(f"Failed to read config file '{config_path}': {e}")
+
+
+def merge_configs(base_config: dict[str, Any], override_config: dict[str, Any]) -> dict[str, Any]:
+    """Deep merge override configuration into base configuration.
+    
+    This function recursively merges two dictionaries, with values from
+    override_config taking precedence over base_config. Nested dictionaries
+    are merged recursively, while other values are replaced.
+    
+    This is the recommended function for merging JSON configurations and
+    is simpler than merge_properties_to_config which handles type conversion
+    from properties files.
+    
+    Args:
+        base_config: Base configuration dictionary to merge into
+        override_config: Configuration dictionary to merge from (takes precedence)
+        
+    Returns:
+        New dictionary containing the merged configuration
+        
+    Example:
+        >>> base = {"a": {"b": 1, "c": 2}, "d": 3}
+        >>> override = {"a": {"b": 10}, "e": 4}
+        >>> merge_configs(base, override)
+        {"a": {"b": 10, "c": 2}, "d": 3, "e": 4}
+    """
+    result = copy.deepcopy(base_config)
+    
+    def _deep_merge(target: dict[str, Any], source: dict[str, Any]) -> None:
+        """Recursively merge source dictionary into target dictionary.
+        
+        Args:
+            target: Target dictionary to merge into (modified in place)
+            source: Source dictionary to merge from
+        """
+        for key, value in source.items():
+            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+                # Both are dictionaries, recurse to merge nested structures
+                _deep_merge(target[key], value)
+            else:
+                # Override with source value for non-dict or new keys
+                target[key] = value
+    
+    _deep_merge(result, override_config)
+    return result
 
 
 def add_mapped_property(properties: dict, key: str, value: str, section_path: tuple) -> None:
@@ -183,92 +251,6 @@ def add_unmapped_property(properties: dict, key: str, value: str, current_sectio
         properties[current_section][key] = value
     else:
         properties[key] = value
-
-
-def merge_properties_to_config(config_data: dict, default_config: dict) -> dict:
-    """Map properties values to the default_config structure.
-
-    This function automatically merges properties from config_data into default_config
-    by iterating through all sections present in the provided config_data. This approach
-    ensures that future updates to the default configuration don't require changes
-    to this function.
-
-    Args:
-        config_data: Dictionary with properties values organized by main sections
-        default_config: Dictionary with default configuration values
-
-    Returns:
-        Updated configuration dictionary with properties values mapped to the correct structure
-    """
-    if hasattr(default_config, "__dict__"):
-        default_dict = convert_nested_to_dict(default_config)
-    else:
-        default_dict = default_config
-
-    config_dict = copy.deepcopy(default_dict)
-
-    def _convert_value(value: str, default_value: Any) -> Any:
-        """Convert string value to appropriate type based on default value.
-
-        Args:
-            value: String value from properties file
-            default_value: Default value to infer type from
-
-        Returns:
-            Converted value matching the type of default_value
-        """
-        if isinstance(default_value, bool):
-            return value.lower() == "true"
-        elif isinstance(default_value, int):
-            try:
-                return int(value)
-            except ValueError:
-                raise CLIError(f"Invalid integer value '{value}' in properties file.")
-        elif isinstance(default_value, float):
-            try:
-                return float(value)
-            except ValueError:
-                raise CLIError(f"Invalid float value '{value}' in properties file.")
-        return value
-
-    def _deep_merge(target: dict, source: dict, default: dict) -> None:
-        """Recursively merge source into target, using default for type inference.
-
-        Args:
-            target: Target dictionary to merge into (modified in place)
-            source: Source dictionary to merge from
-            default: Default dictionary to infer types and structure from
-        """
-        for key, value in source.items():
-            if key not in target:
-                # Key doesn't exist in target, add it directly
-                target[key] = value
-            elif isinstance(value, dict) and isinstance(target.get(key), dict):
-                # Both are dictionaries, recurse
-                default_for_key = default.get(key, {}) if isinstance(default, dict) else {}
-                _deep_merge(target[key], value, default_for_key)
-            else:
-                # Leaf value - convert type if needed
-                default_value = default.get(key) if isinstance(default, dict) else None
-                if isinstance(value, str) and default_value is not None:
-                    target[key] = _convert_value(value, default_value)
-                else:
-                    target[key] = value
-
-    # Automatically merge all sections from config_data
-    # Process both sections that exist in default_config and new sections from config_data
-    for section_name, section_value in config_data.items():
-        if (
-            section_name in config_dict
-            and section_name in default_dict
-            and isinstance(config_dict[section_name], dict)
-            and isinstance(section_value, dict)
-        ):
-            _deep_merge(config_dict[section_name], section_value, default_dict[section_name])
-        else:
-            config_dict[section_name] = section_value
-
-    return config_dict
 
 
 def convert_nested_to_dict(obj, _seen=None):

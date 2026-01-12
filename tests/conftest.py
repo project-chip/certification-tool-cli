@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,26 +83,29 @@ def mock_project_config(temp_dir: Path) -> Path:
 
 
 @pytest.fixture
-def mock_properties_file(temp_dir: Path) -> Path:
-    """Create a mock properties file for testing."""
-    properties_content = """
-[dut_config]
-pairing_mode=ble-wifi
-setup_code=20202021
-discriminator=3840
-chip_use_paa_certs=false
-trace_log=false
-
-[network]
-ssid=TestNetwork
-password=TestPassword123
-
-[test_parameters]
-custom_param=test_value
-"""
-    props_file = temp_dir / "test.properties"
-    props_file.write_text(properties_content.strip())
-    return props_file
+def mock_json_config_file(temp_dir: Path) -> Path:
+    """Create a mock JSON config file for testing."""
+    config_data = {
+        "dut_config": {
+            "pairing_mode": "ble-wifi",
+            "setup_code": "20212223",
+            "discriminator": "3840",
+            "chip_use_paa_certs": False,
+            "trace_log": False
+        },
+        "network": {
+            "wifi": {
+                "ssid": "TestNetwork",
+                "password": "TestPassword123"
+            }
+        },
+        "test_parameters": {
+            "custom_param": "test_value"
+        }
+    }
+    config_file = temp_dir / "test_config.json"
+    config_file.write_text(json.dumps(config_data, indent=2))
+    return config_file
 
 
 @pytest.fixture

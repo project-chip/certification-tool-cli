@@ -1,6 +1,6 @@
 <!--
  *
- * Copyright (c) 2023 Project CHIP Authors
+ * Copyright (c) 2026 Project CHIP Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,10 +66,45 @@ Required:
 
 Optional:
 - `--title`: Custom title for the test run. If not provided, the current timestamp will be used as the default.
-- `--config`: Path to the property config file. If not specified, default_config.properties will be used.
+- `--config`: Path to the JSON config file. **Accepts two formats:**
+  - **Config-only**: `{"network": {...}, "dut_config": {...}}`
+  - **Full project format**: `{"name": "...", "config": {...}}` (automatically extracts config)
+  
+  This allows the same JSON file to work with `project create`, `project update`, and `run-tests` commands. If not provided, the project's default configuration will be used.
 - `--pics-config-folder`: Path to the folder that contains PICS files. If not specified, no PICS file will be used.
 - `--project-id`: Project ID that this test run belongs to. If not provided, uses the default 'CLI Execution Project' in TH.
 - `--no-color`: Disable all colors from the CLI's output text of this test run execution
+
+**Example config files:**
+
+Config-only format:
+```json
+{
+  "network": {
+    "wifi": {"ssid": "MyNetwork", "password": "MyPassword"}
+  },
+  "dut_config": {
+    "pairing_mode": "ble-wifi",
+    "setup_code": "20202021"
+  }
+}
+```
+
+Full project format (works with all commands):
+```json
+{
+  "name": "My Project",
+  "config": {
+    "network": {
+      "wifi": {"ssid": "MyNetwork", "password": "MyPassword"}
+    },
+    "dut_config": {
+      "pairing_mode": "ble-wifi",
+      "setup_code": "20202021"
+    }
+  }
+}
+```
 
 ### test-run-execution-history
 
