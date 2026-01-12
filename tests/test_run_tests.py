@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,9 +108,9 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        mock_properties_file: Path
+        mock_json_config_file: Path
     ) -> None:
-        """Test successful test run with custom configuration file."""
+        """Test successful test run with custom JSON configuration file."""
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
@@ -137,10 +137,9 @@ class TestRunTestsCommand:
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        # pytest.set_trace()
                         result = cli_runner.invoke(run_tests, [
                             "--tests-list", "TC-ACE-1.1",
-                            "--config", str(mock_properties_file),
+                            "--config", str(mock_json_config_file),
                             "--title", "Custom Test Run"
                         ])
 
@@ -308,12 +307,12 @@ class TestRunTestsCommand:
         # Act
         result = cli_runner.invoke(run_tests, [
             "--tests-list", "TC-ACE-1.1",
-            "--config", "nonexistent.properties"
+            "--config", "nonexistent.json"
         ])
 
         # Assert
         assert result.exit_code == 1
-        assert "Error: File not found: nonexistent.properties" in result.output
+        assert "Error: File not found: nonexistent.json" in result.output
 
     def test_run_tests_pics_directory_not_found(self, cli_runner: CliRunner) -> None:
         """Test run tests with non-existent PICS directory."""
@@ -689,9 +688,9 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        mock_properties_file: Path
+        mock_json_config_file: Path
     ) -> None:
-        """Test that configuration data is properly processed and displayed."""
+        """Test that JSON configuration data is properly processed and displayed."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
@@ -716,7 +715,7 @@ class TestRunTestsCommand:
                         # Act
                         result = cli_runner.invoke(run_tests, [
                             "--tests-list", "TC-ACE-1.1",
-                            "--config", str(mock_properties_file)
+                            "--config", str(mock_json_config_file)
                         ])
 
         # Assert

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import asyncio
 import datetime
 import json
+from typing import Any
 
 import click
 
@@ -38,11 +39,14 @@ from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import (
     build_test_selection,
     convert_nested_to_dict,
-    merge_properties_to_config,
+    load_json_config,
+    merge_configs,
     read_pics_config,
-    read_properties_file,
 )
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
+
+# Constants
+JSON_INDENT = 2
 
 
 @click.command(
@@ -68,9 +72,8 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
     "-c",
     type=click.Path(file_okay=True, dir_okay=False),
     help=colorize_help(
-        "Property config file location. This "
-        "information is optional — if not provided, the default_config.properties "
-        "file will be used."
+        "JSON config file location. If not provided, the project's default "
+        "configuration will be used."
     ),
 )
 @click.option(
@@ -95,12 +98,24 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
 async def run_tests(
     title: str,
     tests_list: str,
-    config: str = None,
-    pics_config_folder: str = None,
-    project_id: int = None,
+    config: str | None = None,
+    pics_config_folder: str | None = None,
+    project_id: int | None = None,
     no_color: bool = False,
 ) -> None:
-    """CLI execution of a test run from selected tests"""
+    """Execute a CLI test run from selected test cases.
+
+    Args:
+        title: Name/title for the test run execution
+        tests_list: Comma-separated list of test case identifiers
+        config: Optional path to JSON configuration file
+        pics_config_folder: Optional path to directory containing PICS XML files
+        project_id: Optional project ID for the test run
+        no_color: Flag to disable colored output
+
+    Raises:
+        CLIError: If there are validation or execution errors
+    """
 
     # Set color preference if specified
     if no_color:
@@ -127,27 +142,27 @@ async def run_tests(
         log_path = test_logging.configure_logger_for_run(title=title)
 
         # Get project config and convert to dict
-        project_config = await __project_config(async_apis, project_id)
+        project_config = await _get_project_config(async_apis, project_id)
         project_config_dict = convert_nested_to_dict(project_config)
         click.echo(colorize_key_value("Project Config", project_config_dict))
 
-        # If config file is provided, read and merge into project config
+        # If config file is provided, read JSON config and merge into project config
         if config:
-            config_data = read_properties_file(config)
-            project_config_dict = merge_properties_to_config(config_data, project_config_dict)
+            config_data = load_json_config(config)
+            project_config_dict = merge_configs(project_config_dict, config_data)
             click.echo(colorize_key_value("CLI Test Run Execution Config", project_config_dict))
 
         # Read PICS configuration if provided
         pics = read_pics_config(pics_config_folder)
-        click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=2)))
+        click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
 
         # Retrieve available test collections to build test selection
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
         selected_tests_dict = build_test_selection(test_collections, validated_test_ids)
 
-        click.echo(colorize_key_value("Selected tests", json.dumps(selected_tests_dict, indent=2)))
+        click.echo(colorize_key_value("Selected tests", json.dumps(selected_tests_dict, indent=JSON_INDENT)))
 
-        new_test_run = await __create_new_test_run_cli(
+        new_test_run = await _create_new_test_run_cli(
             async_apis,
             selected_tests=selected_tests_dict,
             title=title,
@@ -157,7 +172,7 @@ async def run_tests(
         )
         socket = TestRunSocket(new_test_run, project_config_dict)
         socket_task = asyncio.create_task(socket.connect_websocket())
-        new_test_run = await __start_test_run(async_apis, new_test_run)
+        new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
         click.echo(colorize_key_value("Log output in", italic(log_path)))
@@ -170,8 +185,19 @@ async def run_tests(
             await client.aclose()
 
 
-async def __project_config(async_apis: AsyncApis, project_id: int | None = None) -> m.TestEnvironmentConfig:
-    """Retrieve project configuration for given project ID or default configuration if none provided."""
+async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> m.TestEnvironmentConfig:
+    """Retrieve project configuration for given project ID or default configuration.
+
+    Args:
+        async_apis: AsyncApis instance for making API calls
+        project_id: Optional project ID to retrieve configuration from
+
+    Returns:
+        TestEnvironmentConfig object containing project configuration
+
+    Raises:
+        May raise API-related exceptions if default config retrieval fails
+    """
     projects_api = async_apis.projects_api
 
     if project_id is not None:
@@ -188,14 +214,30 @@ async def __project_config(async_apis: AsyncApis, project_id: int | None = None)
     return await projects_api.default_config_api_v1_projects_default_config_get()
 
 
-async def __create_new_test_run_cli(
+async def _create_new_test_run_cli(
     async_apis: AsyncApis,
-    selected_tests: dict,
+    selected_tests: dict[str, Any],
     title: str,
-    config: dict | None = None,
-    pics: dict | None = None,
+    config: dict[str, Any] | None = None,
+    pics: dict[str, Any] | None = None,
     project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
+    """Create a new test run execution via the CLI.
+
+    Args:
+        async_apis: AsyncApis instance for making API calls
+        selected_tests: Dictionary of selected test cases
+        title: Title for the test run
+        config: Optional configuration dictionary
+        pics: Optional PICS configuration dictionary
+        project_id: Optional project ID
+
+    Returns:
+        Created TestRunExecutionWithChildren object
+
+    Raises:
+        CLIError: If test run creation fails
+    """
     click.echo(colorize_key_value("Creating new test run with title", title))
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
@@ -212,16 +254,28 @@ async def __create_new_test_run_cli(
         handle_api_error(e, "create test run execution")
 
 
-async def __start_test_run(
+async def _start_test_run(
     async_apis: AsyncApis, test_run: m.TestRunExecutionWithChildren
 ) -> m.TestRunExecutionWithChildren:
+    """Start a test run execution.
+
+    Args:
+        async_apis: AsyncApis instance for making API calls
+        test_run: TestRunExecutionWithChildren object to start
+
+    Returns:
+        Updated TestRunExecutionWithChildren object after starting
+
+    Raises:
+        CLIError: If test run start fails
+    """
     test_run_executions_api = async_apis.test_run_executions_api
     header = colorize_header("Starting Test run")
     title = colorize_key_value("Title", test_run.title)
-    id = colorize_key_value("ID", str(test_run.id))
+    test_run_id = colorize_key_value("ID", str(test_run.id))
 
     click.echo("")
-    click.echo(f"{header}:\n- {title}\n- {id}\n")
+    click.echo(f"{header}:\n- {title}\n- {test_run_id}\n")
 
     try:
         return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post(
