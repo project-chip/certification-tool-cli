@@ -152,7 +152,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
 
         click.echo(italic(prompt.prompt))
         local_ip = _get_local_ip()
-        click.echo(f"🎬 Please verify the video at: http://{local_ip}:{video_handler.http_server.port}/")
+        click.echo(f"🎬 Please verify the video at: http://{local_ip}:{video_handler.http_server.port}")
 
         click.echo("Waiting for your response in the web interface...")
 
@@ -190,11 +190,13 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         await _cleanup_video_handler()
 
 
-async def __handle_image_verification_prompt(socket: WebSocketClientProtocol, prompt: ImageVerificationPromptRequest) -> None:
+async def __handle_image_verification_prompt(
+    socket: WebSocketClientProtocol, prompt: ImageVerificationPromptRequest
+) -> None:
     """Handle image verification prompts via HTTP server."""
     try:
         # Convert hex string back to bytes (format: "ff,d8,ff,e0" → bytes)
-        image_hex_clean = prompt.image_hex_str.replace(', ', '').replace(',', '')
+        image_hex_clean = prompt.image_hex_str.replace(", ", "").replace(",", "")
         image_data = bytes.fromhex(image_hex_clean)
 
         # Use existing ImageVerificationHandler
@@ -209,7 +211,7 @@ async def __handle_image_verification_prompt(socket: WebSocketClientProtocol, pr
         # Show user instructions
         local_ip = _get_local_ip()
         click.echo(f"📸 Image verification required!")
-        click.echo(f"🌐 Open: http://{local_ip}:{image_handler.http_server.port}/")
+        click.echo(f"🌐 Open: http://{local_ip}:{image_handler.http_server.port}")
         click.echo(f"📝 {prompt.prompt}")
         click.echo(f"⏰ Timeout: {prompt.timeout}s")
 
@@ -242,7 +244,9 @@ async def __handle_image_verification_prompt(socket: WebSocketClientProtocol, pr
         click.echo(colorize_error(f"❌ Error handling image verification: {e}"), err=True)
 
 
-async def __handle_push_av_stream_prompt(socket: WebSocketClientProtocol, prompt: PushAVStreamVerificationRequest) -> None:
+async def __handle_push_av_stream_prompt(
+    socket: WebSocketClientProtocol, prompt: PushAVStreamVerificationRequest
+) -> None:
     """Handle Push AV Stream verification prompts.
 
     This displays information about verifying video uploaded to the external Push AV Server,
@@ -275,13 +279,14 @@ async def __handle_push_av_stream_prompt(socket: WebSocketClientProtocol, prompt
             prompt_text=prompt.prompt,
             is_push_av_verification=True,  # Use Push AV template
             push_av_server_url=push_av_server_url,  # Pass Push AV Server URL
+            local_ip=local_ip,  # Pass local IP for proxy URL construction
         )
 
         # Display instructions
+        verification_url = f"http://{local_ip}:{http_server.port}"
         click.echo(italic(prompt.prompt))
         click.echo(f"📡 Push AV Stream Verification")
-        click.echo(f"🌐 Please verify at: http://{local_ip}:{http_server.port}/")
-        click.echo(f"   Push AV Server: {push_av_server_url}")
+        click.echo(f"🌐 Please verify at: {verification_url}")
         click.echo(f"   The web interface will show available streams and allow playback.")
         click.echo("")
         click.echo("Waiting for your response in the web interface...")
@@ -291,18 +296,15 @@ async def __handle_push_av_stream_prompt(socket: WebSocketClientProtocol, prompt
         start_time = time.time()
         timeout = float(prompt.timeout)
 
-        click.echo(f"Debug: Starting to wait for response (timeout: {timeout}s)...")
         while time.time() - start_time < timeout:
             try:
                 user_answer = response_queue.get_nowait()
-                click.echo(f"Debug: Received response from queue: {user_answer}")
                 break
             except queue.Empty:
                 await asyncio.sleep(0.1)
                 continue
 
         # Stop HTTP server
-        click.echo("Debug: Stopping HTTP server...")
         http_server.stop()
 
         if user_answer is None:

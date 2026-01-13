@@ -41,15 +41,20 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         logger.info(f"GET request received: {self.path}")
-        if self.path == ENDPOINT_VIDEO_LIVE:
+
+        # Parse URL to strip query parameters for routing
+        parsed_url = urlparse(self.path)
+        path_only = parsed_url.path
+
+        if path_only == ENDPOINT_VIDEO_LIVE:
             self.stream_live_video()
-        elif self.path == ENDPOINT_ROOT:
+        elif path_only == ENDPOINT_ROOT:
             self.serve_player()
-        elif self.path == ENDPOINT_API_STREAMS:
+        elif path_only == ENDPOINT_API_STREAMS:
             self.handle_streams_api()
-        elif self.path.startswith(ENDPOINT_API_STREAM_PROXY):
+        elif path_only.startswith(ENDPOINT_API_STREAM_PROXY):
             self.handle_stream_proxy()
-        elif self.path.startswith('/proxy/'):
+        elif path_only.startswith("/proxy/"):
             # New simplified proxy endpoint: /proxy/<base64_encoded_url>
             self.handle_simple_proxy()
         else:
@@ -238,41 +243,47 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             import base64
 
             # Extract path after /proxy/
-            path_after_proxy = self.path[len('/proxy/'):]
+            path_after_proxy = self.path[len("/proxy/") :]
 
             # Split to get base64 URL and any additional path
-            parts = path_after_proxy.split('/', 1)
+            parts = path_after_proxy.split("/", 1)
             encoded_base = parts[0]
-            extra_path = '/' + parts[1] if len(parts) > 1 else ''
+            extra_path = "/" + parts[1] if len(parts) > 1 else ""
 
             # Decode base URL
             try:
-                base_url = base64.urlsafe_b64decode(encoded_base.encode()).decode('utf-8')
+                base_url = base64.urlsafe_b64decode(encoded_base.encode()).decode("utf-8")
             except Exception as e:
                 logger.error(f"Failed to decode base64 URL: {e}")
                 self.send_error(400, "Invalid encoded URL")
                 return
 
             # Construct full URL
-            stream_url = base_url.rstrip('/') + extra_path
-            logger.info(f"Simple proxy: {stream_url}")
+            stream_url = base_url.rstrip("/") + extra_path
 
             # Fetch from upstream
             with httpx.Client(verify=False, timeout=30.0) as client:
-                response = client.get(stream_url)
-
-                if response.status_code != 200:
-                    self.send_error(response.status_code, "Upstream error")
+                try:
+                    response = client.get(stream_url)
+                except Exception as e:
+                    logger.error(f"Failed to fetch {stream_url}: {e}")
+                    self.send_error(500, f"Upstream fetch error: {str(e)}")
                     return
 
-                content_type = response.headers.get('Content-Type', 'application/octet-stream')
+                if response.status_code != 200:
+                    logger.warning(f"Upstream returned {response.status_code} for {stream_url}")
+                    # Return the same status code from upstream (404, 403, etc.)
+                    self.send_error(response.status_code, f"Upstream returned {response.status_code}")
+                    return
+
+                content_type = response.headers.get("Content-Type", "application/octet-stream")
 
                 # Send response
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Access-Control-Allow-Origin", "*")
 
-                content_length = response.headers.get('Content-Length')
+                content_length = response.headers.get("Content-Length")
                 if content_length:
                     self.send_header("Content-Length", content_length)
 
@@ -280,41 +291,28 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 self.wfile.write(response.content)
 
         except Exception as e:
-            logger.error(f"Error in simple proxy: {e}")
+            logger.error(f"Error in simple proxy: {e}", exc_info=True)
             if not self.wfile.closed:
                 self.send_error(500, f"Proxy error: {str(e)}")
 
     def handle_stream_proxy(self):
         """Proxy video stream from Push AV Server to avoid CORS and SSL issues."""
         try:
-            logger.info(f"Proxy request path: {self.path}")
-
-            # Parse the full path - dash.js may append paths after the query parameter
-            # Example: /api/stream_proxy?url=<encoded_base>/media/segment_1001.m4s
-            # or: /api/stream_proxy/media/segment_1001.m4s?url=<encoded_base>
             parsed_url = urlparse(self.path)
-
-            # Parse query parameters
             query_params = parse_qs(parsed_url.query)
-            stream_url = query_params.get('url', [None])[0]
+            stream_url = query_params.get("url", [None])[0]
 
             if not stream_url:
                 self.send_error(400, "Missing 'url' parameter")
                 return
 
             # Check if there's additional path after /api/stream_proxy
-            # This handles when dash.js appends paths like /media/segment_1001.m4s
             path = parsed_url.path
-            if path.startswith('/api/stream_proxy/'):
-                # Extract the extra path after /api/stream_proxy/
-                extra_path = path[len('/api/stream_proxy'):]  # e.g., /media/segment_1001.m4s
-                stream_url = stream_url.rstrip('/') + extra_path
-                logger.info(f"Appended path from URL: {extra_path}")
+            if path.startswith("/api/stream_proxy/"):
+                extra_path = path[len("/api/stream_proxy") :]
+                stream_url = stream_url.rstrip("/") + extra_path
 
-            logger.info(f"Proxying stream from: {stream_url}")
-
-            # Fetch from Push AV Server
-            # Disable SSL verification for self-signed certificates
+            # Fetch from Push AV Server (disable SSL verification for self-signed certificates)
             with httpx.Client(verify=False, timeout=30.0) as client:
                 response = client.get(stream_url)
 
@@ -322,17 +320,12 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                     self.send_error(response.status_code, f"Upstream error")
                     return
 
-                content_type = response.headers.get('Content-Type', 'video/mp4')
+                content_type = response.headers.get("Content-Type", "video/mp4")
 
                 # Check if this is an MPD manifest file
-                if stream_url.endswith('.mpd') or 'mpd' in content_type.lower():
-                    # This is a DASH manifest - rewrite URLs to use our proxy
-                    logger.info("Rewriting MPD manifest URLs")
-
+                if stream_url.endswith(".mpd") or "mpd" in content_type.lower():
+                    # Rewrite DASH manifest URLs to use our proxy
                     content = response.text
-
-                    # Log original manifest for debugging
-                    logger.debug(f"Original MPD manifest:\n{content[:500]}")
 
                     # For DASH manifests, use simplified base64-encoded proxy
                     # This allows dash.js to naturally append paths for segment templates
@@ -340,14 +333,17 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                     import base64
 
                     # Extract base URL from stream_url (the directory containing the manifest)
-                    base_url = '/'.join(stream_url.rsplit('/', 1)[:-1])  # Remove filename
-                    logger.info(f"Base URL: {base_url}")
+                    base_url = "/".join(stream_url.rsplit("/", 1)[:-1])  # Remove filename
 
                     # Encode the base URL for use in proxy path
-                    encoded_base = base64.urlsafe_b64encode(base_url.encode()).decode('ascii')
+                    encoded_base = base64.urlsafe_b64encode(base_url.encode()).decode("ascii")
 
                     # Remove all existing BaseURL elements
-                    content = re.sub(r'<BaseURL>[^<]+</BaseURL>', '', content)
+                    content = re.sub(r"<BaseURL>[^<]+</BaseURL>", "", content)
+
+                    # Get local IP and port from server configuration
+                    local_ip = getattr(self.server, "local_ip", "localhost")
+                    port = self.server.server_port
 
                     # Rewrite non-template attributes (like initialization)
                     def rewrite_media_url(match):
@@ -355,57 +351,54 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                         original_url = match.group(2)
 
                         # Skip template URLs - leave them as-is, BaseURL will handle them
-                        if '$' in original_url:
-                            logger.debug(f"Preserving template: {attr_name}=\"{original_url}\"")
+                        if "$" in original_url:
                             return match.group(0)
 
                         # For non-template URLs, make them absolute
-                        if original_url.startswith('http'):
+                        if original_url.startswith("http"):
                             full_url = original_url
                         else:
                             full_url = f"{base_url}/{original_url}"
 
-                        # Use simple proxy format
-                        encoded_url = base64.urlsafe_b64encode(full_url.encode()).decode('ascii')
-                        proxied_url = f"http://192.168.20.180:8999/proxy/{encoded_url}"
+                        # Use simple proxy format with dynamic host
+                        encoded_url = base64.urlsafe_b64encode(full_url.encode()).decode("ascii")
+                        proxied_url = f"http://{local_ip}:{port}/proxy/{encoded_url}"
 
-                        logger.debug(f"Rewriting {attr_name}=\"{original_url}\" -> \"{proxied_url}\"")
                         return f'{attr_name}="{proxied_url}"'
 
                     content = re.sub(r'(initialization|sourceURL)="([^"]+)"', rewrite_media_url, content)
 
-                    # Add BaseURL using the simplified proxy format
+                    # Add BaseURL using the simplified proxy format with dynamic host
                     # dash.js will append media template paths to this
-                    proxied_base = f"http://192.168.20.180:8999/proxy/{encoded_base}"
+                    proxied_base = f"http://{local_ip}:{port}/proxy/{encoded_base}"
 
                     # Insert BaseURL at the beginning of the first Period
-                    if '<Period>' in content:
-                        content = content.replace('<Period>', f'<Period><BaseURL>{proxied_base}/</BaseURL>', 1)
-                    elif '<MPD' in content:
+                    if "<Period>" in content:
+                        content = content.replace("<Period>", f"<Period><BaseURL>{proxied_base}/</BaseURL>", 1)
+                    elif "<MPD" in content:
                         # Insert after MPD opening tag
-                        mpd_end = content.find('>', content.find('<MPD'))
+                        mpd_end = content.find(">", content.find("<MPD"))
                         if mpd_end > 0:
-                            content = content[:mpd_end+1] + f'\n<BaseURL>{proxied_base}/</BaseURL>\n' + content[mpd_end+1:]
-
-                    logger.info(f"=== REWRITTEN MPD MANIFEST ===")
-                    logger.info(content)
-                    logger.info(f"=== END MPD MANIFEST ===")
+                            content = (
+                                content[: mpd_end + 1]
+                                + f"\n<BaseURL>{proxied_base}/</BaseURL>\n"
+                                + content[mpd_end + 1 :]
+                            )
 
                     # Send modified manifest
                     self.send_response(200)
                     self.send_header("Content-Type", "application/dash+xml")
                     self.send_header("Access-Control-Allow-Origin", "*")
-                    self.send_header("Content-Length", str(len(content.encode('utf-8'))))
+                    self.send_header("Content-Length", str(len(content.encode("utf-8"))))
                     self.end_headers()
-                    self.wfile.write(content.encode('utf-8'))
-                    logger.info("Sent rewritten MPD manifest")
+                    self.wfile.write(content.encode("utf-8"))
                 else:
                     # Regular file - stream as-is
                     self.send_response(200)
                     self.send_header("Content-Type", content_type)
                     self.send_header("Access-Control-Allow-Origin", "*")
 
-                    content_length = response.headers.get('Content-Length')
+                    content_length = response.headers.get("Content-Length")
                     if content_length:
                         self.send_header("Content-Length", content_length)
 
@@ -452,11 +445,18 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 html_template = f.read()
 
             # Replace placeholders
-            html_content = html_template.format(
-                prompt_text=html.escape(prompt_text),
-                radio_options_html=radio_options_html,
-                push_av_server_url=html.escape(push_av_server_url)
-            )
+            if is_push_av:
+                # Push AV template needs the server URL
+                html_content = html_template.format(
+                    prompt_text=html.escape(prompt_text),
+                    radio_options_html=radio_options_html,
+                    push_av_server_url=html.escape(push_av_server_url or "https://localhost:1234"),
+                )
+            else:
+                # Regular video verification template doesn't need Push AV server URL
+                html_content = html_template.format(
+                    prompt_text=html.escape(prompt_text), radio_options_html=radio_options_html
+                )
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
             # Fallback to simple HTML
@@ -474,6 +474,15 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        # Aggressive cache prevention - multiple headers to bypass all browser caching
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, private")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        self.send_header("Last-Modified", "0")
+        # Add ETag to force browser to check for changes
+        import time
+
+        self.send_header("ETag", f'"{int(time.time())}"')
         self.end_headers()
         self.wfile.write(html_content.encode("utf-8"))
 
@@ -499,6 +508,7 @@ class CameraHTTPServer:
         prompt_text="Video Verification",
         is_push_av_verification=False,
         push_av_server_url=None,
+        local_ip=None,
     ):
         """Start HTTP server with required queues and data."""
         try:
@@ -514,6 +524,7 @@ class CameraHTTPServer:
             self.server.video_handler = video_handler
             self.server.is_push_av_verification = is_push_av_verification
             self.server.push_av_server_url = push_av_server_url
+            self.server.local_ip = local_ip or "localhost"
 
             logger.info(f"HTTP server configured with prompt_options: {self.server.prompt_options}")
             logger.info(f"HTTP server configured with prompt_text: {self.server.prompt_text}")
