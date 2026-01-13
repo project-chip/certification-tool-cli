@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 """Unit tests for prompt_manager module."""
 
 import asyncio
+import json
 import queue
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from th_cli.shared_constants import MessageTypeEnum
 from th_cli.test_run import prompt_manager
 from th_cli.test_run.socket_schemas import (
     ImageVerificationPromptRequest,
@@ -32,7 +34,6 @@ from th_cli.test_run.socket_schemas import (
     TextInputPromptRequest,
     UserResponseStatusEnum,
 )
-from th_cli.shared_constants import MessageTypeEnum
 
 
 @pytest.mark.unit
@@ -118,9 +119,7 @@ class TestCleanupVideoHandler:
     async def test_cleanup_video_handler_error_ignored(self):
         """Test that cleanup errors are ignored."""
         mock_instance = MagicMock()
-        mock_instance.stop_video_capture_and_stream = AsyncMock(
-            side_effect=Exception("Cleanup error")
-        )
+        mock_instance.stop_video_capture_and_stream = AsyncMock(side_effect=Exception("Cleanup error"))
         prompt_manager._video_handler_instance = mock_instance
 
         # Should not raise an exception
@@ -343,8 +342,6 @@ class TestSendPromptResponse:
         mock_socket.send.assert_called_once()
         call_args = mock_socket.send.call_args[0][0]
 
-        # Verify JSON structure
-        import json
         payload = json.loads(call_args)
         assert payload["type"] == "prompt_response"
         assert payload["payload"]["response"] == "test response"
@@ -368,7 +365,6 @@ class TestSendPromptResponse:
         mock_socket.send.assert_called_once()
         call_args = mock_socket.send.call_args[0][0]
 
-        import json
         payload = json.loads(call_args)
         assert payload["payload"]["status_code"] == UserResponseStatusEnum.CANCELLED
 

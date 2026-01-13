@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,10 +25,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from th_cli.test_run.camera.camera_http_server import (
-    CameraHTTPServer,
-    VideoStreamingHandler,
-)
+from th_cli.test_run.camera.camera_http_server import CameraHTTPServer, VideoStreamingHandler
 
 
 @pytest.mark.unit
@@ -54,11 +51,11 @@ class TestCameraHTTPServer:
         response_queue = queue.Queue()
         video_handler = Mock()
 
-        with patch('th_cli.test_run.camera.camera_http_server.ThreadingHTTPServer') as mock_server_class:
+        with patch("th_cli.test_run.camera.camera_http_server.ThreadingHTTPServer") as mock_server_class:
             mock_server_instance = Mock()
             mock_server_class.return_value = mock_server_instance
 
-            with patch('threading.Thread') as mock_thread:
+            with patch("threading.Thread") as mock_thread:
                 mock_thread_instance = Mock()
                 mock_thread.return_value = mock_thread_instance
 
@@ -94,11 +91,11 @@ class TestCameraHTTPServer:
         mp4_queue = queue.Queue()
         response_queue = queue.Queue()
 
-        with patch('th_cli.test_run.camera.camera_http_server.ThreadingHTTPServer') as mock_server_class:
+        with patch("th_cli.test_run.camera.camera_http_server.ThreadingHTTPServer") as mock_server_class:
             mock_server_instance = Mock()
             mock_server_class.return_value = mock_server_instance
 
-            with patch('threading.Thread'):
+            with patch("threading.Thread"):
                 server.start(
                     mp4_queue=mp4_queue,
                     response_queue=response_queue,
@@ -148,19 +145,23 @@ class TestVideoStreamingHandler:
         """Test that VideoStreamingHandler class exists and can be imported."""
         # Simple test to verify the class exists
         assert VideoStreamingHandler is not None
-        assert hasattr(VideoStreamingHandler, 'do_GET')
-        assert hasattr(VideoStreamingHandler, 'do_POST')
-        assert hasattr(VideoStreamingHandler, 'do_OPTIONS')
+        assert hasattr(VideoStreamingHandler, "do_GET")
+        assert hasattr(VideoStreamingHandler, "do_POST")
+        assert hasattr(VideoStreamingHandler, "do_OPTIONS")
 
     def test_handler_has_required_methods(self):
         """Test that handler has all required HTTP methods."""
         required_methods = [
-            'do_GET', 'do_POST', 'do_OPTIONS',
-            'stream_live_video', 'handle_response',
-            'handle_streams_api', 'handle_stream_proxy',
-            'handle_simple_proxy', 'serve_player'
+            "do_GET",
+            "do_POST",
+            "do_OPTIONS",
+            "stream_live_video",
+            "handle_response",
+            "handle_streams_api",
+            "handle_stream_proxy",
+            "handle_simple_proxy",
+            "serve_player",
         ]
 
         for method in required_methods:
             assert hasattr(VideoStreamingHandler, method), f"Missing method: {method}"
-
