@@ -423,11 +423,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         for key, value in prompt_options.items():
             radio_options_html += f"""
             <div class="popup-radio-row" data-value="{value}" onclick="selectOption({value})">
-                <div class="p-radiobutton">
-                    <div class="p-radiobutton-box">
-                        <span class="p-radiobutton-icon"></span>
-                    </div>
-                </div>
+                <input type="radio" name="option" value="{value}" id="radio_{value}">
                 <label for="radio_{value}">{html.escape(key)}</label>
             </div>
             """

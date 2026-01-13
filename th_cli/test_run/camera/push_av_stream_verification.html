@@ -245,8 +245,9 @@
 
         .popup-radio-div {{
             display: flex;
-            gap: 1rem;
+            gap: 20px;
             justify-content: center;
+            margin: 20px 0;
             flex-wrap: wrap;
         }}
 
@@ -270,16 +271,18 @@
         .popup-radio-row {{
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
+            min-width: 100px;
+            justify-content: center;
         }}
 
         .popup-radio-row:hover {{
-            background: #f8f9fa;
+            background: #f0f0f0;
             border-color: #2196F3;
         }}
 
@@ -288,49 +291,14 @@
             border-color: #2196F3;
         }}
 
-        .p-radiobutton {{
-            width: 20px;
-            height: 20px;
-            position: relative;
-        }}
-
-        .p-radiobutton-box {{
-            width: 20px;
-            height: 20px;
-            border: 2px solid #ced4da;
-            background: white;
-            border-radius: 50%;
-            transition: background-color 0.2s, border-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }}
-
-        .popup-radio-row.selected .p-radiobutton-box {{
-            border-color: #2196F3;
-            background: white;
-        }}
-
-        .p-radiobutton-icon {{
-            width: 10px;
-            height: 10px;
-            background: #2196F3;
-            border-radius: 50%;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }}
-
-        .popup-radio-row.selected .p-radiobutton-icon {{
-            opacity: 1;
-        }}
-
         input[type="radio"] {{
-            display: none;
+            margin-right: 8px;
+            transform: scale(1.2);
         }}
 
         label {{
             font-weight: 500;
-            color: #495057;
+            color: #333;
             cursor: pointer;
             font-size: 14px;
         }}
@@ -477,13 +445,19 @@
 
         function selectOption(value) {{
             selectedValue = value;
+
+            // Update visual selection
             document.querySelectorAll('.popup-radio-row').forEach(row => {{
                 row.classList.remove('selected');
             }});
-            const selectedRow = document.querySelector(`[data-value="${{value}}"]`);
-            if (selectedRow) {{
-                selectedRow.classList.add('selected');
-            }}
+            document.querySelector(`[data-value="${{value}}"]`).classList.add('selected');
+
+            // Update radio buttons
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {{
+                radio.checked = radio.value === value.toString();
+            }});
+
+            // Enable submit button
             document.getElementById('submitBtn').disabled = false;
         }}
 
@@ -492,7 +466,7 @@
             const streamsList = document.getElementById('streamsList');
 
             button.disabled = true;
-            button.innerHTML = '<span class="p-button-icon-left pi-refresh">↻</span><span>Refreshing...</span>';
+            button.innerHTML = '<span>Refreshing...</span>';
             streamsList.innerHTML = '<div class="loading">Loading streams...</div>';
 
             try {{
@@ -508,7 +482,7 @@
                 streamsList.innerHTML = `<div class="error-message">Failed to load streams: ${{error.message}}<br><small>Make sure the Push AV Server is running at ${{pushAvServerUrl}}</small></div>`;
             }} finally {{
                 button.disabled = false;
-                button.innerHTML = '<span class="p-button-icon-left pi-refresh">↻</span><span>Refresh Streams</span>';
+                button.innerHTML = '<span>Refresh Streams</span>';
             }}
         }}
 
@@ -831,7 +805,6 @@
                 <div id="verificationHint" class="verification-hint"></div>
 
                 <button id="refreshBtn" class="p-button" onclick="refreshStreams()">
-                    <span class="p-button-icon-left pi-refresh">↻</span>
                     <span>Refresh Streams</span>
                 </button>
 
