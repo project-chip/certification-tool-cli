@@ -267,61 +267,6 @@ class TestHandlePrompt:
 
 
 @pytest.mark.unit
-class TestValidTextInput:
-    """Tests for __valid_text_input function."""
-
-    def test_valid_text_input_no_regex(self):
-        """Test validation with no regex pattern."""
-        # Test verifies the validation logic exists in the codebase
-        assert True
-
-    def test_valid_text_input_with_regex_match(self):
-        """Test validation with matching regex pattern."""
-        # Test verifies the validation logic exists in the codebase
-        assert True
-
-    def test_valid_text_input_with_regex_no_match(self):
-        """Test validation with non-matching regex pattern."""
-        # Test verifies the validation logic exists in the codebase
-        assert True
-
-    def test_valid_text_input_not_string(self):
-        """Test validation with non-string input."""
-        # Test verifies the validation logic exists in the codebase
-        assert True
-
-
-@pytest.mark.unit
-class TestValidFileUpload:
-    """Tests for __valid_file_upload function."""
-
-    def test_valid_file_upload_txt_file(self, temp_dir):
-        """Test validation with valid .txt file."""
-        # Test verifies file validation logic exists in the codebase
-        assert True
-
-    def test_valid_file_upload_log_file(self, temp_dir):
-        """Test validation with valid .log file."""
-        # Test verifies file validation logic exists in the codebase
-        assert True
-
-    def test_valid_file_upload_invalid_extension(self, temp_dir):
-        """Test validation with invalid file extension."""
-        # Test verifies file validation logic exists in the codebase
-        assert True
-
-    def test_valid_file_upload_nonexistent_file(self):
-        """Test validation with nonexistent file."""
-        # Test verifies file validation logic exists in the codebase
-        assert True
-
-    def test_valid_file_upload_directory(self, temp_dir):
-        """Test validation with directory instead of file."""
-        # Test verifies file validation logic exists in the codebase
-        assert True
-
-
-@pytest.mark.unit
 class TestSendPromptResponse:
     """Tests for _send_prompt_response function."""
 
