@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import html
+import base64
 import json
 import queue
 import re
@@ -240,8 +241,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         This allows dash.js to append paths naturally.
         """
         try:
-            import base64
-
             # Extract path after /proxy/
             path_after_proxy = self.path[len("/proxy/") :]
 
@@ -329,8 +328,6 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
 
                     # For DASH manifests, use simplified base64-encoded proxy
                     # This allows dash.js to naturally append paths for segment templates
-
-                    import base64
 
                     # Extract base URL from stream_url (the directory containing the manifest)
                     base_url = "/".join(stream_url.rsplit("/", 1)[:-1])  # Remove filename
