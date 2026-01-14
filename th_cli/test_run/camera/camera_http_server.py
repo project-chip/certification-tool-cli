@@ -330,7 +330,7 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 response = client.get(stream_url)
 
                 if response.status_code != 200:
-                    self.send_error(response.status_code, f"Upstream error")
+                    self.send_error(response.status_code, "Upstream error")
                     return
 
                 content_type = response.headers.get("Content-Type", "video/mp4")
