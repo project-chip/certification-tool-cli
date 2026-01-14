@@ -18,7 +18,6 @@ import html
 import json
 import queue
 import re
-import ssl
 import threading
 import time
 import urllib.parse
