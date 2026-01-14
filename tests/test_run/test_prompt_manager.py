@@ -140,7 +140,7 @@ class TestHandlePrompt:
             image_hex_str="ffd8ffe0",
         )
 
-        with patch("th_cli.test_run.prompt_manager.__handle_image_verification_prompt") as mock_handler:
+        with patch("th_cli.test_run.prompt_manager._handle_image_verification_prompt") as mock_handler:
             mock_handler.return_value = asyncio.Future()
             mock_handler.return_value.set_result(None)
 
@@ -186,7 +186,7 @@ class TestHandlePrompt:
             options={"PASS": 1, "FAIL": 2},
         )
 
-        with patch("th_cli.test_run.prompt_manager.__handle_push_av_stream_prompt") as mock_handler:
+        with patch("th_cli.test_run.prompt_manager._handle_push_av_stream_prompt") as mock_handler:
             mock_handler.return_value = asyncio.Future()
             mock_handler.return_value.set_result(None)
 

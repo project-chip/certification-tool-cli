@@ -25,14 +25,13 @@ from typing import Any, Union
 import aioconsole
 import click
 import httpx
-
-# from loguru import logger
 from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
 from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
+from .camera.camera_http_server import CameraHTTPServer
 from .socket_schemas import (
     ImageVerificationPromptRequest,
     MessagePromptRequest,
@@ -75,7 +74,7 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
     if message_type == MessageTypeEnum.IMAGE_VERIFICATION_REQUEST or isinstance(
         request, ImageVerificationPromptRequest
     ):
-        await __handle_image_verification_prompt(socket=socket, prompt=request)
+        await _handle_image_verification_prompt(socket=socket, prompt=request)
     elif message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
         request, StreamVerificationPromptRequest
     ):
@@ -83,7 +82,7 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
     elif message_type == MessageTypeEnum.PUSH_AV_STREAM_VERIFICATION_REQUEST or isinstance(
         request, PushAVStreamVerificationRequest
     ):
-        await __handle_push_av_stream_prompt(socket=socket, prompt=request)
+        await _handle_push_av_stream_prompt(socket=socket, prompt=request)
     elif message_type == MessageTypeEnum.MESSAGE_REQUEST or isinstance(request, MessagePromptRequest):
         await __handle_message_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):
@@ -190,7 +189,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         await _cleanup_video_handler()
 
 
-async def __handle_image_verification_prompt(
+async def _handle_image_verification_prompt(
     socket: WebSocketClientProtocol, prompt: ImageVerificationPromptRequest
 ) -> None:
     """Handle image verification prompts via HTTP server."""
@@ -244,7 +243,7 @@ async def __handle_image_verification_prompt(
         click.echo(colorize_error(f"❌ Error handling image verification: {e}"), err=True)
 
 
-async def __handle_push_av_stream_prompt(
+async def _handle_push_av_stream_prompt(
     socket: WebSocketClientProtocol, prompt: PushAVStreamVerificationRequest
 ) -> None:
     """Handle Push AV Stream verification prompts.
@@ -262,9 +261,6 @@ async def __handle_push_av_stream_prompt(
         # Default to https://localhost:1234
         local_ip = _get_local_ip()
         push_av_server_url = f"https://{local_ip}:1234"
-
-        # Import the HTTP server for simple prompt display
-        from .camera.camera_http_server import CameraHTTPServer
 
         http_server = CameraHTTPServer()
         response_queue = queue.Queue()
