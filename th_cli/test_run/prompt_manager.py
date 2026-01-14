@@ -210,7 +210,7 @@ async def __handle_image_verification_prompt(
 
         # Show user instructions
         local_ip = _get_local_ip()
-        click.echo(f"📸 Image verification required!")
+        click.echo("📸 Image verification required!")
         click.echo(f"🌐 Open: http://{local_ip}:{image_handler.http_server.port}")
         click.echo(f"📝 {prompt.prompt}")
         click.echo(f"⏰ Timeout: {prompt.timeout}s")
@@ -285,9 +285,9 @@ async def __handle_push_av_stream_prompt(
         # Display instructions
         verification_url = f"http://{local_ip}:{http_server.port}"
         click.echo(italic(prompt.prompt))
-        click.echo(f"📡 Push AV Stream Verification")
+        click.echo("📡 Push AV Stream Verification")
         click.echo(f"🌐 Please verify at: {verification_url}")
-        click.echo(f"   The web interface will show available streams and allow playback.")
+        click.echo("   The web interface will show available streams and allow playback.")
         click.echo("")
         click.echo("Waiting for your response in the web interface...")
 
