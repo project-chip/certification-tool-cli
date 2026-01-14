@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import html
 import base64
+import html
 import json
 import queue
 import re
 import ssl
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -35,6 +36,10 @@ ENDPOINT_VIDEO_LIVE = "/video_live.mp4"
 ENDPOINT_SUBMIT_RESPONSE = "/submit_response"
 ENDPOINT_API_STREAMS = "/api/streams"
 ENDPOINT_API_STREAM_PROXY = "/api/stream_proxy"
+
+# Timeout constants (in seconds)
+PUSH_AV_STREAMS_TIMEOUT = 5.0  # Timeout for fetching stream list
+PUSH_AV_PROXY_TIMEOUT = 30.0  # Timeout for proxying stream data
 
 
 class VideoStreamingHandler(BaseHTTPRequestHandler):
@@ -210,8 +215,11 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 return
 
             # Fetch streams from Push AV Server
-            # Disable SSL verification for self-signed certificates
-            with httpx.Client(verify=False, timeout=5.0) as client:
+            # Disable SSL verification for self-signed certificates in test environments.
+            # Push AV Servers typically use self-signed certificates. This is acceptable
+            # since we're connecting to test devices in controlled lab settings, similar
+            # to how browsers prompt users to accept self-signed certificates in the TH web UI.
+            with httpx.Client(verify=False, timeout=PUSH_AV_STREAMS_TIMEOUT) as client:
                 response = client.get(f"{push_av_server_url}/streams")
 
                 if response.status_code == 200:
@@ -261,7 +269,11 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
             stream_url = base_url.rstrip("/") + extra_path
 
             # Fetch from upstream
-            with httpx.Client(verify=False, timeout=30.0) as client:
+            # Disable SSL verification for self-signed certificates in test environments.
+            # Push AV Servers typically use self-signed certificates. This is acceptable
+            # since we're connecting to test devices in controlled lab settings, similar
+            # to how browsers prompt users to accept self-signed certificates in the TH web UI.
+            with httpx.Client(verify=False, timeout=PUSH_AV_PROXY_TIMEOUT) as client:
                 try:
                     response = client.get(stream_url)
                 except Exception as e:
@@ -311,8 +323,12 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
                 extra_path = path[len("/api/stream_proxy") :]
                 stream_url = stream_url.rstrip("/") + extra_path
 
-            # Fetch from Push AV Server (disable SSL verification for self-signed certificates)
-            with httpx.Client(verify=False, timeout=30.0) as client:
+            # Fetch from Push AV Server
+            # Disable SSL verification for self-signed certificates in test environments.
+            # Push AV Servers typically use self-signed certificates. This is acceptable
+            # since we're connecting to test devices in controlled lab settings, similar
+            # to how browsers prompt users to accept self-signed certificates in the TH web UI.
+            with httpx.Client(verify=False, timeout=PUSH_AV_PROXY_TIMEOUT) as client:
                 response = client.get(stream_url)
 
                 if response.status_code != 200:
@@ -472,9 +488,8 @@ class VideoStreamingHandler(BaseHTTPRequestHandler):
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
         self.send_header("Last-Modified", "0")
-        # Add ETag to force browser to check for changes
-        import time
 
+        # Add ETag to force browser to check for changes
         self.send_header("ETag", f'"{int(time.time())}"')
         self.end_headers()
         self.wfile.write(html_content.encode("utf-8"))
