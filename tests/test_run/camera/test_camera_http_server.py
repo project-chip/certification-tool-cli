@@ -15,13 +15,8 @@
 #
 """Unit tests for camera_http_server module."""
 
-import json
 import queue
-import threading
-import time
-from io import BytesIO
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

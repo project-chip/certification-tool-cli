@@ -17,8 +17,6 @@
 
 import asyncio
 import json
-import queue
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
