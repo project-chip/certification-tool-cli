@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Push AV Stream Verification</title>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }}
+
+        .matter-header {{
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+
+        .header-title {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .cli-indicator {{
+            background: #2196F3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+
+        .main-content {{
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }}
+
+        .p-dialog {{
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 11px 15px -7px rgba(0,0,0,.2), 0 24px 38px 3px rgba(0,0,0,.14), 0 9px 46px 8px rgba(0,0,0,.12);
+            max-width: 900px;
+            width: 100%;
+            margin: 20px;
+        }}
+
+        .p-dialog-header {{
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            background: #fafafa;
+            border-radius: 6px 6px 0 0;
+        }}
+
+        .p-dialog-title {{
+            font-size: 1.25rem;
+            font-weight: 700;
+        }}
+
+        .p-dialog-content {{
+            padding: 1.5rem;
+            background: #ffffff;
+            border-radius: 0 0 6px 6px;
+        }}
+
+        .subheader {{
+            font-size: 14px;
+            color: #495057;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }}
+
+        .p-button {{
+            color: #ffffff;
+            background: #22c55e;
+            border: 1px solid #22c55e;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }}
+
+        .p-button:hover:not(:disabled) {{
+            background: #16a34a;
+            border-color: #16a34a;
+        }}
+
+        .p-button:disabled {{
+            opacity: 0.6;
+            cursor: not-allowed;
+        }}
+
+        .p-button-icon-left {{
+            margin-right: 0.5rem;
+        }}
+
+        .pi {{
+            font-family: 'primeicons';
+        }}
+
+        .pi-refresh:before {{
+            content: "↻";
+            font-size: 1.2em;
+        }}
+
+        .pi-play-circle:before {{
+            content: "▶";
+        }}
+
+        .pi-video:before {{
+            content: "📹";
+        }}
+
+        .streams-list-container {{
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            background: white;
+        }}
+
+        .streams-list-header {{
+            padding: 0.75rem 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            font-size: 14px;
+            color: #495057;
+        }}
+
+        .streams-list {{
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }}
+
+        .stream-item {{
+            border-bottom: 1px solid #dee2e6;
+        }}
+
+        .stream-item:last-child {{
+            border-bottom: none;
+        }}
+
+        .stream-item a {{
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #495057;
+            transition: background-color 0.2s;
+            gap: 0.5rem;
+        }}
+
+        .stream-item a:hover {{
+            background: #f8f9fa;
+        }}
+
+        .stream-item.selected a {{
+            background: #e3f2fd;
+            color: #2196F3;
+            font-weight: 600;
+        }}
+
+        .no-streams {{
+            padding: 2rem;
+            text-align: center;
+            color: #6c757d;
+        }}
+
+        .loading {{
+            padding: 2rem;
+            text-align: center;
+            color: #6c757d;
+        }}
+
+        .video-player-container {{
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            background: white;
+        }}
+
+        .video-player-header {{
+            padding: 0.75rem 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            font-size: 14px;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+
+        .video-player-wrapper {{
+            position: relative;
+            background: #000;
+            min-height: 360px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+
+        .video-player {{
+            width: 100%;
+            max-height: 480px;
+            display: block;
+        }}
+
+        .video-placeholder {{
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            color: #6c757d;
+        }}
+
+        .video-placeholder .pi {{
+            font-size: 3rem;
+        }}
+
+        .input-items-div {{
+            margin: 1rem 0;
+        }}
+
+        .popup-radio-div {{
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }}
+
+        .verification-hint {{
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 12px 16px;
+            margin: 12px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #1976d2;
+            line-height: 1.5;
+        }}
+
+        .verification-hint.warning {{
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #e65100;
+        }}
+
+        .popup-radio-row {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 100px;
+            justify-content: center;
+        }}
+
+        .popup-radio-row:hover {{
+            background: #f0f0f0;
+            border-color: #2196F3;
+        }}
+
+        .popup-radio-row.selected {{
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }}
+
+        input[type="radio"] {{
+            margin-right: 8px;
+            transform: scale(1.2);
+        }}
+
+        label {{
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+        }}
+
+        .buttons-div {{
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+        }}
+
+        .popup-button {{
+            background: #2196F3;
+            color: white;
+            border: 1px solid #2196F3;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+
+        .popup-button:hover:not(:disabled) {{
+            background: #1976D2;
+            border-color: #1976D2;
+        }}
+
+        .popup-button:disabled {{
+            background: #ced4da;
+            border-color: #ced4da;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }}
+
+        .error-message {{
+            background: #fee;
+            border-left: 4px solid #f44336;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            color: #c62828;
+        }}
+
+        .stream-contents-container {{
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: white;
+        }}
+
+        .stream-contents-header {{
+            padding: 0.75rem 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            font-size: 14px;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+
+        .stream-contents-list {{
+            padding: 1rem;
+        }}
+
+        .stream-file-item {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }}
+
+        .stream-file-item:last-child {{
+            border-bottom: none;
+        }}
+
+        .stream-file-name {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #495057;
+            font-size: 14px;
+        }}
+
+        .stream-file-link {{
+            color: #2196F3;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+
+        .stream-file-link:hover {{
+            text-decoration: underline;
+        }}
+
+        .non-conforming-container {{
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: #ffebee;
+        }}
+
+        .non-conforming-header {{
+            padding: 0.75rem 1rem;
+            background: #ffcdd2;
+            border-bottom: 1px solid #ef9a9a;
+            font-weight: 600;
+            font-size: 14px;
+            color: #c62828;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+
+        .non-conforming-content {{
+            padding: 1rem;
+            text-align: center;
+            color: #2e7d32;
+            background: #ffebee;
+        }}
+
+        .conforming-message {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: #2e7d32;
+            font-size: 14px;
+        }}
+
+        .conforming-message::before {{
+            content: "✓";
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2e7d32;
+        }}
+    </style>
+    <script>
+        let selectedValue = null;
+        let selectedStreamId = null;
+        let pushAvServerUrl = '{push_av_server_url}';
+        let streamsData = []; // Store full stream data with files
+
+        function selectOption(value) {{
+            selectedValue = value;
+
+            // Update visual selection
+            document.querySelectorAll('.popup-radio-row').forEach(row => {{
+                row.classList.remove('selected');
+            }});
+            document.querySelector(`[data-value="${{value}}"]`).classList.add('selected');
+
+            // Update radio buttons
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {{
+                radio.checked = radio.value === value.toString();
+            }});
+
+            // Enable submit button
+            document.getElementById('submitBtn').disabled = false;
+        }}
+
+        async function refreshStreams() {{
+            const button = document.getElementById('refreshBtn');
+            const streamsList = document.getElementById('streamsList');
+
+            button.disabled = true;
+            button.innerHTML = '<span>Refreshing...</span>';
+            streamsList.innerHTML = '<div class="loading">Loading streams...</div>';
+
+            try {{
+                const response = await fetch('/api/streams');
+                if (!response.ok) {{
+                    throw new Error(`HTTP error! status: ${{response.status}}`);
+                }}
+
+                const data = await response.json();
+                displayStreams(data.streams || []);
+            }} catch (error) {{
+                console.error('Error fetching streams:', error);
+                streamsList.innerHTML = `<div class="error-message">Failed to load streams: ${{error.message}}<br><small>Make sure the Push AV Server is running at ${{pushAvServerUrl}}</small></div>`;
+            }} finally {{
+                button.disabled = false;
+                button.innerHTML = '<span>Refresh Streams</span>';
+            }}
+        }}
+
+        function displayStreams(streams) {{
+            const streamsList = document.getElementById('streamsList');
+            const hintElement = document.getElementById('verificationHint');
+
+            if (!streams || streams.length === 0) {{
+                streamsList.innerHTML = '<div class="no-streams">No streams available yet.<br><small>The DUT may not have started uploading. Click "Refresh Streams" to check again.</small></div>';
+                hintElement.innerHTML = '⚠️ <strong>No streams found.</strong> If verifying that upload has stopped, this is the expected result.';
+                hintElement.className = 'verification-hint warning';
+                return;
+            }}
+
+            streamsData = streams;
+
+            // Clear hint when streams are available - user can see them in the list
+            hintElement.innerHTML = '';
+            hintElement.className = '';
+
+            let html = '<ul class="streams-list">';
+            streams.forEach((stream, index) => {{
+                const streamId = stream.id || index;
+                html += `
+                    <li class="stream-item" id="stream-${{index}}">
+                        <a href="#" onclick="selectStream(${{index}}); return false;">
+                            <span class="pi-play-circle">▶</span>
+                            <span>Stream ${{parseInt(streamId) + 1}}</span>
+                        </a>
+                    </li>
+                `;
+            }});
+            html += '</ul>';
+            streamsList.innerHTML = html;
+
+            // Don't auto-select - wait for user to click a stream
+            // Hide the contents panels until user selects a stream
+            const streamContentsSection = document.getElementById('streamContentsSection');
+            const nonConformingSection = document.getElementById('nonConformingSection');
+            streamContentsSection.style.display = 'none';
+            nonConformingSection.style.display = 'none';
+        }}
+
+        function selectStream(index) {{
+            if (!streamsData || !streamsData[index]) {{
+                console.error('Stream data not found for index:', index);
+                return;
+            }}
+
+            const stream = streamsData[index];
+            selectedStreamId = stream.id || index;
+
+            // Combine valid_files and invalid_files (or use files if present)
+            const allFiles = stream.files || [...(stream.valid_files || []), ...(stream.invalid_files || [])];
+
+            // Update selected styling
+            document.querySelectorAll('.stream-item').forEach(item => {{
+                item.classList.remove('selected');
+            }});
+            document.getElementById(`stream-${{index}}`).classList.add('selected');
+
+            // Display stream contents
+            displayStreamContents(stream);
+
+            // Play the video - look for MPD manifest first, then segment files
+            if (allFiles && allFiles.length > 0) {{
+                const fileStrings = allFiles.map(f => String(f));
+
+                // Try to find MPD manifest (DASH/CMAF format)
+                let videoFile = fileStrings.find(f => f.includes('.mpd'));
+
+                // If no MPD, try to find first segment file
+                if (!videoFile) {{
+                    videoFile = fileStrings.find(f => f.includes('.m4s') || f.includes('segment'));
+                }}
+
+                // If still no file, try any media file
+                if (!videoFile) {{
+                    videoFile = fileStrings.find(f => f.includes('.mp4') || f.includes('media'));
+                }}
+
+                if (videoFile) {{
+                    const videoUrl = `${{pushAvServerUrl}}/streams/${{stream.id}}/${{videoFile}}`;
+                    playStream(videoUrl);
+                }}
+            }}
+        }}
+
+        function displayStreamContents(stream) {{
+            const streamContentsSection = document.getElementById('streamContentsSection');
+            const streamContents = document.getElementById('streamContents');
+            const streamContentsTitle = document.getElementById('streamContentsTitle');
+            const nonConformingSection = document.getElementById('nonConformingSection');
+            const nonConformingContent = document.getElementById('nonConformingContent');
+
+            // Update title
+            const streamNum = parseInt(stream.id) + 1;
+            streamContentsTitle.textContent = `Stream ${{streamNum}} Contents`;
+
+            // Combine valid and invalid files (or use files if present)
+            const validFiles = stream.valid_files || [];
+            const invalidFiles = stream.invalid_files || [];
+            const allFiles = stream.files || [...validFiles, ...invalidFiles];
+
+            // Display files
+            if (allFiles && allFiles.length > 0) {{
+                let html = '';
+                allFiles.forEach((file, index) => {{
+                    const fileName = String(file);
+                    const fileUrl = `${{pushAvServerUrl}}/streams/${{stream.id}}/${{fileName}}`;
+                    html += `
+                        <div class="stream-file-item">
+                            <div class="stream-file-name">
+                                <span class="pi">📄</span>
+                                <span>${{fileName}}</span>
+                            </div>
+                            <a href="${{fileUrl}}" target="_blank" class="stream-file-link">#${{index + 1}}</a>
+                        </div>
+                    `;
+                }});
+                streamContents.innerHTML = html;
+                streamContentsSection.style.display = 'block';
+            }} else {{
+                streamContentsSection.style.display = 'none';
+            }}
+
+            // Display conformance status
+            if (invalidFiles.length > 0) {{
+                nonConformingContent.innerHTML = `<div style="color: #c62828; text-align: center;">Found ${{invalidFiles.length}} non-conforming file(s)</div>`;
+            }} else {{
+                nonConformingContent.innerHTML = '<div class="conforming-message">All files conform to Matter Spec.</div>';
+            }}
+            nonConformingSection.style.display = 'block';
+        }}
+
+        let currentDashPlayer = null;  // Track current player instance
+
+        function playStream(streamUrl) {{
+            const videoWrapper = document.getElementById('videoWrapper');
+
+            // Clean up previous player instance
+            if (currentDashPlayer) {{
+                try {{
+                    currentDashPlayer.pause();
+                    currentDashPlayer.reset();
+                }} catch (e) {{
+                    // Ignore cleanup errors
+                }}
+                currentDashPlayer = null;
+            }}
+
+            // Clear any existing video element
+            const oldVideo = document.getElementById('dashPlayer');
+            if (oldVideo) {{
+                try {{
+                    oldVideo.pause();
+                    oldVideo.src = '';
+                    oldVideo.load();
+                }} catch (e) {{
+                    // Ignore cleanup errors
+                }}
+            }}
+
+            if (streamUrl.includes('.mpd')) {{
+                // MPD files - use DASH player with proxy
+                const proxyUrl = `/api/stream_proxy?url=${{encodeURIComponent(streamUrl)}}`;
+                videoWrapper.innerHTML = '<video id="dashPlayer" class="video-player" controls autoplay></video>';
+
+                const video = document.getElementById('dashPlayer');
+                const player = dashjs.MediaPlayer().create();
+                currentDashPlayer = player;
+
+                let hasPlayedContent = false;
+                let errorCount = 0;
+                let initializationComplete = false;
+                let fragmentsLoaded = 0;
+                let allowErrorMessages = false;
+
+                // Give player 2 seconds to initialize before allowing error messages
+                setTimeout(() => {{
+                    allowErrorMessages = true;
+                    if (!hasPlayedContent && !initializationComplete && errorCount > 0) {{
+                        showErrorMessage();
+                    }}
+                }}, 2000);
+
+                // Register event handlers before initialization
+                player.on(dashjs.MediaPlayer.events.PLAYBACK_STARTED, function() {{
+                    hasPlayedContent = true;
+                }});
+
+                player.on(dashjs.MediaPlayer.events.PLAYBACK_TIME_UPDATED, function(e) {{
+                    if (e.time > 0) {{
+                        hasPlayedContent = true;
+                    }}
+                }});
+
+                player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {{
+                    initializationComplete = true;
+                }});
+
+                player.on(dashjs.MediaPlayer.events.FRAGMENT_LOADING_COMPLETED, function(e) {{
+                    fragmentsLoaded++;
+                    if (!hasPlayedContent) {{
+                        hasPlayedContent = true;
+                    }}
+                }});
+
+                player.on(dashjs.MediaPlayer.events.CAN_PLAY, function() {{
+                    hasPlayedContent = true;
+                }});
+
+                player.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, function() {{
+                    hasPlayedContent = true;
+                }});
+
+                function showErrorMessage() {{
+                    videoWrapper.innerHTML = `
+                        <div class="video-placeholder">
+                            <span class="pi-video">📹</span>
+                            <div style="text-align: center; padding: 20px; color: #c62828;">
+                                <p>Error loading DASH stream</p>
+                                <p style="font-size: 12px;">The stream manifest is available but cannot be played.</p>
+                                <p style="font-size: 11px; color: #666; margin-top: 15px;">
+                                    Stream details:<br>
+                                    <a href="${{streamUrl}}" target="_blank" style="color: #2196F3;">View MPD Manifest</a>
+                                </p>
+                                <p style="font-size: 11px; color: #888; margin-top: 10px;">
+                                    Note: The DUT is successfully uploading to the Push AV Server.<br>
+                                    Check the "Stream Contents" section below for uploaded files.
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }}
+
+                player.on(dashjs.MediaPlayer.events.ERROR, function(e) {{
+                    errorCount++;
+                    // Always suppress errors for Push AV verification
+                    // Missing segments are expected when DUT stops uploading
+                    return;
+                }});
+
+                // Initialize the player
+                player.initialize(video, proxyUrl, true);
+            }} else {{
+                // Regular video files - use HTML5 video
+                const proxyUrl = `/api/stream_proxy?url=${{encodeURIComponent(streamUrl)}}`;
+                videoWrapper.innerHTML = `
+                    <video class="video-player" controls autoplay>
+                        <source src="${{proxyUrl}}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                `;
+            }}
+        }}
+
+        async function submitResponse() {{
+            if (selectedValue) {{
+                const button = document.getElementById('submitBtn');
+                button.disabled = true;
+                button.textContent = 'Submitting...';
+
+                try {{
+                    const response = await fetch('/submit_response', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{ response: selectedValue }})
+                    }});
+
+                    if (response.ok) {{
+                        button.textContent = 'Response Sent!';
+                        button.style.background = '#22c55e';
+                        setTimeout(() => {{
+                            button.textContent = 'Complete';
+                        }}, 1000);
+                    }} else {{
+                        throw new Error(`Server error: ${{response.status}}`);
+                    }}
+                }} catch (error) {{
+                    console.error('Error submitting response:', error);
+                    button.textContent = 'Error - Try Again';
+                    button.style.background = '#f44336';
+                    button.disabled = false;
+                    setTimeout(() => {{
+                        button.textContent = 'Submit';
+                        button.style.background = '#2196F3';
+                    }}, 3000);
+                }}
+            }}
+        }}
+
+        // Auto-refresh streams on load
+        window.onload = function() {{
+            // Set initial hint
+            const hintElement = document.getElementById('verificationHint');
+            hintElement.innerHTML = '💡 Click "Refresh Streams" to check for available streams.';
+            hintElement.className = 'verification-hint';
+
+            refreshStreams();
+        }};
+    </script>
+</head>
+<body>
+    <div class="matter-header">
+        <div class="header-title">Matter Certification Tool</div>
+        <div class="cli-indicator">CLI</div>
+    </div>
+
+    <div class="main-content">
+        <div class="p-dialog">
+            <div class="p-dialog-header">
+                <span class="p-dialog-title">Push AV Stream Verification</span>
+            </div>
+
+            <div class="p-dialog-content">
+                <div class="subheader">{prompt_text}</div>
+                <div id="verificationHint" class="verification-hint"></div>
+
+                <button id="refreshBtn" class="p-button" onclick="refreshStreams()">
+                    <span>Refresh Streams</span>
+                </button>
+
+                <div class="streams-list-container">
+                    <div class="streams-list-header">Available Streams</div>
+                    <div id="streamsList">
+                        <div class="loading">Click "Refresh Streams" to load</div>
+                    </div>
+                </div>
+
+                <div class="video-player-container">
+                    <div class="video-player-header">
+                        <span class="pi-play-circle">▶</span>
+                        <span>Video Player</span>
+                    </div>
+                    <div class="video-player-wrapper" id="videoWrapper">
+                        <div class="video-placeholder">
+                            <span class="pi-video">📹</span>
+                            <span>Select a stream to play video</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stream Contents Section -->
+                <div id="streamContentsSection" style="display: none; margin-bottom: 1rem;">
+                    <div class="stream-contents-container">
+                        <div class="stream-contents-header">
+                            <span class="pi">📄</span>
+                            <span id="streamContentsTitle">Stream Contents</span>
+                        </div>
+                        <div id="streamContents" class="stream-contents-list">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Non-Conforming Files Section -->
+                <div id="nonConformingSection" style="display: none; margin-bottom: 1rem;">
+                    <div class="non-conforming-container">
+                        <div class="non-conforming-header">
+                            <span class="pi">⚠️</span>
+                            <span>Non-Conforming Files</span>
+                        </div>
+                        <div id="nonConformingContent" class="non-conforming-content">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-items-div">
+                    <div class="popup-radio-div">
+                        {radio_options_html}
+                    </div>
+                </div>
+
+                <div class="buttons-div">
+                    <button id="submitBtn" class="popup-button" onclick="submitResponse()" disabled>
+                        Submit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

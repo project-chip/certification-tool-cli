@@ -16,26 +16,29 @@
 import asyncio
 import json
 import os
+import queue
 import re
 import socket
+import time
 from typing import Any, Union
 
 import aioconsole
 import click
 import httpx
-
-# from loguru import logger
 from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
 from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
+from .camera.camera_http_server import CameraHTTPServer
 from .socket_schemas import (
+    ImageVerificationPromptRequest,
     MessagePromptRequest,
     OptionsSelectPromptRequest,
     PromptRequest,
     PromptResponse,
+    PushAVStreamVerificationRequest,
     StreamVerificationPromptRequest,
     TextInputPromptRequest,
     UserResponseStatusEnum,
@@ -68,10 +71,18 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
     """Handle all types of prompts with correct inheritance order."""
     click.echo("=======================================")
 
-    if message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
+    if message_type == MessageTypeEnum.IMAGE_VERIFICATION_REQUEST or isinstance(
+        request, ImageVerificationPromptRequest
+    ):
+        await _handle_image_verification_prompt(socket=socket, prompt=request)
+    elif message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
         request, StreamVerificationPromptRequest
     ):
         await __handle_stream_verification_prompt(socket=socket, prompt=request)
+    elif message_type == MessageTypeEnum.PUSH_AV_STREAM_VERIFICATION_REQUEST or isinstance(
+        request, PushAVStreamVerificationRequest
+    ):
+        await _handle_push_av_stream_prompt(socket=socket, prompt=request)
     elif message_type == MessageTypeEnum.MESSAGE_REQUEST or isinstance(request, MessagePromptRequest):
         await __handle_message_prompt(socket=socket, prompt=request)
     elif isinstance(request, OptionsSelectPromptRequest):
@@ -140,7 +151,7 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
 
         click.echo(italic(prompt.prompt))
         local_ip = _get_local_ip()
-        click.echo(f"🎬 Please verify the video at: http://{local_ip}:{video_handler.http_server.port}/")
+        click.echo(f"🎬 Please verify the video at: http://{local_ip}:{video_handler.http_server.port}")
 
         click.echo("Waiting for your response in the web interface...")
 
@@ -176,6 +187,142 @@ async def __handle_stream_verification_prompt(socket: WebSocketClientProtocol, p
         click.echo(colorize_error(f"Error handling video prompt: {e}"), err=True)
         # Clean up using the shared instance
         await _cleanup_video_handler()
+
+
+async def _handle_image_verification_prompt(
+    socket: WebSocketClientProtocol, prompt: ImageVerificationPromptRequest
+) -> None:
+    """Handle image verification prompts via HTTP server."""
+    try:
+        # Convert hex string back to bytes (format: "ff,d8,ff,e0" → bytes)
+        image_hex_clean = prompt.image_hex_str.replace(", ", "").replace(",", "")
+        image_data = bytes.fromhex(image_hex_clean)
+
+        # Use existing ImageVerificationHandler
+        from .camera.image_handler import ImageVerificationHandler
+
+        image_handler = ImageVerificationHandler()
+        image_handler.set_prompt_data(prompt.prompt, prompt.options, image_data)
+
+        # Start HTTP server
+        await image_handler.start_image_server(str(prompt.message_id))
+
+        # Show user instructions
+        local_ip = _get_local_ip()
+        click.echo("📸 Image verification required!")
+        click.echo(f"🌐 Open: http://{local_ip}:{image_handler.http_server.port}")
+        click.echo(f"📝 {prompt.prompt}")
+        click.echo(f"⏰ Timeout: {prompt.timeout}s")
+
+        # Wait for user response
+        user_answer = await image_handler.wait_for_user_response(float(prompt.timeout))
+
+        # Clean up
+        image_handler.stop_image_server()
+
+        if user_answer is None:
+            click.echo(colorize_error("❌ No response received - timed out"), err=True)
+            return
+
+        # Display the user's selected response
+        selected_option = None
+        for option_text, option_id in prompt.options.items():
+            if option_id == user_answer:
+                selected_option = option_text
+                break
+
+        if selected_option:
+            click.echo(f"✅ User selected: {colorize_key_value(str(user_answer), selected_option)}")
+        else:
+            click.echo(f"✅ User response: {user_answer}")
+
+        # Send response back to test
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
+
+    except Exception as e:
+        click.echo(colorize_error(f"❌ Error handling image verification: {e}"), err=True)
+
+
+async def _handle_push_av_stream_prompt(
+    socket: WebSocketClientProtocol, prompt: PushAVStreamVerificationRequest
+) -> None:
+    """Handle Push AV Stream verification prompts.
+
+    This displays information about verifying video uploaded to the external Push AV Server,
+    and provides a simple web UI for the user to respond with PASS/FAIL.
+    """
+    try:
+        # Validate prompt has required attributes
+        if not hasattr(prompt, "options") or not prompt.options:
+            click.echo(colorize_error("Push AV Stream prompt missing required options"), err=True)
+            return
+
+        # Try to determine Push AV Server URL
+        # Default to https://localhost:1234
+        local_ip = _get_local_ip()
+        push_av_server_url = f"https://{local_ip}:1234"
+
+        http_server = CameraHTTPServer()
+        response_queue = queue.Queue()
+
+        # Start HTTP server with Push AV Stream verification page
+        # Pass None for video_handler since we're not streaming video
+        http_server.start(
+            mp4_queue=None,  # No video streaming needed
+            response_queue=response_queue,
+            video_handler=None,  # No video handler needed
+            prompt_options=prompt.options,
+            prompt_text=prompt.prompt,
+            is_push_av_verification=True,  # Use Push AV template
+            push_av_server_url=push_av_server_url,  # Pass Push AV Server URL
+            local_ip=local_ip,  # Pass local IP for proxy URL construction
+        )
+
+        # Display instructions
+        verification_url = f"http://{local_ip}:{http_server.port}"
+        click.echo(italic(prompt.prompt))
+        click.echo("📡 Push AV Stream Verification")
+        click.echo(f"🌐 Please verify at: {verification_url}")
+        click.echo("   The web interface will show available streams and allow playback.")
+        click.echo("")
+        click.echo("Waiting for your response in the web interface...")
+
+        # Wait for user response from web UI
+        user_answer = None
+        start_time = time.time()
+        timeout = float(prompt.timeout)
+
+        while time.time() - start_time < timeout:
+            try:
+                user_answer = response_queue.get_nowait()
+                break
+            except queue.Empty:
+                await asyncio.sleep(0.1)
+                continue
+
+        # Stop HTTP server
+        http_server.stop()
+
+        if user_answer is None:
+            click.echo(colorize_error("No response received from web interface"), err=True)
+            return
+
+        # Display the user's selected response
+        selected_option = None
+        for option_text, option_id in prompt.options.items():
+            if option_id == user_answer:
+                selected_option = option_text
+                break
+
+        if selected_option:
+            click.echo(f"✅ User selected: {colorize_key_value(str(user_answer), selected_option)}")
+        else:
+            click.echo(f"✅ User response: {user_answer}")
+
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
+
+    except Exception as e:
+        click.echo(colorize_error(f"Error handling Push AV Stream prompt: {e}"), err=True)
 
 
 async def handle_file_upload_request(socket: WebSocketClientProtocol, request: PromptRequest) -> None:
