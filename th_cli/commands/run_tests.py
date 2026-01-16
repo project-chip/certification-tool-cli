@@ -121,7 +121,6 @@ async def run_tests(
     Raises:
         CLIError: If there are validation or execution errors
     """
-    
     # Extract and parse extra arguments from context (args after --)
     extra_test_params = _parse_extra_args(list(ctx.args)) if ctx.args else {}
 
@@ -166,7 +165,10 @@ async def run_tests(
         
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
-            click.echo(colorize_key_value("Extra SDK Test Parameters (This Run Only)", json.dumps(extra_test_params, indent=JSON_INDENT)))
+            click.echo(colorize_key_value(
+                "Extra SDK Test Parameters (This Run Only)",
+                json.dumps(extra_test_params, indent=JSON_INDENT)
+            ))
             if "test_parameters" not in test_run_config:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
@@ -246,36 +248,37 @@ def _parse_extra_args(args: list[str]) -> dict[str, str]:
     Returns:
         Dictionary of parameter name to value mappings
     """
-    params = {}
+    params: dict[str, str] = {}
     i = 0
+
     while i < len(args):
         arg = args[i]
-        # Remove leading dashes
-        if arg.startswith('--'):
-            param_name = arg[2:]  # Remove '--'
-            # Check if next arg exists and doesn't start with --
-            if i + 1 < len(args) and not args[i + 1].startswith('--'):
-                param_value = args[i + 1]
-                params[param_name] = param_value
-                i += 2  # Skip both parameter and value
-            else:
-                # Flag parameter with no value, set to empty string or true
-                params[param_name] = ""
-                i += 1
-        elif arg.startswith('-') and not arg.startswith('--'):
-            # Single dash argument (short form)
-            param_name = arg[1:]  # Remove '-'
-            if i + 1 < len(args) and not args[i + 1].startswith('-'):
-                param_value = args[i + 1]
-                params[param_name] = param_value
-                i += 2
-            else:
-                params[param_name] = ""
-                i += 1
-        else:
-            # Value without parameter, skip
+
+        # Skip non-flag arguments
+        if not arg.startswith('-'):
             i += 1
-    
+            continue
+
+        # Extract parameter name (remove leading dashes)
+        if arg.startswith('--'):
+            param_name = arg[2:]
+        else:
+            param_name = arg[1:]
+
+        # Check if next argument exists and is a value (not a flag)
+        has_value = (
+            i + 1 < len(args)
+            and not args[i + 1].startswith('-')
+        )
+
+        if has_value:
+            params[param_name] = args[i + 1]
+            i += 2  # Skip both parameter and value
+        else:
+            # Flag without value (e.g., --verbose)
+            params[param_name] = ""
+            i += 1
+
     return params
 
 
