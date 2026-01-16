@@ -162,7 +162,7 @@ async def run_tests(
         # Create a DEEP copy for this test run execution to avoid modifying the original
         # This ensures extra parameters only apply to THIS run, not future runs
         test_run_config = copy.deepcopy(project_config_dict)
-        
+
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
             click.echo(colorize_key_value(
@@ -238,13 +238,13 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
 
 def _parse_extra_args(args: list[str]) -> dict[str, str]:
     """Parse extra arguments from -- separator into test_parameters format.
-    
+
     Converts arguments as ['--int-arg', 'some-arg:2', '--bool-arg', 'flag:true']
     into {'int-arg': 'some-arg:2', 'bool-arg': 'flag:true'}
-    
+
     Args:
         args: List of arguments after the -- separator
-        
+
     Returns:
         Dictionary of parameter name to value mappings
     """

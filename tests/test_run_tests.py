@@ -881,10 +881,10 @@ class TestRunTestsWithExtraArgs:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
@@ -923,10 +923,10 @@ class TestRunTestsWithExtraArgs:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
@@ -969,10 +969,10 @@ class TestRunTestsWithExtraArgs:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
@@ -1011,10 +1011,10 @@ class TestRunTestsWithExtraArgs:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
@@ -1054,15 +1054,15 @@ class TestRunTestsWithExtraArgs:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict), \
-            patch("th_cli.commands.run_tests.copy.deepcopy") as mock_deepcopy:
-            
+             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict), \
+             patch("th_cli.commands.run_tests.copy.deepcopy") as mock_deepcopy:
+
             # Configure deepcopy to return a new dict
             mock_deepcopy.return_value = dict(sample_default_config_dict)
-            
+
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket

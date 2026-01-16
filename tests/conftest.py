@@ -142,6 +142,7 @@ def mock_pics_dir(temp_dir: Path) -> Path:
     (pics_dir / "test_cluster.xml").write_text(pics_xml_content)
     return pics_dir
 
+
 @pytest.fixture
 def sample_default_config_dict() -> dict:
     """Create a sample default configuration dictionary."""
@@ -162,6 +163,7 @@ def sample_default_config_dict() -> dict:
             "trace_log": False
         }
     }
+
 
 @pytest.fixture
 def mock_api_client() -> Mock:

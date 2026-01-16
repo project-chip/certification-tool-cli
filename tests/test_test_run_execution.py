@@ -1096,4 +1096,3 @@ Escape sequences: \n\t\r"""
         assert result.exit_code != 0
         assert "--project-id" in result.output
         assert "not applicable" in result.output or "Error" in result.output
-
