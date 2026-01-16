@@ -166,7 +166,7 @@ async def run_tests(
         
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
-            click.echo(colorize_key_value("Extra SDK Test Parameters (This Run Only, Final Version)", json.dumps(extra_test_params, indent=JSON_INDENT)))
+            click.echo(colorize_key_value("Extra SDK Test Parameters (This Run Only)", json.dumps(extra_test_params, indent=JSON_INDENT)))
             if "test_parameters" not in test_run_config:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
