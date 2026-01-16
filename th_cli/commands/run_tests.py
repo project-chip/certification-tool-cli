@@ -254,8 +254,8 @@ def _parse_extra_args(args: list[str]) -> dict[str, str]:
     while i < len(args):
         arg = args[i]
 
-        # Skip non-flag arguments
-        if not arg.startswith('-'):
+        # Skip non-flag arguments or subsequent --
+        if not arg.startswith('-') or arg == "--":
             i += 1
             continue
 
