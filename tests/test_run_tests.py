@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2026 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.commands.run_tests import run_tests
+from th_cli.commands.run_tests import run_tests, _parse_extra_args
 from th_cli.exceptions import ConfigurationError
 
 
@@ -32,27 +32,6 @@ from th_cli.exceptions import ConfigurationError
 @pytest.mark.cli
 class TestRunTestsCommand:
     """Test cases for the run_tests command."""
-
-    @pytest.fixture
-    def sample_default_config_dict(self) -> dict:
-        """Create a sample default configuration dictionary."""
-        return {
-            "network": {
-                "wifi": {
-                    "ssid": "default_wifi",
-                    "password": "default_password"
-                },
-                "thread": {
-                    "operational_dataset_hex": "default_hex"
-                }
-            },
-            "dut_config": {
-                "pairing_mode": "ble-wifi",
-                "setup_code": "20202021",
-                "discriminator": "3840",
-                "trace_log": False
-            }
-        }
 
     def test_run_tests_success_minimal_args(
         self,
@@ -762,3 +741,339 @@ class TestRunTestsCommand:
         assert result.exit_code == 1
         assert "API creation failed" in result.output
         mock_api_client.aclose.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestParseExtraArgs:
+    """Test cases for the _parse_extra_args function."""
+
+    def test_parse_extra_args_single_argument(self) -> None:
+        """Test parsing a single extra argument."""
+        # Arrange
+        args = ["--int-arg", "endpoint:2"]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {"int-arg": "endpoint:2"}
+
+    def test_parse_extra_args_multiple_arguments(self) -> None:
+        """Test parsing multiple extra arguments."""
+        # Arrange
+        args = ["--int-arg", "endpoint:2", "--bool-arg", "flag:true"]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {"int-arg": "endpoint:2", "bool-arg": "flag:true"}
+
+    def test_parse_extra_args_with_short_flags(self) -> None:
+        """Test parsing extra arguments with short flags."""
+        # Arrange
+        args = ["-a", "value1", "-b", "value2"]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {"a": "value1", "b": "value2"}
+
+    def test_parse_extra_args_mixed_long_and_short(self) -> None:
+        """Test parsing mixed long and short flags."""
+        # Arrange
+        args = ["--long-arg", "value1", "-s", "value2"]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {"long-arg": "value1", "s": "value2"}
+
+    def test_parse_extra_args_flag_without_value(self) -> None:
+        """Test parsing flag without value (sets to empty string)."""
+        # Arrange
+        args = ["--bool-flag", "--another-arg", "value"]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {"bool-flag": "", "another-arg": "value"}
+
+    def test_parse_extra_args_empty_list(self) -> None:
+        """Test parsing empty args list."""
+        # Arrange
+        args = []
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {}
+
+    def test_parse_extra_args_complex_values(self) -> None:
+        """Test parsing arguments with complex values."""
+        # Arrange
+        args = [
+            "--string-arg", "PICS_SC_2_2:false",
+            "--json-arg", '{"key":"value"}',
+            "--numeric-arg", "nodeId:305414945",
+        ]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {
+            "string-arg": "PICS_SC_2_2:false",
+            "json-arg": '{"key":"value"}',
+            "numeric-arg": "nodeId:305414945",
+        }
+
+    def test_parse_extra_args_colons_in_values(self) -> None:
+        """Test parsing SDK test parameter format with colons."""
+        # Arrange
+        args = [
+            "--int-arg", "endpoint:2",
+            "--string-arg", "discriminator:1234",
+            "--bool-arg", "someBoolFlag:true",
+        ]
+
+        # Act
+        result = _parse_extra_args(args)
+
+        # Assert
+        assert result == {
+            "int-arg": "endpoint:2",
+            "string-arg": "discriminator:1234",
+            "bool-arg": "someBoolFlag:true",
+        }
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestRunTestsWithExtraArgs:
+    """Test cases for run_tests command with extra arguments feature."""
+
+    def test_run_tests_with_extra_args_basic(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """Test run tests with basic extra arguments."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            # Act
+            result = cli_runner.invoke(run_tests, [
+                "--tests-list", "TC-ACE-1.1",
+                "--", "--int-arg", "endpoint:2"
+            ])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Extra SDK Test Parameters" in result.output
+        assert "endpoint:2" in result.output
+
+    def test_run_tests_with_multiple_extra_args(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """Test run tests with multiple extra arguments."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            # Act
+            result = cli_runner.invoke(run_tests, [
+                "--tests-list", "TC-ACE-1.1",
+                "--",
+                "--int-arg", "endpoint:2",
+                "--bool-arg", "flag:true",
+                "--string-arg", "discriminator:1234"
+            ])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "endpoint:2" in result.output
+        assert "flag:true" in result.output
+        assert "discriminator:1234" in result.output
+
+    def test_run_tests_without_extra_args(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """Test run tests without extra arguments (normal behavior)."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            # Act
+            result = cli_runner.invoke(run_tests, [
+                "--tests-list", "TC-ACE-1.1"
+            ])
+
+        # Assert
+        assert result.exit_code == 0
+        # Should not show extra args message when no extra args provided
+        assert "Extra SDK Test Parameters" not in result.output
+
+    def test_run_tests_extra_args_with_config_file(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+        mock_json_config_file,
+    ) -> None:
+        """Test run tests with both config file and extra arguments."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            # Act
+            result = cli_runner.invoke(run_tests, [
+                "--tests-list", "TC-ACE-1.1",
+                "--config", str(mock_json_config_file),
+                "--", "--int-arg", "endpoint:2"
+            ])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "CLI Test Run Execution Config" in result.output
+        assert "Extra SDK Test Parameters" in result.output
+
+    def test_run_tests_verify_deep_copy_isolation(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """Test that test_run_config uses deepcopy for isolation."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict), \
+            patch("th_cli.commands.run_tests.copy.deepcopy") as mock_deepcopy:
+            
+            # Configure deepcopy to return a new dict
+            mock_deepcopy.return_value = dict(sample_default_config_dict)
+            
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            # Act
+            result = cli_runner.invoke(run_tests, [
+                "--tests-list", "TC-ACE-1.1",
+                "--", "--int-arg", "endpoint:2"
+            ])
+
+        # Assert
+        assert result.exit_code == 0
+        # Verify deepcopy was called to ensure isolation
+        mock_deepcopy.assert_called_once()

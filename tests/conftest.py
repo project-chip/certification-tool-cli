@@ -142,6 +142,26 @@ def mock_pics_dir(temp_dir: Path) -> Path:
     (pics_dir / "test_cluster.xml").write_text(pics_xml_content)
     return pics_dir
 
+@pytest.fixture
+def sample_default_config_dict() -> dict:
+    """Create a sample default configuration dictionary."""
+    return {
+        "network": {
+            "wifi": {
+                "ssid": "default_wifi",
+                "password": "default_password"
+            },
+            "thread": {
+                "operational_dataset_hex": "default_hex"
+            }
+        },
+        "dut_config": {
+            "pairing_mode": "ble-wifi",
+            "setup_code": "20202021",
+            "discriminator": "3840",
+            "trace_log": False
+        }
+    }
 
 @pytest.fixture
 def mock_api_client() -> Mock:

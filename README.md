@@ -59,7 +59,7 @@ Run `th-cli available-tests` to get a list of tests available in Test Harness, p
 
 ### run-tests
 
-Run `th-cli run-tests --tests-list <tests> [--title, -n <title>] [--config, -c <config>] [--pics-config-folder, -p <pics-config-folder>] [--project-id <ID>] [--no-color]` to start a new test execution.
+Run `th-cli run-tests --tests-list <tests> [--title, -n <title>] [--config, -c <config>] [--pics-config-folder, -p <pics-config-folder>] [--project-id <ID>] [--no-color] [-- <extra-sdk-args>]` to start a new test execution.
 
 Required:
 - `--tests-list`: Comma-separated list of test case identifiers (e.g. --tests-list TC-ACE-1.1,TC_ACE_1_3)
@@ -74,6 +74,7 @@ Optional:
 - `--pics-config-folder`: Path to the folder that contains PICS files. If not specified, no PICS file will be used.
 - `--project-id`: Project ID that this test run belongs to. If not provided, uses the default 'CLI Execution Project' in TH.
 - `--no-color`: Disable all colors from the CLI's output text of this test run execution
+- `-- <extra-sdk-args>`: Pass additional arguments directly to the SDK container Python tests. Use the double dash (`--`) separator followed by any SDK test arguments. These arguments will be added to every Python test execution in the run.
 
 **Example config files:**
 
@@ -105,6 +106,36 @@ Full project format (works with all commands):
   }
 }
 ```
+
+**Passing Extra Arguments to SDK Tests:**
+
+You can pass additional arguments directly to the SDK container test execution using the `--` separator. Everything after `--` will be passed as-is to the Python test runner.
+
+Examples:
+```bash
+# Enable trace logging for all tests in the run
+th-cli run-tests -t TC-ACE-1.1 -- --trace-to json:log
+
+# Pass boolean argument
+th-cli run-tests -t TC-ACE-1.1,TC-ACE-1.2 -- --bool-arg flag:true
+
+# Pass multiple extra arguments
+th-cli run-tests -t TC-ACE-1.1 -- --timeout 60 --int-arg some-arg:1 --bool-arg flag:true
+
+# Combine with other CLI options
+th-cli run-tests -t TC-ACE-1.1 --config my-config.json --no-color -- --trace-to json:log
+```
+
+Common SDK test arguments you might want to use:
+- `--endpoint <value>` - Choose the device endpoint
+- `--trace-to json:log` - Enable detailed trace logging
+- `--timeout <seconds>` - Override default test timeout
+- `--int-arg <name>:<value>` - Pass integer argument to test
+- `--bool-arg <name>:<true|false>` - Pass boolean argument to test
+- `--string-arg <name>:<value>` - Pass string argument to test
+- `--hex-arg <name>:<hex-value>` - Pass hex value argument to test
+
+**Note:** These extra arguments are applied to ALL Python tests in the test run. Invalid arguments will cause test failures, so ensure the arguments are valid for the SDK test framework.
 
 ### test-run-execution-history
 
