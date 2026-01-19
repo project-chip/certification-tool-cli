@@ -126,7 +126,7 @@ th-cli run-tests -t TC-ACE-1.1 -- --timeout 60 --int-arg some-arg:1 --bool-arg f
 th-cli run-tests -t TC-ACE-1.1 --config my-config.json --no-color -- --trace-to json:log
 ```
 
-Common SDK test arguments you might want to use:
+Common SDK test arguments you might want to use for example:
 - `--endpoint <value>` - Choose the device endpoint
 - `--trace-to json:log` - Enable detailed trace logging
 - `--timeout <seconds>` - Override default test timeout
@@ -135,7 +135,7 @@ Common SDK test arguments you might want to use:
 - `--string-arg <name>:<value>` - Pass string argument to test
 - `--hex-arg <name>:<hex-value>` - Pass hex value argument to test
 
-**Note:** These extra arguments are applied to ALL Python tests in the test run. Invalid arguments will cause test failures, so ensure the arguments are valid for the SDK test framework.
+**Note:** These extra arguments are applied to ALL Test Cases in the test run. Invalid arguments could cause test failures, so ensure the arguments are valid for the SDK test framework.
 
 ### test-run-execution-history
 
