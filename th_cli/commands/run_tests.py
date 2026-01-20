@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2026 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import asyncio
+import copy
 import datetime
 import json
 from typing import Any
@@ -53,6 +54,7 @@ JSON_INDENT = 2
     no_args_is_help=True,
     short_help=colorize_help("CLI execution of a test run"),
     help=colorize_cmd_help("run_tests", "CLI execution of a test run from selected tests"),
+    context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
 )
 @click.option(
     "--tests-list",
@@ -95,7 +97,9 @@ JSON_INDENT = 2
     help=colorize_help("Disable colored output for test execution status."),
 )
 @async_cmd
+@click.pass_context
 async def run_tests(
+    ctx: click.Context,
     title: str,
     tests_list: str,
     config: str | None = None,
@@ -106,6 +110,7 @@ async def run_tests(
     """Execute a CLI test run from selected test cases.
 
     Args:
+        ctx: Click context containing extra arguments
         title: Name/title for the test run execution
         tests_list: Comma-separated list of test case identifiers
         config: Optional path to JSON configuration file
@@ -116,6 +121,8 @@ async def run_tests(
     Raises:
         CLIError: If there are validation or execution errors
     """
+    # Extract and parse extra arguments from context (args after --)
+    extra_test_params = _parse_extra_args(list(ctx.args)) if ctx.args else {}
 
     # Set color preference if specified
     if no_color:
@@ -152,6 +159,20 @@ async def run_tests(
             project_config_dict = merge_configs(project_config_dict, config_data)
             click.echo(colorize_key_value("CLI Test Run Execution Config", project_config_dict))
 
+        # Create a DEEP copy for this test run execution to avoid modifying the original
+        # This ensures extra parameters only apply to THIS run, not future runs
+        test_run_config = copy.deepcopy(project_config_dict)
+
+        # Merge extra test parameters if provided (temporary for this execution only)
+        if extra_test_params:
+            click.echo(colorize_key_value(
+                "Extra SDK Test Parameters (This Run Only)",
+                json.dumps(extra_test_params, indent=JSON_INDENT)
+            ))
+            if "test_parameters" not in test_run_config:
+                test_run_config["test_parameters"] = {}
+            test_run_config["test_parameters"].update(extra_test_params)
+
         # Read PICS configuration if provided
         pics = read_pics_config(pics_config_folder)
         click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
@@ -167,10 +188,11 @@ async def run_tests(
             selected_tests=selected_tests_dict,
             title=title,
             config=project_config_dict,
+            execution_config=test_run_config,
             pics=pics,
             project_id=project_id,
         )
-        socket = TestRunSocket(new_test_run, project_config_dict)
+        socket = TestRunSocket(new_test_run, test_run_config)
         socket_task = asyncio.create_task(socket.connect_websocket())
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
@@ -214,11 +236,58 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
     return await projects_api.default_config_api_v1_projects_default_config_get()
 
 
+def _parse_extra_args(args: list[str]) -> dict[str, str]:
+    """Parse extra arguments from -- separator into test_parameters format.
+
+    Converts arguments as ['--int-arg', 'some-arg:2', '--bool-arg', 'flag:true']
+    into {'int-arg': 'some-arg:2', 'bool-arg': 'flag:true'}
+
+    Args:
+        args: List of arguments after the -- separator
+
+    Returns:
+        Dictionary of parameter name to value mappings
+    """
+    params: dict[str, str] = {}
+    i = 0
+
+    while i < len(args):
+        arg = args[i]
+
+        # Skip non-flag arguments or subsequent --
+        if not arg.startswith('-') or arg == "--":
+            i += 1
+            continue
+
+        # Extract parameter name (remove leading dashes)
+        if arg.startswith('--'):
+            param_name = arg[2:]
+        else:
+            param_name = arg[1:]
+
+        # Check if next argument exists and is a value (not a flag)
+        has_value = (
+            i + 1 < len(args)
+            and not args[i + 1].startswith('-')
+        )
+
+        if has_value:
+            params[param_name] = args[i + 1]
+            i += 2  # Skip both parameter and value
+        else:
+            # Flag without value (e.g., --verbose)
+            params[param_name] = ""
+            i += 1
+
+    return params
+
+
 async def _create_new_test_run_cli(
     async_apis: AsyncApis,
     selected_tests: dict[str, Any],
     title: str,
     config: dict[str, Any] | None = None,
+    execution_config: dict[str, Any] | None = None,
     pics: dict[str, Any] | None = None,
     project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
@@ -228,7 +297,8 @@ async def _create_new_test_run_cli(
         async_apis: AsyncApis instance for making API calls
         selected_tests: Dictionary of selected test cases
         title: Title for the test run
-        config: Optional configuration dictionary
+        config: Optional configuration that updates project (persistent)
+        execution_config: Optional execution-specific configuration (temporary)
         pics: Optional PICS configuration dictionary
         project_id: Optional project ID
 
@@ -242,7 +312,11 @@ async def _create_new_test_run_cli(
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
     json_body = m.BodyCreateTestRunExecutionCliApiV1TestRunExecutionsCliPost(
-        test_run_execution_in=test_run_in, selected_tests=selected_tests, config=config, pics=pics
+        test_run_execution_in=test_run_in,
+        selected_tests=selected_tests,
+        config=config,
+        execution_config=execution_config,
+        pics=pics
     )
 
     try:

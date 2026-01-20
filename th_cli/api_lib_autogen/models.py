@@ -29,6 +29,7 @@ class BodyCreateTestRunExecutionApiV1TestRunExecutionsPost(BaseModel):
 
 class BodyCreateTestRunExecutionCliApiV1TestRunExecutionsCliPost(BodyCreateTestRunExecutionApiV1TestRunExecutionsPost):
     config: "Dict[str, Any]" = Field(default_factory=dict, alias="config")
+    execution_config: "dict[str, Any] | None" = Field(None, alias="execution_config")
     pics: "Optional[Dict[str, Any]]" = Field(None, alias="pics")
 
 
@@ -194,13 +195,15 @@ class TestRunExecutionStats(BaseModel):
 
 class TestRunExecutionWithChildren(BaseModel):
     title: "str" = Field(..., alias="title")
+    description: "str | None" = Field(None, alias="description")
+    execution_config: "dict[str, Any] | None" = Field(None, alias="execution_config")
     test_run_config_id: "Optional[int]" = Field(None, alias="test_run_config_id")
     project_id: "Optional[int]" = Field(None, alias="project_id")
-    description: "Optional[str]" = Field(None, alias="description")
     id: "int" = Field(..., alias="id")
     state: "TestStateEnum" = Field(..., alias="state")
     started_at: "Optional[datetime]" = Field(None, alias="started_at")
     completed_at: "Optional[datetime]" = Field(None, alias="completed_at")
+    imported_at: "datetime | None" = Field(None, alias="imported_at")
     archived_at: "Optional[datetime]" = Field(None, alias="archived_at")
     operator: "Optional[Operator]" = Field(None, alias="operator")
     test_suite_executions: "Optional[List[TestSuiteExecution]]" = Field(None, alias="test_suite_executions")
