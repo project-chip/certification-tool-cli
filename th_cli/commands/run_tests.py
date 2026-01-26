@@ -169,7 +169,7 @@ async def run_tests(
                 "Extra SDK Test Parameters (This Run Only)",
                 json.dumps(extra_test_params, indent=JSON_INDENT)
             ))
-            if "test_parameters" not in test_run_config:
+            if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
 
