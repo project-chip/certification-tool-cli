@@ -166,9 +166,9 @@ class TestRunSocket:
 
             # Extract version, vendor_id and product_id from test_parameters if available
             test_parameters = self.project_config_dict.get("test_parameters", {})
-            version = test_parameters.get("version")
-            vendor_id = test_parameters.get("vendor_id")
-            product_id = test_parameters.get("product_id")
+            version = test_parameters.get("version") if test_parameters else None
+            vendor_id = test_parameters.get("vendor_id") if test_parameters else None
+            product_id = test_parameters.get("product_id") if test_parameters else None
 
             # Create API client and fetch chip server info
             client = get_client()
