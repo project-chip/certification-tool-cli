@@ -1,30 +1,34 @@
-<!--
- *
- * Copyright (c) 2023 Project CHIP Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
--->
 # TestRunExecutionCreate
+
 
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **title** | **str** |  | 
+**description** | **str** |  | [optional] 
+**execution_config** | [**Any**](.md) |  | [optional] 
+**certification_mode** | **bool** |  | [optional] [default to False]
 **test_run_config_id** | **int** |  | [optional] 
 **project_id** | **int** |  | [optional] 
-**description** | **str** |  | [optional] 
 **operator_id** | **int** |  | [optional] 
 
+## Example
+
+```python
+from api_lib_autogen.models.test_run_execution_create import TestRunExecutionCreate
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of TestRunExecutionCreate from a JSON string
+test_run_execution_create_instance = TestRunExecutionCreate.from_json(json)
+# print the JSON string representation of the object
+print TestRunExecutionCreate.to_json()
+
+# convert the object into a dict
+test_run_execution_create_dict = test_run_execution_create_instance.to_dict()
+# create an instance of TestRunExecutionCreate from a dict
+test_run_execution_create_form_dict = test_run_execution_create.from_dict(test_run_execution_create_dict)
+```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 
 

@@ -25,7 +25,7 @@ INPUT=""
 WORK_DIR=""
 SOURCE_CODE_ONLY="true"
 
-OPENAPI_IMAGE="openapitools/openapi-generator-cli:v4.1.2"
+OPENAPI_IMAGE="openapitools/openapi-generator-cli:v7.0.0"
 
 usage() {
   exitcode="$1"
@@ -82,12 +82,16 @@ generate_in_docker_http() {
     --type-mappings array=List,uuid=UUID,file=IO,object=Any \
     -i "${INPUT}" \
     "$@"
+  
+  # Download the OpenAPI spec to the work directory for post-processing
+  echo "Downloading OpenAPI spec for post-processing..."
+  curl -sSL "${INPUT}" -o "$WORK_DIR/openapi-spec.json"
 }
 
 generate_in_docker_file() {
   INPUT_FILE="$(cd "$(dirname "$INPUT")" && pwd )"/"$(basename "$INPUT")"
 
-  docker run --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local -v "${INPUT_FILE}":/openapi.json \
+  docker run --platform linux/arm64 --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local -v "${INPUT_FILE}":/openapi.json \
     $OPENAPI_IMAGE generate \
     -g python \
     -o /generator-output \
@@ -97,6 +101,10 @@ generate_in_docker_file() {
     --type-mappings array=List,uuid=UUID,file=IO,object=Any \
     -i /openapi.json \
     "$@"
+  
+  # Copy the OpenAPI spec to the work directory for post-processing
+  echo "Copying OpenAPI spec for post-processing..."
+  cp "${INPUT_FILE}" "$WORK_DIR/openapi-spec.json"
 }
 
 while [ $# -gt 0 ]; do

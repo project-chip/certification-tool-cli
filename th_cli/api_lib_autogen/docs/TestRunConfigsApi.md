@@ -1,19 +1,3 @@
-<!--
- *
- * Copyright (c) 2023 Project CHIP Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
--->
 # api_lib_autogen.TestRunConfigsApi
 
 All URIs are relative to *http://localhost*
@@ -36,23 +20,37 @@ Create new test run config.
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.test_run_config import TestRunConfig
+from api_lib_autogen.models.test_run_config_create import TestRunConfigCreate
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.TestRunConfigsApi()
-test_run_config_create = api_lib_autogen.TestRunConfigCreate() # TestRunConfigCreate | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Create Test Run Config
-    api_response = api_instance.create_test_run_config_api_v1_test_run_configs_post(test_run_config_create)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling TestRunConfigsApi->create_test_run_config_api_v1_test_run_configs_post: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.TestRunConfigsApi(api_client)
+    test_run_config_create = api_lib_autogen.TestRunConfigCreate() # TestRunConfigCreate | 
+
+    try:
+        # Create Test Run Config
+        api_response = api_instance.create_test_run_config_api_v1_test_run_configs_post(test_run_config_create)
+        print("The response of TestRunConfigsApi->create_test_run_config_api_v1_test_run_configs_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling TestRunConfigsApi->create_test_run_config_api_v1_test_run_configs_post: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -91,23 +89,36 @@ Get test run config by ID.
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.test_run_config import TestRunConfig
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.TestRunConfigsApi()
-id = 56 # int | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Read Test Run Config
-    api_response = api_instance.read_test_run_config_api_v1_test_run_configs_id_get(id)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling TestRunConfigsApi->read_test_run_config_api_v1_test_run_configs_id_get: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.TestRunConfigsApi(api_client)
+    id = 56 # int | 
+
+    try:
+        # Read Test Run Config
+        api_response = api_instance.read_test_run_config_api_v1_test_run_configs_id_get(id)
+        print("The response of TestRunConfigsApi->read_test_run_config_api_v1_test_run_configs_id_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling TestRunConfigsApi->read_test_run_config_api_v1_test_run_configs_id_get: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -146,24 +157,37 @@ Retrieve test_run_configs.
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.test_run_config import TestRunConfig
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.TestRunConfigsApi()
-skip = 0 # int |  (optional) (default to 0)
-limit = 100 # int |  (optional) (default to 100)
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Read Test Run Configs
-    api_response = api_instance.read_test_run_configs_api_v1_test_run_configs_get(skip=skip, limit=limit)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling TestRunConfigsApi->read_test_run_configs_api_v1_test_run_configs_get: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.TestRunConfigsApi(api_client)
+    skip = 0 # int |  (optional) (default to 0)
+    limit = 100 # int |  (optional) (default to 100)
+
+    try:
+        # Read Test Run Configs
+        api_response = api_instance.read_test_run_configs_api_v1_test_run_configs_get(skip=skip, limit=limit)
+        print("The response of TestRunConfigsApi->read_test_run_configs_api_v1_test_run_configs_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling TestRunConfigsApi->read_test_run_configs_api_v1_test_run_configs_get: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -203,24 +227,38 @@ Update a test run config.
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.test_run_config import TestRunConfig
+from api_lib_autogen.models.test_run_config_update import TestRunConfigUpdate
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.TestRunConfigsApi()
-id = 56 # int | 
-test_run_config_update = api_lib_autogen.TestRunConfigUpdate() # TestRunConfigUpdate | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Update Test Run Config
-    api_response = api_instance.update_test_run_config_api_v1_test_run_configs_id_put(id, test_run_config_update)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling TestRunConfigsApi->update_test_run_config_api_v1_test_run_configs_id_put: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.TestRunConfigsApi(api_client)
+    id = 56 # int | 
+    test_run_config_update = api_lib_autogen.TestRunConfigUpdate() # TestRunConfigUpdate | 
+
+    try:
+        # Update Test Run Config
+        api_response = api_instance.update_test_run_config_api_v1_test_run_configs_id_put(id, test_run_config_update)
+        print("The response of TestRunConfigsApi->update_test_run_config_api_v1_test_run_configs_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling TestRunConfigsApi->update_test_run_config_api_v1_test_run_configs_id_put: %s\n" % e)
 ```
+
+
 
 ### Parameters
 

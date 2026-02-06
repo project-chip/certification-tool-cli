@@ -1,19 +1,3 @@
-<!--
- *
- * Copyright (c) 2023 Project CHIP Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
--->
 # api_lib_autogen.OperatorsApi
 
 All URIs are relative to *http://localhost*
@@ -37,23 +21,37 @@ Create new operator.  Args:     operator_in (OperatorCreate): Parameters for new
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.operator import Operator
+from api_lib_autogen.models.operator_create import OperatorCreate
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.OperatorsApi()
-operator_create = api_lib_autogen.OperatorCreate() # OperatorCreate | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Create Operator
-    api_response = api_instance.create_operator_api_v1_operators_post(operator_create)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling OperatorsApi->create_operator_api_v1_operators_post: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.OperatorsApi(api_client)
+    operator_create = api_lib_autogen.OperatorCreate() # OperatorCreate | 
+
+    try:
+        # Create Operator
+        api_response = api_instance.create_operator_api_v1_operators_post(operator_create)
+        print("The response of OperatorsApi->create_operator_api_v1_operators_post:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling OperatorsApi->create_operator_api_v1_operators_post: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -92,23 +90,36 @@ Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPExcepti
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.operator import Operator
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.OperatorsApi()
-id = 56 # int | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Delete Operator
-    api_response = api_instance.delete_operator_api_v1_operators_id_delete(id)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling OperatorsApi->delete_operator_api_v1_operators_id_delete: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.OperatorsApi(api_client)
+    id = 56 # int | 
+
+    try:
+        # Delete Operator
+        api_response = api_instance.delete_operator_api_v1_operators_id_delete(id)
+        print("The response of OperatorsApi->delete_operator_api_v1_operators_id_delete:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling OperatorsApi->delete_operator_api_v1_operators_id_delete: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -147,23 +158,36 @@ Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPExcepti
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.operator import Operator
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.OperatorsApi()
-id = 56 # int | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Read Operator
-    api_response = api_instance.read_operator_api_v1_operators_id_get(id)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling OperatorsApi->read_operator_api_v1_operators_id_get: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.OperatorsApi(api_client)
+    id = 56 # int | 
+
+    try:
+        # Read Operator
+        api_response = api_instance.read_operator_api_v1_operators_id_get(id)
+        print("The response of OperatorsApi->read_operator_api_v1_operators_id_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling OperatorsApi->read_operator_api_v1_operators_id_get: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -202,24 +226,37 @@ Retrive list of operators.  Args:     skip (int, optional): Pagination offset. D
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.operator import Operator
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.OperatorsApi()
-skip = 0 # int |  (optional) (default to 0)
-limit = 100 # int |  (optional) (default to 100)
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Read Operators
-    api_response = api_instance.read_operators_api_v1_operators_get(skip=skip, limit=limit)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling OperatorsApi->read_operators_api_v1_operators_get: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.OperatorsApi(api_client)
+    skip = 0 # int |  (optional) (default to 0)
+    limit = 100 # int |  (optional) (default to 100)
+
+    try:
+        # Read Operators
+        api_response = api_instance.read_operators_api_v1_operators_get(skip=skip, limit=limit)
+        print("The response of OperatorsApi->read_operators_api_v1_operators_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling OperatorsApi->read_operators_api_v1_operators_get: %s\n" % e)
 ```
+
+
 
 ### Parameters
 
@@ -259,24 +296,38 @@ Update an existing operator.  Args:     id (int): operator id     operator_in (s
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.operator import Operator
+from api_lib_autogen.models.operator_update import OperatorUpdate
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.OperatorsApi()
-id = 56 # int | 
-operator_update = api_lib_autogen.OperatorUpdate() # OperatorUpdate | 
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Update Operator
-    api_response = api_instance.update_operator_api_v1_operators_id_put(id, operator_update)
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling OperatorsApi->update_operator_api_v1_operators_id_put: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.OperatorsApi(api_client)
+    id = 56 # int | 
+    operator_update = api_lib_autogen.OperatorUpdate() # OperatorUpdate | 
+
+    try:
+        # Update Operator
+        api_response = api_instance.update_operator_api_v1_operators_id_put(id, operator_update)
+        print("The response of OperatorsApi->update_operator_api_v1_operators_id_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling OperatorsApi->update_operator_api_v1_operators_id_put: %s\n" % e)
 ```
+
+
 
 ### Parameters
 

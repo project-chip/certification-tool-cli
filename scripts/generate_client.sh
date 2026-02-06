@@ -24,11 +24,19 @@ export MSYS_NO_PATHCONV=1
 PACKAGE_NAME=api_lib_autogen
 OUTPUT_DIR="th_cli"
 PACKAGE_PATH=$OUTPUT_DIR/$PACKAGE_NAME
+OPENAPI_PATH="."
+OPENAPI_FILE="openapi.json"
+
+if [ -n "$1" ]; then
+  OPENAPI_IP_ADDRESS=$1
+  OPENAPI_PATH="http://$OPENAPI_IP_ADDRESS/api/v1/"
+fi
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
-rm -r $PACKAGE_PATH || true
-./client_generator/scripts/generate.sh -i ./openapi.json -p $PACKAGE_NAME -o $OUTPUT_DIR
-poetry run mypy ./$PACKAGE_PATH
-poetry run black ./$PACKAGE_PATH
+rm -rf $PACKAGE_PATH 2>/dev/null || true
+echo $OPENAPI_PATH/$OPENAPI_FILE
+./client_generator/scripts/generate.sh -i $OPENAPI_PATH/$OPENAPI_FILE -t "/tmp" -p $PACKAGE_NAME -o $OUTPUT_DIR -n $OUTPUT_DIR.$PACKAGE_NAME
+# poetry run mypy ./$PACKAGE_PATH
+# poetry run black ./$PACKAGE_PATH
 poetry run flake8 ./$PACKAGE_PATH
 poetry run isort ./$PACKAGE_PATH

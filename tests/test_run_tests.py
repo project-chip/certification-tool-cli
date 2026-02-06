@@ -47,7 +47,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -94,7 +94,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         projects_api.return_value = sample_default_config_dict
@@ -140,7 +140,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         projects_api.return_value = sample_default_config_dict
@@ -187,7 +187,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         projects_api.return_value = sample_default_config_dict
@@ -226,7 +226,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         projects_api.return_value = sample_default_config_dict
@@ -390,7 +390,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
 
         test_collections_api.return_value = sample_test_collections
         projects_api.return_value = sample_default_config_dict
@@ -429,7 +429,7 @@ class TestRunTestsCommand:
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         test_collections_api.return_value = sample_test_collections
@@ -502,7 +502,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -540,7 +540,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -584,7 +584,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -625,7 +625,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -674,7 +674,7 @@ class TestRunTestsCommand:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -872,7 +872,7 @@ class TestRunTestsWithExtraArgs:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -914,7 +914,7 @@ class TestRunTestsWithExtraArgs:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -960,7 +960,7 @@ class TestRunTestsWithExtraArgs:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -1002,7 +1002,7 @@ class TestRunTestsWithExtraArgs:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict
@@ -1045,7 +1045,7 @@ class TestRunTestsWithExtraArgs:
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
         test_run_executions_api = mock_async_apis.test_run_executions_api
-        cli_api = test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
 
         project_api.return_value = sample_default_config_dict

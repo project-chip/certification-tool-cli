@@ -311,17 +311,18 @@ async def _create_new_test_run_cli(
     click.echo(colorize_key_value("Creating new test run with title", title))
 
     test_run_in = m.TestRunExecutionCreate(title=title, project_id=project_id)
-    json_body = m.BodyCreateTestRunExecutionCliApiV1TestRunExecutionsCliPost(
+    json_body = m.BodyCreateCliTestRunExecutionApiV1TestRunExecutionsCliPost(
         test_run_execution_in=test_run_in,
         selected_tests=selected_tests,
         config=config,
         execution_config=execution_config,
-        pics=pics
+        pics=pics,
+        certification_mode=False,
     )
 
     try:
         test_run_executions_api = async_apis.test_run_executions_api
-        return await test_run_executions_api.create_test_run_execution_cli_api_v1_test_run_executions_cli_post(
+        return await test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post(
             json_body
         )
     except UnexpectedResponse as e:

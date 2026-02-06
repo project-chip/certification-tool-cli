@@ -41,6 +41,7 @@ main() {
   merge_generated_models
   delete_unused
   fix_any_of
+  fix_optional_defaults
   apply_formatters
 }
 
@@ -73,10 +74,30 @@ fix_any_of() {
   find . -name "*.bak" -exec rm {} \;
 }
 
+fix_optional_defaults() {
+  echo "Fixing Optional/default value issues..."
+  # The OpenAPI spec is copied to /generator-output/openapi-spec.json by openapi-generate.sh
+  # The fix script is at /fix_optional_defaults.py (added to Docker image)
+  # The models file is at <PACKAGE_NAME>/models.py
+  if [ -f "/generator-output/openapi-spec.json" ] && [ -f "/fix_optional_defaults.py" ]; then
+    python3 /fix_optional_defaults.py \
+      --openapi-spec /generator-output/openapi-spec.json \
+      --models-file "${PACKAGE_NAME}/models.py"
+    # Clean up the spec file after processing
+    rm /generator-output/openapi-spec.json
+  else
+    echo "Warning: Could not find OpenAPI spec or fix script, skipping Optional/default fixes"
+    echo "  - OpenAPI spec exists: $([ -f /generator-output/openapi-spec.json ] && echo 'yes' || echo 'no')"
+    echo "  - Fix script exists: $([ -f /fix_optional_defaults.py ] && echo 'yes' || echo 'no')"
+  fi
+}
+
 apply_formatters() {
+  echo "Applying code formatters to $PACKAGE_NAME..."
   autoflake --remove-all-unused-imports --recursive --remove-unused-variables --in-place "${PACKAGE_NAME}" --exclude=__init__.py
   isort --float-to-top -w 120 -m 3 --trailing-comma --force-grid-wrap 0 --combine-as -p "${PACKAGE_NAME}" "${PACKAGE_NAME}"
-  black --fast -l 120 --target-version py36 "${PACKAGE_NAME}"
+  # black --fast -l 120 --target-version py310 "${PACKAGE_NAME}"
+  echo "All formatters applied."
 }
 
 while [ $# -gt 0 ]; do

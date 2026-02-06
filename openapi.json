@@ -33,7 +33,7 @@
                     "projects"
                 ],
                 "summary": "Read Projects",
-                "description": "Retrive list of projects\n\nArgs:\n    archived (bool, optional): Get archived projects, when true will; get archived\n        projects only, when false only non-archived projects are returned.\n        Defaults to false.\n    skip (int, optional): Pagination offset. Defaults to 0.\n    limit (int, optional): max number of records to return. Defaults to 100.\n\nReturns:\n    List[Project]: List of projects",
+                "description": "Retrieve list of projects\n\nArgs:\n    archived (bool, optional): Get archived projects, when true will; get archived\n        projects only, when false only non-archived projects are returned.\n        Defaults to false.\n    skip (int, optional): Pagination offset. Defaults to 0.\n    limit (int, optional): max number of records to return. Defaults to 100.\n\nReturns:\n    List[Project]: List of projects",
                 "operationId": "read_projects_api_v1_projects__get",
                 "parameters": [
                     {
@@ -149,7 +149,15 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/TestEnvironmentConfig"
+                                    "title": "Response Default Config Api V1 Projects Default Config Get",
+                                    "anyOf": [
+                                        {
+                                            "type": "object"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestEnvironmentConfig"
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -354,6 +362,239 @@
                         "in": "path"
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Project"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/upload_pics": {
+            "put": {
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Upload Pics",
+                "description": "Upload PICS or dmp-test-skip.xml file of a project based on project identifier.\n\nArgs:\n    id (int): project id\n    file : the PICS or dmp-test-skip.xml file to upload\n\nRaises:\n    HTTPException: if no project exists for provided project id (or)\n                   if the PICS file is invalid\n\nReturns:\n    Project: project record that was updated with the PICS and dmp_test_skip\n    information.",
+                "operationId": "upload_pics_api_v1_projects__id__upload_pics_put",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_upload_pics_api_v1_projects__id__upload_pics_put"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Project"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/pics_cluster_type": {
+            "delete": {
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Remove Pics Cluster Type",
+                "description": "Removes cluster based on given cluster name\n\nArgs:\n    id (int): ID of Project\n    cluster_name (str): Name of the cluster to delete\n\nRaises:\n    HTTPException: if no project exists for provided project id\n\nReturns:\n    models.Project: Project with updated PICS entry",
+                "operationId": "remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Cluster Name",
+                            "type": "string"
+                        },
+                        "name": "cluster_name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Project"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/applicable_test_cases": {
+            "get": {
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Applicable Test Cases",
+                "description": "Retrieve list of applicable test cases based on project identifier.\n\nArgs:\n    id (int): project id\n\nRaises:\n    HTTPException: if no project exists for provided project id\n\nReturns:\n    PICSApplicableTestCases: List of applicable test cases",
+                "operationId": "applicable_test_cases_api_v1_projects__id__applicable_test_cases_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PICSApplicableTestCases"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/export": {
+            "get": {
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Export Project Config",
+                "description": "Exports the project config by id.\n\nArgs:\n    id (int): project id\n\nRaises:\n    HTTPException: if no project exists for provided project id\n\nReturns:\n    JSONResponse: json representation of the project with the informed project id",
+                "operationId": "export_project_config_api_v1_projects__id__export_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProjectCreate"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/import": {
+            "post": {
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Importproject Config",
+                "description": "Imports the project config\n\nArgs:\n    import_file : The project config file to be imported\n\nRaises:\n    ValidationError: if the imported project config contains invalid information\n\nReturns:\n    Project: newly created project record",
+                "operationId": "importproject_config_api_v1_projects_import_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_importproject_config_api_v1_projects_import_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -617,7 +858,7 @@
                     "test_run_executions"
                 ],
                 "summary": "Read Test Run Executions",
-                "description": "Retrieve test runs, including statistics.\n\nArgs:\n    project_id: Filter test runs by project.\n    archived: Get archived test runs, when true will return archived\n        test runs only, when false only non-archived test runs are returned.\n    skip: Pagination offset.\n    limit: Max number of records to return.\n\nReturns:\n    List of test runs with execution statistics.",
+                "description": "Retrieve test runs, including statistics.\n\nArgs:\n    project_id: Filter test runs by project.\n    archived: Get archived test runs, when true will return archived\n        test runs only, when false only non-archived test runs are returned.\n    skip: Pagination offset.\n    limit: Max number of records to return. Set to 0 to return all results.\n    sort_order: Sort order for results. Either \"asc\" or \"desc\". Defaults to \"asc\".\n        Results are sorted by ID.\n\nReturns:\n    List of test runs with execution statistics.",
                 "operationId": "read_test_run_executions_api_v1_test_run_executions__get",
                 "parameters": [
                     {
@@ -667,6 +908,16 @@
                         },
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Sort Order",
+                            "type": "string",
+                            "default": "asc"
+                        },
+                        "name": "sort_order",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -701,8 +952,20 @@
                     "test_run_executions"
                 ],
                 "summary": "Create Test Run Execution",
-                "description": "Create new test run execution.",
+                "description": "Create a new test run execution.",
                 "operationId": "create_test_run_execution_api_v1_test_run_executions__post",
+                "parameters": [
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Certification Mode",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "name": "certification_mode",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -713,6 +976,100 @@
                     },
                     "required": true
                 },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestRunExecutionWithChildren"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/cli": {
+            "post": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Create Cli Test Run Execution",
+                "description": "Creates a new test run execution on CLI request.\n   Attention: if both config and execution_config are provided,\n   only config will be persisted, while execution_config will be for\n   this execution only.\n\nArgs:\n    test_run_execution_in: Test run execution data\n    selected_tests: Selected tests to run\n    config: Configuration parameters that update project (optional, persists)\n    execution_config: Execution-specific config override (optional, temporary)\n    pics: PICS configuration (optional)",
+                "operationId": "create_cli_test_run_execution_api_v1_test_run_executions_cli_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_create_cli_test_run_execution_api_v1_test_run_executions_cli_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestRunExecutionWithChildren"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/{id}/rename": {
+            "put": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Rename Test Run Execution",
+                "description": "Rename the name of a test run execution.",
+                "operationId": "rename_test_run_execution_api_v1_test_run_executions__id__rename_put",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "New Execution Name",
+                            "type": "string"
+                        },
+                        "name": "new_execution_name",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -763,28 +1120,6 @@
                 }
             }
         },
-        "/api/v1/test_run_executions/chip-server/info": {
-            "get": {
-                "tags": [
-                    "test_run_executions"
-                ],
-                "summary": "Get Chip Server Info",
-                "description": "Retrieve ChipServer node ID information.\n\nReturns:\n    ChipServerInfo: Contains node_id (int) and node_id_hex (str) values.",
-                "operationId": "get_chip_server_info_api_v1_test_run_executions_chip_server_info_get",
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ChipServerInfo"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/test_run_executions/status": {
             "get": {
                 "tags": [
@@ -800,6 +1135,88 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/TestRunnerStatus"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/chip-server/info": {
+            "get": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Get Chip Server Info",
+                "description": "Retrieve ChipServer node ID information and generate manual pairing code.\n\nNote: Manual pairing code generation requires the SDK container to be running.\nIf called before the SDK container starts, manual_pairing_code will be None.\n\nArgs:\n    discriminator: Device discriminator (optional)\n    setup_pin_code: Setup PIN code (optional)\n    version: Version number (default: 0)\n    vendor_id: Vendor ID (default: 0)\n    product_id: Product ID (default: 0)\n\nReturns:\n    ChipServerInfo: Contains node_id, node_id_hex, and optional manual_pairing_code.",
+                "operationId": "get_chip_server_info_api_v1_test_run_executions_chip_server_info_get",
+                "parameters": [
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Discriminator",
+                            "type": "string"
+                        },
+                        "name": "discriminator",
+                        "in": "query"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Setup Pin Code",
+                            "type": "string"
+                        },
+                        "name": "setup_pin_code",
+                        "in": "query"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Version",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Vendor Id",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "name": "vendor_id",
+                        "in": "query"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Product Id",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "name": "product_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChipServerInfo"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
                                 }
                             }
                         }
@@ -1020,6 +1437,58 @@
                 }
             }
         },
+        "/api/v1/test_run_executions/{id}/repeat": {
+            "post": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Repeat Test Run Execution",
+                "description": "Repeat a test run execution by id.\n\nArgs:\n    id (int): test run execution id\n    title (str): Optional title to the repeated test run execution. If not provided,\n        the old title will be used with the date and time updated.\n\nRaises:\n    HTTPException: if no test run execution exists for the provided id\n\nReturns:\n    TestRunExecution: new test run execution with the same test cases from id",
+                "operationId": "repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Title",
+                            "type": "string"
+                        },
+                        "name": "title",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestRunExecutionWithChildren"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test_run_executions/{id}/log": {
             "get": {
                 "tags": [
@@ -1076,6 +1545,42 @@
                 }
             }
         },
+        "/api/v1/test_run_executions/{id}/grouped-log": {
+            "get": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Download Grouped Log",
+                "description": "Download the logs from a test run, grouped by test case state.\n\nArgs:\n    id (int): ID of the TestRunExectution the log is requested for\n\nRaises:\n    HTTPException: If there's no TestRunExectution with the given ID\n\nReturns:\n    StreamingResponse: .zip file containing: one file with the list of test cases\n    for each state; one file with the logs from the executed test suites; one file\n    per state with the logs from all test cases that finished with that state",
+                "operationId": "download_grouped_log_api_v1_test_run_executions__id__grouped_log_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test_run_executions/file_upload/": {
             "post": {
                 "tags": [
@@ -1094,6 +1599,162 @@
                     },
                     "required": true
                 },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/{id}/export": {
+            "get": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Export Test Run Execution",
+                "description": "Exports a test run execution by the given ID.",
+                "operationId": "export_test_run_execution_api_v1_test_run_executions__id__export_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "required": false,
+                        "schema": {
+                            "title": "Download",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "name": "download",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExportedTestRunExecution"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/import": {
+            "post": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Import Test Run Execution",
+                "description": "Imports a test run execution to the the given project_id.",
+                "operationId": "import_test_run_execution_api_v1_test_run_executions_import_post",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Project Id",
+                            "type": "integer"
+                        },
+                        "name": "project_id",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_import_test_run_execution_api_v1_test_run_executions_import_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestRunExecutionWithChildren"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test_run_executions/{id}/performance_summary": {
+            "post": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Generate Summary Log",
+                "description": "Imports a test run execution to the the given project_id.",
+                "operationId": "generate_summary_log_api_v1_test_run_executions__id__performance_summary_post",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Project Id",
+                            "type": "integer"
+                        },
+                        "name": "project_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -1171,7 +1832,8 @@
                             }
                         }
                     }
-                }
+                },
+                "deprecated": true
             },
             "post": {
                 "tags": [
@@ -1211,7 +1873,8 @@
                             }
                         }
                     }
-                }
+                },
+                "deprecated": true
             }
         },
         "/api/v1/test_run_configs/{id}": {
@@ -1254,7 +1917,8 @@
                             }
                         }
                     }
-                }
+                },
+                "deprecated": true
             },
             "put": {
                 "tags": [
@@ -1301,6 +1965,29 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "deprecated": true
+            }
+        },
+        "/api/v1/version": {
+            "get": {
+                "tags": [
+                    "version"
+                ],
+                "summary": "Get Test Harness Backend Version",
+                "description": "Retrieve version of the Test Engine.",
+                "operationId": "get_test_harness_backend_version_api_v1_version_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TestHarnessBackendVersion"
                                 }
                             }
                         }
@@ -1418,10 +2105,50 @@
     },
     "components": {
         "schemas": {
+            "Body_create_cli_test_run_execution_api_v1_test_run_executions_cli_post": {
+                "title": "Body_create_cli_test_run_execution_api_v1_test_run_executions_cli_post",
+                "required": [
+                    "test_run_execution_in",
+                    "selected_tests"
+                ],
+                "type": "object",
+                "properties": {
+                    "test_run_execution_in": {
+                        "$ref": "#/components/schemas/TestRunExecutionCreate"
+                    },
+                    "selected_tests": {
+                        "title": "Selected Tests",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "config": {
+                        "title": "Config",
+                        "type": "object"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "pics": {
+                        "title": "Pics",
+                        "type": "object",
+                        "default": {}
+                    }
+                }
+            },
             "Body_create_test_run_execution_api_v1_test_run_executions__post": {
                 "title": "Body_create_test_run_execution_api_v1_test_run_executions__post",
                 "required": [
-                    "test_run_execution_in"
+                    "test_run_execution_in",
+                    "selected_tests"
                 ],
                 "type": "object",
                 "properties": {
@@ -1443,8 +2170,50 @@
                     }
                 }
             },
+            "Body_import_test_run_execution_api_v1_test_run_executions_import_post": {
+                "title": "Body_import_test_run_execution_api_v1_test_run_executions_import_post",
+                "required": [
+                    "import_file"
+                ],
+                "type": "object",
+                "properties": {
+                    "import_file": {
+                        "title": "Import File",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                }
+            },
+            "Body_importproject_config_api_v1_projects_import_post": {
+                "title": "Body_importproject_config_api_v1_projects_import_post",
+                "required": [
+                    "import_file"
+                ],
+                "type": "object",
+                "properties": {
+                    "import_file": {
+                        "title": "Import File",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                }
+            },
             "Body_upload_file_api_v1_test_run_executions_file_upload__post": {
                 "title": "Body_upload_file_api_v1_test_run_executions_file_upload__post",
+                "required": [
+                    "file"
+                ],
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "title": "File",
+                        "type": "string",
+                        "format": "binary"
+                    }
+                }
+            },
+            "Body_upload_pics_api_v1_projects__id__upload_pics_put": {
+                "title": "Body_upload_pics_api_v1_projects__id__upload_pics_put",
                 "required": [
                     "file"
                 ],
@@ -1472,50 +2241,35 @@
                     "node_id_hex": {
                         "title": "Node Id Hex",
                         "type": "string"
+                    },
+                    "manual_pairing_code": {
+                        "title": "Manual Pairing Code",
+                        "type": "string"
                     }
                 },
-                "description": "Schema for ChipServer information."
+                "description": "Schema for ChipServer information.",
+                "example": {
+                    "node_id": 1234567890,
+                    "node_id_hex": "0x499602d2",
+                    "manual_pairing_code": "34970112332"
+                }
             },
-            "DutConfig": {
-                "title": "DutConfig",
+            "ExportedTestRunExecution": {
+                "title": "ExportedTestRunExecution",
                 "required": [
-                    "discriminator",
-                    "setup_code",
-                    "pairing_mode"
+                    "db_revision",
+                    "test_run_execution"
                 ],
                 "type": "object",
                 "properties": {
-                    "discriminator": {
-                        "title": "Discriminator",
+                    "db_revision": {
+                        "title": "Db Revision",
                         "type": "string"
                     },
-                    "setup_code": {
-                        "title": "Setup Code",
-                        "type": "string"
-                    },
-                    "pairing_mode": {
-                        "$ref": "#/components/schemas/DutPairingModeEnum"
-                    },
-                    "ip_address": {
-                        "title": "Ip Address",
-                        "type": "string"
-                    },
-                    "port": {
-                        "title": "Port",
-                        "type": "string"
+                    "test_run_execution": {
+                        "$ref": "#/components/schemas/TestRunExecutionToExport"
                     }
                 }
-            },
-            "DutPairingModeEnum": {
-                "title": "DutPairingModeEnum",
-                "enum": [
-                    "ethernet",
-                    "onnetwork",
-                    "ble-wifi",
-                    "ble-thread"
-                ],
-                "type": "string",
-                "description": "An enumeration."
             },
             "HTTPValidationError": {
                 "title": "HTTPValidationError",
@@ -1540,30 +2294,6 @@
                     "msg": {
                         "title": "Msg",
                         "type": "string"
-                    }
-                }
-            },
-            "NetworkConfig": {
-                "title": "NetworkConfig",
-                "required": [
-                    "wifi",
-                    "thread"
-                ],
-                "type": "object",
-                "properties": {
-                    "wifi": {
-                        "$ref": "#/components/schemas/WiFiConfig"
-                    },
-                    "thread": {
-                        "title": "Thread",
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/ThreadAutoConfig"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ThreadExternalConfig"
-                            }
-                        ]
                     }
                 }
             },
@@ -1600,6 +2330,20 @@
                 },
                 "description": "Create schema.\n\nName is required for new Operators."
             },
+            "OperatorToExport": {
+                "title": "OperatorToExport",
+                "required": [
+                    "name"
+                ],
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    }
+                },
+                "description": "Base schema for Operator, with shared properties."
+            },
             "OperatorUpdate": {
                 "title": "OperatorUpdate",
                 "type": "object",
@@ -1610,6 +2354,75 @@
                     }
                 },
                 "description": "Update Schema.\n\nSame as the base schema, only name can be changed"
+            },
+            "PICS": {
+                "title": "PICS",
+                "type": "object",
+                "properties": {
+                    "clusters": {
+                        "title": "Clusters",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/PICSCluster"
+                        },
+                        "default": {}
+                    }
+                }
+            },
+            "PICSApplicableTestCases": {
+                "title": "PICSApplicableTestCases",
+                "required": [
+                    "test_cases"
+                ],
+                "type": "object",
+                "properties": {
+                    "test_cases": {
+                        "title": "Test Cases",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "PICSCluster": {
+                "title": "PICSCluster",
+                "required": [
+                    "name"
+                ],
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    },
+                    "items": {
+                        "title": "Items",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/PICSItem"
+                        },
+                        "default": {}
+                    }
+                }
+            },
+            "PICSItem": {
+                "title": "PICSItem",
+                "required": [
+                    "number",
+                    "enabled"
+                ],
+                "type": "object",
+                "properties": {
+                    "number": {
+                        "title": "Number",
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "title": "Enabled",
+                        "type": "boolean"
+                    }
+                }
             },
             "Project": {
                 "title": "Project",
@@ -1626,7 +2439,19 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/TestEnvironmentConfig"
+                        "title": "Config",
+                        "type": "object"
+                    },
+                    "pics": {
+                        "title": "Pics",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PICS"
+                            }
+                        ],
+                        "default": {
+                            "clusters": {}
+                        }
                     },
                     "id": {
                         "title": "Id",
@@ -1661,7 +2486,19 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/TestEnvironmentConfig"
+                        "title": "Config",
+                        "type": "object"
+                    },
+                    "pics": {
+                        "title": "Pics",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PICS"
+                            }
+                        ],
+                        "default": {
+                            "clusters": {}
+                        }
                     }
                 }
             },
@@ -1674,7 +2511,11 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/TestEnvironmentConfig"
+                        "title": "Config",
+                        "type": "object"
+                    },
+                    "pics": {
+                        "$ref": "#/components/schemas/PICS"
                     }
                 }
             },
@@ -1695,9 +2536,10 @@
                 "required": [
                     "state",
                     "public_id",
+                    "execution_index",
+                    "id",
                     "test_suite_execution_id",
                     "test_case_metadata_id",
-                    "id",
                     "test_case_metadata",
                     "test_step_executions"
                 ],
@@ -1710,16 +2552,20 @@
                         "title": "Public Id",
                         "type": "string"
                     },
+                    "execution_index": {
+                        "title": "Execution Index",
+                        "type": "integer"
+                    },
+                    "id": {
+                        "title": "Id",
+                        "type": "integer"
+                    },
                     "test_suite_execution_id": {
                         "title": "Test Suite Execution Id",
                         "type": "integer"
                     },
                     "test_case_metadata_id": {
                         "title": "Test Case Metadata Id",
-                        "type": "integer"
-                    },
-                    "id": {
-                        "title": "Id",
                         "type": "integer"
                     },
                     "started_at": {
@@ -1748,6 +2594,63 @@
                         "items": {
                             "$ref": "#/components/schemas/TestStepExecution"
                         }
+                    }
+                }
+            },
+            "TestCaseExecutionToExport": {
+                "title": "TestCaseExecutionToExport",
+                "required": [
+                    "state",
+                    "public_id",
+                    "execution_index",
+                    "test_case_metadata",
+                    "test_step_executions",
+                    "created_at"
+                ],
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "$ref": "#/components/schemas/TestStateEnum"
+                    },
+                    "public_id": {
+                        "title": "Public Id",
+                        "type": "string"
+                    },
+                    "execution_index": {
+                        "title": "Execution Index",
+                        "type": "integer"
+                    },
+                    "started_at": {
+                        "title": "Started At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completed_at": {
+                        "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "errors": {
+                        "title": "Errors",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "test_case_metadata": {
+                        "$ref": "#/components/schemas/TestCaseMetadataBase"
+                    },
+                    "test_step_executions": {
+                        "title": "Test Step Executions",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TestStepExecutionToExport"
+                        }
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
                     }
                 }
             },
@@ -1783,9 +2686,52 @@
                         "title": "Source Hash",
                         "type": "string"
                     },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "id": {
                         "title": "Id",
                         "type": "integer"
+                    }
+                }
+            },
+            "TestCaseMetadataBase": {
+                "title": "TestCaseMetadataBase",
+                "required": [
+                    "public_id",
+                    "title",
+                    "description",
+                    "version",
+                    "source_hash"
+                ],
+                "type": "object",
+                "properties": {
+                    "public_id": {
+                        "title": "Public Id",
+                        "type": "string"
+                    },
+                    "title": {
+                        "title": "Title",
+                        "type": "string"
+                    },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "version": {
+                        "title": "Version",
+                        "type": "string"
+                    },
+                    "source_hash": {
+                        "title": "Source Hash",
+                        "type": "string"
+                    },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
                     }
                 }
             },
@@ -1833,17 +2779,44 @@
             },
             "TestEnvironmentConfig": {
                 "title": "TestEnvironmentConfig",
+                "type": "object",
+                "properties": {
+                    "test_parameters": {
+                        "title": "Test Parameters",
+                        "type": "object"
+                    }
+                }
+            },
+            "TestHarnessBackendVersion": {
+                "title": "TestHarnessBackendVersion",
                 "required": [
-                    "network",
-                    "dut_config"
+                    "version",
+                    "sha",
+                    "sdk_sha",
+                    "sdk_docker_tag",
+                    "db_revision"
                 ],
                 "type": "object",
                 "properties": {
-                    "network": {
-                        "$ref": "#/components/schemas/NetworkConfig"
+                    "version": {
+                        "title": "Version",
+                        "type": "string"
                     },
-                    "dut_config": {
-                        "$ref": "#/components/schemas/DutConfig"
+                    "sha": {
+                        "title": "Sha",
+                        "type": "string"
+                    },
+                    "sdk_sha": {
+                        "title": "Sdk Sha",
+                        "type": "string"
+                    },
+                    "sdk_docker_tag": {
+                        "title": "Sdk Docker Tag",
+                        "type": "string"
+                    },
+                    "db_revision": {
+                        "title": "Db Revision",
+                        "type": "string"
                     }
                 }
             },
@@ -1872,6 +2845,11 @@
                     "description": {
                         "title": "Description",
                         "type": "string"
+                    },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
                     }
                 }
             },
@@ -1944,6 +2922,44 @@
                     }
                 }
             },
+            "TestRunConfigToExport": {
+                "title": "TestRunConfigToExport",
+                "required": [
+                    "name",
+                    "dut_name",
+                    "created_at"
+                ],
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "type": "string"
+                    },
+                    "dut_name": {
+                        "title": "Dut Name",
+                        "type": "string"
+                    },
+                    "selected_tests": {
+                        "title": "Selected Tests",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "default": {}
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
             "TestRunConfigUpdate": {
                 "title": "TestRunConfigUpdate",
                 "required": [
@@ -1970,6 +2986,19 @@
                         "title": "Title",
                         "type": "string"
                     },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "test_run_config_id": {
                         "title": "Test Run Config Id",
                         "type": "integer"
@@ -1977,10 +3006,6 @@
                     "project_id": {
                         "title": "Project Id",
                         "type": "integer"
-                    },
-                    "description": {
-                        "title": "Description",
-                        "type": "string"
                     },
                     "id": {
                         "title": "Id",
@@ -1996,6 +3021,11 @@
                     },
                     "completed_at": {
                         "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "imported_at": {
+                        "title": "Imported At",
                         "type": "string",
                         "format": "date-time"
                     },
@@ -2020,6 +3050,19 @@
                         "title": "Title",
                         "type": "string"
                     },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "test_run_config_id": {
                         "title": "Test Run Config Id",
                         "type": "integer"
@@ -2027,10 +3070,6 @@
                     "project_id": {
                         "title": "Project Id",
                         "type": "integer"
-                    },
-                    "description": {
-                        "title": "Description",
-                        "type": "string"
                     },
                     "operator_id": {
                         "title": "Operator Id",
@@ -2051,6 +3090,19 @@
                         "title": "Title",
                         "type": "string"
                     },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "test_run_config_id": {
                         "title": "Test Run Config Id",
                         "type": "integer"
@@ -2058,10 +3110,6 @@
                     "project_id": {
                         "title": "Project Id",
                         "type": "integer"
-                    },
-                    "description": {
-                        "title": "Description",
-                        "type": "string"
                     },
                     "id": {
                         "title": "Id",
@@ -2077,6 +3125,11 @@
                     },
                     "completed_at": {
                         "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "imported_at": {
+                        "title": "Imported At",
                         "type": "string",
                         "format": "date-time"
                     },
@@ -2106,6 +3159,78 @@
                     }
                 }
             },
+            "TestRunExecutionToExport": {
+                "title": "TestRunExecutionToExport",
+                "required": [
+                    "title",
+                    "state",
+                    "created_at",
+                    "log"
+                ],
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "title": "Title",
+                        "type": "string"
+                    },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/TestStateEnum"
+                    },
+                    "started_at": {
+                        "title": "Started At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completed_at": {
+                        "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "archived_at": {
+                        "title": "Archived At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "test_suite_executions": {
+                        "title": "Test Suite Executions",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TestSuiteExecutionToExport"
+                        }
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "log": {
+                        "title": "Log",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TestRunLogEntry"
+                        }
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/OperatorToExport"
+                    },
+                    "test_run_config": {
+                        "$ref": "#/components/schemas/TestRunConfigToExport"
+                    }
+                }
+            },
             "TestRunExecutionWithChildren": {
                 "title": "TestRunExecutionWithChildren",
                 "required": [
@@ -2119,6 +3244,19 @@
                         "title": "Title",
                         "type": "string"
                     },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "test_run_config_id": {
                         "title": "Test Run Config Id",
                         "type": "integer"
@@ -2126,10 +3264,6 @@
                     "project_id": {
                         "title": "Project Id",
                         "type": "integer"
-                    },
-                    "description": {
-                        "title": "Description",
-                        "type": "string"
                     },
                     "id": {
                         "title": "Id",
@@ -2145,6 +3279,11 @@
                     },
                     "completed_at": {
                         "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "imported_at": {
+                        "title": "Imported At",
                         "type": "string",
                         "format": "date-time"
                     },
@@ -2179,6 +3318,19 @@
                         "title": "Title",
                         "type": "string"
                     },
+                    "description": {
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "execution_config": {
+                        "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "certification_mode": {
+                        "title": "Certification Mode",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "test_run_config_id": {
                         "title": "Test Run Config Id",
                         "type": "integer"
@@ -2186,10 +3338,6 @@
                     "project_id": {
                         "title": "Project Id",
                         "type": "integer"
-                    },
-                    "description": {
-                        "title": "Description",
-                        "type": "string"
                     },
                     "id": {
                         "title": "Id",
@@ -2208,6 +3356,11 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "imported_at": {
+                        "title": "Imported At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "archived_at": {
                         "title": "Archived At",
                         "type": "string",
@@ -2218,6 +3371,41 @@
                     },
                     "test_case_stats": {
                         "$ref": "#/components/schemas/TestRunExecutionStats"
+                    }
+                }
+            },
+            "TestRunLogEntry": {
+                "title": "TestRunLogEntry",
+                "required": [
+                    "level",
+                    "timestamp",
+                    "message"
+                ],
+                "type": "object",
+                "properties": {
+                    "level": {
+                        "title": "Level",
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "title": "Timestamp",
+                        "type": "number"
+                    },
+                    "message": {
+                        "title": "Message",
+                        "type": "string"
+                    },
+                    "test_suite_execution_index": {
+                        "title": "Test Suite Execution Index",
+                        "type": "integer"
+                    },
+                    "test_case_execution_index": {
+                        "title": "Test Case Execution Index",
+                        "type": "integer"
+                    },
+                    "test_step_execution_index": {
+                        "title": "Test Step Execution Index",
+                        "type": "integer"
                     }
                 }
             },
@@ -2267,8 +3455,9 @@
                 "required": [
                     "state",
                     "title",
-                    "test_case_execution_id",
-                    "id"
+                    "execution_index",
+                    "id",
+                    "test_case_execution_id"
                 ],
                 "type": "object",
                 "properties": {
@@ -2279,12 +3468,16 @@
                         "title": "Title",
                         "type": "string"
                     },
-                    "test_case_execution_id": {
-                        "title": "Test Case Execution Id",
+                    "execution_index": {
+                        "title": "Execution Index",
                         "type": "integer"
                     },
                     "id": {
                         "title": "Id",
+                        "type": "integer"
+                    },
+                    "test_case_execution_id": {
+                        "title": "Test Case Execution Id",
                         "type": "integer"
                     },
                     "started_at": {
@@ -2313,6 +3506,58 @@
                     }
                 }
             },
+            "TestStepExecutionToExport": {
+                "title": "TestStepExecutionToExport",
+                "required": [
+                    "state",
+                    "title",
+                    "execution_index",
+                    "created_at"
+                ],
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "$ref": "#/components/schemas/TestStateEnum"
+                    },
+                    "title": {
+                        "title": "Title",
+                        "type": "string"
+                    },
+                    "execution_index": {
+                        "title": "Execution Index",
+                        "type": "integer"
+                    },
+                    "started_at": {
+                        "title": "Started At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completed_at": {
+                        "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "errors": {
+                        "title": "Errors",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "failures": {
+                        "title": "Failures",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
             "TestSuite": {
                 "title": "TestSuite",
                 "required": [
@@ -2338,9 +3583,11 @@
                 "required": [
                     "state",
                     "public_id",
+                    "execution_index",
+                    "collection_id",
+                    "id",
                     "test_run_execution_id",
                     "test_suite_metadata_id",
-                    "id",
                     "test_case_executions",
                     "test_suite_metadata"
                 ],
@@ -2353,16 +3600,29 @@
                         "title": "Public Id",
                         "type": "string"
                     },
+                    "execution_index": {
+                        "title": "Execution Index",
+                        "type": "integer"
+                    },
+                    "collection_id": {
+                        "title": "Collection Id",
+                        "type": "string"
+                    },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "id": {
+                        "title": "Id",
+                        "type": "integer"
+                    },
                     "test_run_execution_id": {
                         "title": "Test Run Execution Id",
                         "type": "integer"
                     },
                     "test_suite_metadata_id": {
                         "title": "Test Suite Metadata Id",
-                        "type": "integer"
-                    },
-                    "id": {
-                        "title": "Id",
                         "type": "integer"
                     },
                     "started_at": {
@@ -2391,6 +3651,73 @@
                     },
                     "test_suite_metadata": {
                         "$ref": "#/components/schemas/TestSuiteMetadata"
+                    }
+                }
+            },
+            "TestSuiteExecutionToExport": {
+                "title": "TestSuiteExecutionToExport",
+                "required": [
+                    "state",
+                    "public_id",
+                    "execution_index",
+                    "collection_id",
+                    "test_case_executions",
+                    "test_suite_metadata",
+                    "created_at"
+                ],
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "$ref": "#/components/schemas/TestStateEnum"
+                    },
+                    "public_id": {
+                        "title": "Public Id",
+                        "type": "string"
+                    },
+                    "execution_index": {
+                        "title": "Execution Index",
+                        "type": "integer"
+                    },
+                    "collection_id": {
+                        "title": "Collection Id",
+                        "type": "string"
+                    },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "started_at": {
+                        "title": "Started At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "completed_at": {
+                        "title": "Completed At",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "errors": {
+                        "title": "Errors",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "test_case_executions": {
+                        "title": "Test Case Executions",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TestCaseExecutionToExport"
+                        }
+                    },
+                    "test_suite_metadata": {
+                        "$ref": "#/components/schemas/TestSuiteMetadataBase"
+                    },
+                    "created_at": {
+                        "title": "Created At",
+                        "type": "string",
+                        "format": "date-time"
                     }
                 }
             },
@@ -2426,91 +3753,52 @@
                         "title": "Source Hash",
                         "type": "string"
                     },
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
+                    },
                     "id": {
                         "title": "Id",
                         "type": "integer"
                     }
                 }
             },
-            "ThreadAutoConfig": {
-                "title": "ThreadAutoConfig",
+            "TestSuiteMetadataBase": {
+                "title": "TestSuiteMetadataBase",
                 "required": [
-                    "rcp_serial_path",
-                    "rcp_baudrate",
-                    "on_mesh_prefix",
-                    "network_interface",
-                    "dataset"
+                    "public_id",
+                    "title",
+                    "description",
+                    "version",
+                    "source_hash"
                 ],
                 "type": "object",
                 "properties": {
-                    "rcp_serial_path": {
-                        "title": "Rcp Serial Path",
+                    "public_id": {
+                        "title": "Public Id",
                         "type": "string"
                     },
-                    "rcp_baudrate": {
-                        "title": "Rcp Baudrate",
-                        "type": "integer"
-                    },
-                    "on_mesh_prefix": {
-                        "title": "On Mesh Prefix",
+                    "title": {
+                        "title": "Title",
                         "type": "string"
                     },
-                    "network_interface": {
-                        "title": "Network Interface",
+                    "description": {
+                        "title": "Description",
                         "type": "string"
                     },
-                    "dataset": {
-                        "$ref": "#/components/schemas/ThreadDataset"
-                    },
-                    "otbr_docker_image": {
-                        "title": "Otbr Docker Image",
-                        "type": "string"
-                    }
-                }
-            },
-            "ThreadDataset": {
-                "title": "ThreadDataset",
-                "required": [
-                    "channel",
-                    "panid",
-                    "extpanid",
-                    "networkkey",
-                    "networkname"
-                ],
-                "type": "object",
-                "properties": {
-                    "channel": {
-                        "title": "Channel",
+                    "version": {
+                        "title": "Version",
                         "type": "string"
                     },
-                    "panid": {
-                        "title": "Panid",
+                    "source_hash": {
+                        "title": "Source Hash",
                         "type": "string"
                     },
-                    "extpanid": {
-                        "title": "Extpanid",
-                        "type": "string"
-                    },
-                    "networkkey": {
-                        "title": "Networkkey",
-                        "type": "string"
-                    },
-                    "networkname": {
-                        "title": "Networkname",
-                        "type": "string"
-                    }
-                }
-            },
-            "ThreadExternalConfig": {
-                "title": "ThreadExternalConfig",
-                "required": [
-                    "operational_dataset_hex"
-                ],
-                "type": "object",
-                "properties": {
-                    "operational_dataset_hex": {
-                        "title": "Operational Dataset Hex",
-                        "type": "string"
+                    "mandatory": {
+                        "title": "Mandatory",
+                        "type": "boolean",
+                        "default": false
                     }
                 }
             },
@@ -2527,7 +3815,14 @@
                         "title": "Location",
                         "type": "array",
                         "items": {
-                            "type": "string"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
                         }
                     },
                     "msg": {
@@ -2536,24 +3831,6 @@
                     },
                     "type": {
                         "title": "Error Type",
-                        "type": "string"
-                    }
-                }
-            },
-            "WiFiConfig": {
-                "title": "WiFiConfig",
-                "required": [
-                    "ssid",
-                    "password"
-                ],
-                "type": "object",
-                "properties": {
-                    "ssid": {
-                        "title": "Ssid",
-                        "type": "string"
-                    },
-                    "password": {
-                        "title": "Password",
                         "type": "string"
                     }
                 }

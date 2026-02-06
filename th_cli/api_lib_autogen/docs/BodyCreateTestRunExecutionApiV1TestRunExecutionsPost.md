@@ -1,27 +1,29 @@
-<!--
- *
- * Copyright (c) 2023 Project CHIP Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
--->
 # BodyCreateTestRunExecutionApiV1TestRunExecutionsPost
+
 
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **test_run_execution_in** | [**TestRunExecutionCreate**](TestRunExecutionCreate.md) |  | 
-**selected_tests** | **dict(str, dict(str, dict(str, int)))** |  | [optional] 
+**selected_tests** | **Dict[str, Dict[str, Dict[str, int]]]** |  | 
 
+## Example
+
+```python
+from api_lib_autogen.models.body_create_test_run_execution_api_v1_test_run_executions_post import BodyCreateTestRunExecutionApiV1TestRunExecutionsPost
+
+# TODO update the JSON string below
+json = "{}"
+# create an instance of BodyCreateTestRunExecutionApiV1TestRunExecutionsPost from a JSON string
+body_create_test_run_execution_api_v1_test_run_executions_post_instance = BodyCreateTestRunExecutionApiV1TestRunExecutionsPost.from_json(json)
+# print the JSON string representation of the object
+print BodyCreateTestRunExecutionApiV1TestRunExecutionsPost.to_json()
+
+# convert the object into a dict
+body_create_test_run_execution_api_v1_test_run_executions_post_dict = body_create_test_run_execution_api_v1_test_run_executions_post_instance.to_dict()
+# create an instance of BodyCreateTestRunExecutionApiV1TestRunExecutionsPost from a dict
+body_create_test_run_execution_api_v1_test_run_executions_post_form_dict = body_create_test_run_execution_api_v1_test_run_executions_post.from_dict(body_create_test_run_execution_api_v1_test_run_executions_post_dict)
+```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 
 

@@ -1,19 +1,3 @@
-<!--
- *
- * Copyright (c) 2023 Project CHIP Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
--->
 # api_lib_autogen.TestCollectionsApi
 
 All URIs are relative to *http://localhost*
@@ -33,22 +17,35 @@ Retrieve available test collections.
 ### Example
 
 ```python
-from __future__ import print_function
 import time
+import os
 import api_lib_autogen
+from api_lib_autogen.models.test_collections import TestCollections
 from api_lib_autogen.rest import ApiException
 from pprint import pprint
 
-# Create an instance of the API class
-api_instance = api_lib_autogen.TestCollectionsApi()
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = api_lib_autogen.Configuration(
+    host = "http://localhost"
+)
 
-try:
-    # Read Test Collections
-    api_response = api_instance.read_test_collections_api_v1_test_collections_get()
-    pprint(api_response)
-except ApiException as e:
-    print("Exception when calling TestCollectionsApi->read_test_collections_api_v1_test_collections_get: %s\n" % e)
+
+# Enter a context with an instance of the API client
+with api_lib_autogen.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = api_lib_autogen.TestCollectionsApi(api_client)
+
+    try:
+        # Read Test Collections
+        api_response = api_instance.read_test_collections_api_v1_test_collections_get()
+        print("The response of TestCollectionsApi->read_test_collections_api_v1_test_collections_get:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling TestCollectionsApi->read_test_collections_api_v1_test_collections_get: %s\n" % e)
 ```
+
+
 
 ### Parameters
 This endpoint does not need any parameter.

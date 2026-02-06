@@ -208,23 +208,18 @@ def sample_project() -> api_models.Project:
     return api_models.Project(
         id=1,
         name="Test Project",
-        config=api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(
-                    ssid="TestWiFi",
-                    password="testpassword"
-                ),
-                thread=api_models.ThreadExternalConfig(
-                    operational_dataset_hex="0e080000000000010000000300001235060004001fffe0020811111111222222220708fd"
-                )
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        ),
+        config={
+            "network": {
+                "wifi": {"ssid": "TestWiFi", "password": "testpassword"},
+                "thread": {"operational_dataset_hex": "0e080000000000010000000300001235060004001fffe0020811111111222222220708fd"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        },
         created_at=fake.date_time(),
         updated_at=fake.date_time()
     )
@@ -237,18 +232,18 @@ def sample_projects() -> list[api_models.Project]:
         api_models.Project(
             id=i,
             name=f"Test Project {i}",
-            config=api_models.TestEnvironmentConfig(
-                network=api_models.NetworkConfig(
-                    wifi=api_models.WiFiConfig(ssid="test", password="test"),
-                    thread=api_models.ThreadExternalConfig(operational_dataset_hex="test")
-                ),
-                dut_config=api_models.DutConfig(
-                    pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                    setup_code="20202021",
-                    discriminator="3840",
-                    trace_log=False
-                )
-            ),
+            config={
+                "network": {
+                    "wifi": {"ssid": "test", "password": "test"},
+                    "thread": {"operational_dataset_hex": "test"}
+                },
+                "dut_config": {
+                    "pairing_mode": "ble-wifi",
+                    "setup_code": "20202021",
+                    "discriminator": "3840",
+                    "trace_log": False
+                }
+            },
             created_at=fake.date_time(),
             updated_at=fake.date_time()
         )
@@ -364,13 +359,17 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
         test_suite_executions=[
             api_models.TestSuiteExecution(
                 id=1,
+                execution_index=1,
+                collection_id="SDK YAML Tests",
                 public_id="FirstChipToolSuite",
+                mandatory=False,
                 state=api_models.TestStateEnum.PENDING,
                 test_run_execution_id=1,
                 test_suite_metadata_id=1,
                 test_case_executions=[
                     api_models.TestCaseExecution(
                         id=1,
+                        execution_index=1,
                         public_id="TC-ACE-1.1",
                         state=api_models.TestStateEnum.PENDING,
                         test_suite_execution_id=1,

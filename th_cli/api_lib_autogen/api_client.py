@@ -1,24 +1,8 @@
-#
-# Copyright (c) 2023 Project CHIP Authors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
 from asyncio import get_event_loop
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Type, TypeVar, overload
 
 from httpx import AsyncClient, Request, Response
 from pydantic import ValidationError, parse_obj_as
-
 from th_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
 from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
 from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
@@ -26,7 +10,7 @@ from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollections
 from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
 from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
 from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
-from th_cli.api_lib_autogen.api.versions_api import AsyncVersionsApi, SyncVersionsApi
+from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 
 ClientT = TypeVar("ClientT", bound="ApiClient")
@@ -43,7 +27,7 @@ class AsyncApis(Generic[ClientT]):
         self.test_run_configs_api = AsyncTestRunConfigsApi(self.client)
         self.test_run_executions_api = AsyncTestRunExecutionsApi(self.client)
         self.utils_api = AsyncUtilsApi(self.client)
-        self.versions_api = AsyncVersionsApi(self.client)
+        self.version_api = AsyncVersionApi(self.client)
 
 
 class SyncApis(Generic[ClientT]):
@@ -57,7 +41,7 @@ class SyncApis(Generic[ClientT]):
         self.test_run_configs_api = SyncTestRunConfigsApi(self.client)
         self.test_run_executions_api = SyncTestRunExecutionsApi(self.client)
         self.utils_api = SyncUtilsApi(self.client)
-        self.versions_api = SyncVersionsApi(self.client)
+        self.version_api = SyncVersionApi(self.client)
 
 
 T = TypeVar("T")
@@ -80,12 +64,14 @@ class ApiClient:
     @overload
     async def request(
         self, *, type_: Type[T], method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
-    ) -> T: ...
+    ) -> T:
+        ...
 
     @overload  # noqa F811
     async def request(
         self, *, type_: None, method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
-    ) -> str: ...
+    ) -> None:
+        ...
 
     async def request(  # noqa F811
         self, *, type_: Any, method: str, url: str, path_params: Optional[Dict[str, Any]] = None, **kwargs: Any
@@ -97,10 +83,12 @@ class ApiClient:
         return await self.send(request, type_)
 
     @overload
-    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T: ...
+    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T:
+        ...
 
     @overload  # noqa F811
-    def request_sync(self, *, type_: None, **kwargs: Any) -> str: ...
+    def request_sync(self, *, type_: None, **kwargs: Any) -> None:
+        ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:  # noqa F811
         """
@@ -112,8 +100,6 @@ class ApiClient:
         response = await self.middleware(request, self.send_inner)
         if response.status_code in [200, 201]:
             try:
-                if type_ is None:
-                    return response.text
                 return parse_obj_as(type_, response.json())
             except ValidationError as e:
                 raise ResponseHandlingException(e)

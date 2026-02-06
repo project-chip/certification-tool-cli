@@ -43,8 +43,8 @@ USAGE
 
 main() {
   validate_inputs
-  docker build -t fastapi-client-generator:latest .
-  docker run --rm --user $(id -u):$(id -g) -v "$WORK_DIR":/generator-output fastapi-client-generator:latest -p "${PACKAGE_NAME}"
+  docker build --platform linux/arm64 -t fastapi-client-generator:latest .
+  docker run --platform linux/arm64 --rm --user $(id -u):$(id -g) -v "$WORK_DIR":/generator-output fastapi-client-generator:latest -p "${PACKAGE_NAME}"
   add_py_typed
 }
 
