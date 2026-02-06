@@ -33,10 +33,10 @@ if [ -n "$1" ]; then
 fi
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
-rm -rf $PACKAGE_PATH 2>/dev/null || true
+[ -d "$PACKAGE_PATH" ] && rm -rf "$PACKAGE_PATH"
 echo $OPENAPI_PATH/$OPENAPI_FILE
 ./client_generator/scripts/generate.sh -i $OPENAPI_PATH/$OPENAPI_FILE -t "/tmp" -p $PACKAGE_NAME -o $OUTPUT_DIR -n $OUTPUT_DIR.$PACKAGE_NAME
-# poetry run mypy ./$PACKAGE_PATH
-# poetry run black ./$PACKAGE_PATH
+poetry run mypy ./$PACKAGE_PATH
+poetry run black ./$PACKAGE_PATH
 poetry run flake8 ./$PACKAGE_PATH
 poetry run isort ./$PACKAGE_PATH
