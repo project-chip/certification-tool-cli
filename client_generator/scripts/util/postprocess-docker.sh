@@ -77,8 +77,8 @@ fix_any_of() {
 fix_optional_defaults() {
   echo "Fixing Optional/default value issues..."
   # The OpenAPI spec is copied to /generator-output/openapi-spec.json by openapi-generate.sh
-  # The fix script is at /fix_optional_defaults.py (added to Docker image)
-  # The models file is at <PACKAGE_NAME>/models.py
+  # The fix script is at /fix_optional_defaults.py (added by Dockerfile)
+  # The models file is at models.py created by merge_generated_models()
   if [ -f "/generator-output/openapi-spec.json" ] && [ -f "/fix_optional_defaults.py" ]; then
     python3 /fix_optional_defaults.py \
       --openapi-spec /generator-output/openapi-spec.json \
@@ -96,7 +96,7 @@ apply_formatters() {
   echo "Applying code formatters to $PACKAGE_NAME..."
   autoflake --remove-all-unused-imports --recursive --remove-unused-variables --in-place "${PACKAGE_NAME}" --exclude=__init__.py
   isort --float-to-top -w 120 -m 3 --trailing-comma --force-grid-wrap 0 --combine-as -p "${PACKAGE_NAME}" "${PACKAGE_NAME}"
-  # black --fast -l 120 --target-version py310 "${PACKAGE_NAME}"
+  black --fast -l 120 --target-version py310 "${PACKAGE_NAME}"
   echo "All formatters applied."
 }
 

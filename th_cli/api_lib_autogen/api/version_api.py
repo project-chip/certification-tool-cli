@@ -1,4 +1,3 @@
-
 # flake8: noqa E501
 from asyncio import get_event_loop
 from typing import TYPE_CHECKING, Awaitable
@@ -21,12 +20,6 @@ class _VersionApi:
             type_=m.TestHarnessBackendVersion,
             method="GET",
             url="/api/v1/version",
-            
-            
-            
-            
-            
-            
         )
 
 

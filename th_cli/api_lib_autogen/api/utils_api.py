@@ -1,4 +1,3 @@
-
 # flake8: noqa E501
 from asyncio import get_event_loop
 from typing import TYPE_CHECKING, Awaitable
@@ -17,20 +16,13 @@ class _UtilsApi:
         """
         Test emails.
         """
-        query_params = {
-            "email_to": str(email_to)
-        }
+        query_params = {"email_to": str(email_to)}
 
         return self.api_client.request(
             type_=m.Msg,
             method="POST",
             url="/api/v1/utils/test-email/",
-            
             params=query_params,
-            
-            
-            
-            
         )
 
 
