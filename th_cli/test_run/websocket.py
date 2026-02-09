@@ -75,36 +75,42 @@ class TestRunSocket:
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
 
     async def connect_websocket(self) -> None:
+        try:
+            async with websocket_connect(
+                WEBSOCKET_URL,
+                ping_timeout=None,
+                close_timeout=10,  # Allow 10 seconds for close handshake
+                max_size=WEBSOCKET_MAX_MESSAGE_SIZE,
+                read_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
+                write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
+            ) as socket:
+                try:
+                    while True:
+                        try:
+                            message = await socket.recv()
+                        except websockets.exceptions.ConnectionClosedOK:
+                            break
 
-        async with websocket_connect(
-            WEBSOCKET_URL,
-            ping_timeout=None,
-            max_size=WEBSOCKET_MAX_MESSAGE_SIZE,
-            read_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
-            write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
-        ) as socket:
-            try:
-                while True:
-                    try:
-                        message = await socket.recv()
-                    except websockets.exceptions.ConnectionClosedOK:
-                        break
-
-                    # skip messages that are bytes, as we're expecting a string.\
-                    if not isinstance(message, str):
-                        click.echo(
-                            colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
-                            err=True,
-                        )
-                        continue
-                    try:
-                        message_obj = SocketMessage.parse_raw(message)
-                        await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
-                    except ValidationError as e:
-                        click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
-                        click.echo(colorize_error(e.json()), err=True)
-            finally:
-                pass  # Cleanup if needed
+                        # skip messages that are bytes, as we're expecting a string.\
+                        if not isinstance(message, str):
+                            click.echo(
+                                colorize_error("Failed to parse incoming websocket message. got bytes, expected text"),
+                                err=True,
+                            )
+                            continue
+                        try:
+                            message_obj = SocketMessage.parse_raw(message)
+                            await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
+                        except ValidationError as e:
+                            click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
+                            click.echo(colorize_error(e.json()), err=True)
+                finally:
+                    pass  # Cleanup if needed
+        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosed):
+            # Handle case where backend doesn't complete close handshake properly
+            # This can happen with long-running test executions
+            # Error: "sent 1000 (OK); no close frame received"
+            pass
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -141,7 +147,12 @@ class TestRunSocket:
             await self.__log_test_run_update(update.body)
             if update.body.state != "executing":
                 # Test run ended disconnect.
-                await socket.close()
+                try:
+                    await socket.close()
+                except websockets.exceptions.ConnectionClosedError:
+                    # Backend closed connection without completing handshake
+                    # This is acceptable as test run completed successfully
+                    pass
 
     async def __log_test_run_update(self, update: TestRunUpdate) -> None:
         # Display CHIP server info when test run starts executing (SDK container already running)
