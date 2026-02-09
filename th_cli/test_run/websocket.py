@@ -106,7 +106,7 @@ class TestRunSocket:
                             click.echo(colorize_error(e.json()), err=True)
                 finally:
                     pass  # Cleanup if needed
-        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosed):
+        except websockets.exceptions.ConnectionClosed:
             # Handle case where backend doesn't complete close handshake properly
             # This can happen with long-running test executions
             # Error: "sent 1000 (OK); no close frame received"
