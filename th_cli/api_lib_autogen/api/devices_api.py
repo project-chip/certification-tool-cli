@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,9 +34,7 @@ class _DevicesApi:
 
         return self.api_client.request(type_=m.Any, method="PUT", url="/api/v1/devices/", json=body)
 
-    def _build_for_get_device_configs_api_v1_devices_get(
-        self,
-    ) -> Awaitable[m.Any]:
+    def _build_for_get_device_configs_api_v1_devices_get(self) -> Awaitable[m.Any]:
         return self.api_client.request(
             type_=m.Any,
             method="GET",
@@ -48,9 +46,7 @@ class AsyncDevicesApi(_DevicesApi):
     async def add_device_config_api_v1_devices_put(self, body: Any) -> m.Any:
         return await self._build_for_add_device_config_api_v1_devices_put(body=body)
 
-    async def get_device_configs_api_v1_devices_get(
-        self,
-    ) -> m.Any:
+    async def get_device_configs_api_v1_devices_get(self) -> m.Any:
         return await self._build_for_get_device_configs_api_v1_devices_get()
 
 
@@ -59,8 +55,6 @@ class SyncDevicesApi(_DevicesApi):
         coroutine = self._build_for_add_device_config_api_v1_devices_put(body=body)
         return get_event_loop().run_until_complete(coroutine)
 
-    def get_device_configs_api_v1_devices_get(
-        self,
-    ) -> m.Any:
+    def get_device_configs_api_v1_devices_get(self) -> m.Any:
         coroutine = self._build_for_get_device_configs_api_v1_devices_get()
         return get_event_loop().run_until_complete(coroutine)

@@ -24,6 +24,27 @@ CMDNAME=${0##*/}
 PACKAGE_NAME=""
 WORK_DIR=""
 
+# Detect host architecture and set Docker platform
+detect_architecture() {
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64)
+      DOCKER_PLATFORM="linux/amd64"
+      ;;
+    aarch64|arm64)
+      DOCKER_PLATFORM="linux/arm64"
+      ;;
+    *)
+      echo "Warning: Unsupported architecture $ARCH, defaulting to linux/amd64"
+      DOCKER_PLATFORM="linux/amd64"
+      ;;
+  esac
+  echo "Detected architecture: $ARCH, using Docker platform: $DOCKER_PLATFORM"
+}
+
+# Detect architecture on script start
+detect_architecture
+
 usage() {
   exitcode="$1"
   cat <<USAGE >&2
@@ -43,8 +64,8 @@ USAGE
 
 main() {
   validate_inputs
-  docker build -t fastapi-client-generator:latest .
-  docker run --rm --user $(id -u):$(id -g) -v "$WORK_DIR":/generator-output fastapi-client-generator:latest -p "${PACKAGE_NAME}"
+  docker build --platform $DOCKER_PLATFORM -t fastapi-client-generator:latest .
+  docker run --platform $DOCKER_PLATFORM --rm --user $(id -u):$(id -g) -v "$WORK_DIR":/generator-output fastapi-client-generator:latest -p "${PACKAGE_NAME}"
   add_py_typed
 }
 

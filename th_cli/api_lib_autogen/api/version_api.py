@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import TYPE_CHECKING, Awaitable, Dict
+from typing import TYPE_CHECKING, Awaitable
 
 from th_cli.api_lib_autogen import models as m
 
@@ -23,33 +23,33 @@ if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
 
 
-class _VersionsApi:
+class _VersionApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_get_versions_api_v1_versions_get(self) -> Awaitable[Dict[str, str]]:
+    def _build_for_get_test_harness_backend_version_api_v1_version_get(self) -> Awaitable[m.TestHarnessBackendVersion]:
         """
-        Get application versions information.
+        Retrieve version of the Test Engine.
         """
         return self.api_client.request(
-            type_=Dict[str, str],
+            type_=m.TestHarnessBackendVersion,
             method="GET",
             url="/api/v1/version",
         )
 
 
-class AsyncVersionsApi(_VersionsApi):
-    async def get_versions_api_v1_versions_get(self) -> Dict[str, str]:
+class AsyncVersionApi(_VersionApi):
+    async def get_test_harness_backend_version_api_v1_version_get(self) -> m.TestHarnessBackendVersion:
         """
-        Get application versions information.
+        Retrieve version of the Test Engine.
         """
-        return await self._build_for_get_versions_api_v1_versions_get()
+        return await self._build_for_get_test_harness_backend_version_api_v1_version_get()
 
 
-class SyncVersionsApi(_VersionsApi):
-    def get_versions_api_v1_versions_get(self) -> Dict[str, str]:
+class SyncVersionApi(_VersionApi):
+    def get_test_harness_backend_version_api_v1_version_get(self) -> m.TestHarnessBackendVersion:
         """
-        Get application versions information.
+        Retrieve version of the Test Engine.
         """
-        coroutine = self._build_for_get_versions_api_v1_versions_get()
+        coroutine = self._build_for_get_test_harness_backend_version_api_v1_version_get()
         return get_event_loop().run_until_complete(coroutine)

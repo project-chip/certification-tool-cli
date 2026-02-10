@@ -15,7 +15,7 @@
 #
 
 import click
-from httpx import Timeout
+from httpx import Timeout, TimeoutException
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse

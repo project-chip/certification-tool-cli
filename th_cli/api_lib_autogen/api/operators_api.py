@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -95,11 +95,7 @@ class _OperatorsApi:
         body = jsonable_encoder(operator_update)
 
         return self.api_client.request(
-            type_=m.Operator,
-            method="PUT",
-            url="/api/v1/operators/{id}",
-            path_params=path_params,
-            json=body,
+            type_=m.Operator, method="PUT", url="/api/v1/operators/{id}", path_params=path_params, json=body
         )
 
 

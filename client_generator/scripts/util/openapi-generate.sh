@@ -25,7 +25,28 @@ INPUT=""
 WORK_DIR=""
 SOURCE_CODE_ONLY="true"
 
-OPENAPI_IMAGE="openapitools/openapi-generator-cli:v4.1.2"
+OPENAPI_IMAGE="openapitools/openapi-generator-cli:v7.0.0"
+
+# Detect host architecture and set Docker platform
+detect_architecture() {
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64)
+      DOCKER_PLATFORM="linux/amd64"
+      ;;
+    aarch64|arm64)
+      DOCKER_PLATFORM="linux/arm64"
+      ;;
+    *)
+      echo "Warning: Unsupported architecture $ARCH, defaulting to linux/amd64"
+      DOCKER_PLATFORM="linux/amd64"
+      ;;
+  esac
+  echo "Detected architecture: $ARCH, using Docker platform: $DOCKER_PLATFORM"
+}
+
+# Detect architecture on script start
+detect_architecture
 
 usage() {
   exitcode="$1"
@@ -73,7 +94,7 @@ validate_inputs() {
 }
 
 generate_in_docker_http() {
-  docker run --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local $OPENAPI_IMAGE generate \
+  docker run --platform $DOCKER_PLATFORM --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local $OPENAPI_IMAGE generate \
     -g python \
     -o /generator-output \
     --package-name="${PACKAGE_NAME}" \
@@ -82,12 +103,16 @@ generate_in_docker_http() {
     --type-mappings array=List,uuid=UUID,file=IO,object=Any \
     -i "${INPUT}" \
     "$@"
+  
+  # Download the OpenAPI spec to the work directory for post-processing
+  echo "Downloading OpenAPI spec for post-processing..."
+  curl -sSL "${INPUT}" -o "$WORK_DIR/openapi-spec.json"
 }
 
 generate_in_docker_file() {
   INPUT_FILE="$(cd "$(dirname "$INPUT")" && pwd )"/"$(basename "$INPUT")"
 
-  docker run --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local -v "${INPUT_FILE}":/openapi.json \
+  docker run --platform $DOCKER_PLATFORM --user $(id -u):$(id -g) --rm -v "$WORK_DIR":/generator-output -v "$PROJECT_ROOT":/local -v "${INPUT_FILE}":/openapi.json \
     $OPENAPI_IMAGE generate \
     -g python \
     -o /generator-output \
@@ -97,6 +122,10 @@ generate_in_docker_file() {
     --type-mappings array=List,uuid=UUID,file=IO,object=Any \
     -i /openapi.json \
     "$@"
+  
+  # Copy the OpenAPI spec to the work directory for post-processing
+  echo "Copying OpenAPI spec for post-processing..."
+  cp "${INPUT_FILE}" "$WORK_DIR/openapi-spec.json"
 }
 
 while [ $# -gt 0 ]; do

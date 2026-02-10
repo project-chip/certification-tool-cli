@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +26,7 @@ class ApiException(Exception):
 
 
 class UnexpectedResponse(ApiException):
-    def __init__(
-        self,
-        status_code: Optional[int],
-        reason_phrase: str,
-        content: bytes,
-        headers: Headers,
-    ) -> None:
+    def __init__(self, status_code: Optional[int], reason_phrase: str, content: bytes, headers: Headers) -> None:
         self.status_code = status_code
         self.reason_phrase = reason_phrase
         self.content = content

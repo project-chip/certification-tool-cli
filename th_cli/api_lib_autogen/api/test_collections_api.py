@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,9 +27,7 @@ class _TestCollectionsApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_read_test_collections_api_v1_test_collections_get(
-        self,
-    ) -> Awaitable[m.TestCollections]:
+    def _build_for_read_test_collections_api_v1_test_collections_get(self) -> Awaitable[m.TestCollections]:
         """
         Retrieve available test collections.
         """
@@ -41,9 +39,7 @@ class _TestCollectionsApi:
 
 
 class AsyncTestCollectionsApi(_TestCollectionsApi):
-    async def read_test_collections_api_v1_test_collections_get(
-        self,
-    ) -> m.TestCollections:
+    async def read_test_collections_api_v1_test_collections_get(self) -> m.TestCollections:
         """
         Retrieve available test collections.
         """
@@ -51,9 +47,7 @@ class AsyncTestCollectionsApi(_TestCollectionsApi):
 
 
 class SyncTestCollectionsApi(_TestCollectionsApi):
-    def read_test_collections_api_v1_test_collections_get(
-        self,
-    ) -> m.TestCollections:
+    def read_test_collections_api_v1_test_collections_get(self) -> m.TestCollections:
         """
         Retrieve available test collections.
         """

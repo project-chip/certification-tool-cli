@@ -41,18 +41,18 @@ class TestCreateProjectCommand:
     ) -> None:
         """Test successful project creation with default configuration."""
         # Arrange
-        default_config = api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(ssid="default", password="default"),
-                thread=api_models.ThreadExternalConfig(operational_dataset_hex="default")
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        )
+        default_config = {
+            "network": {
+                "wifi": {"ssid": "default", "password": "default"},
+                "thread": {"operational_dataset_hex": "default"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
         mock_sync_apis.projects_api.create_project_api_v1_projects_post.return_value = sample_project
 
@@ -77,18 +77,18 @@ class TestCreateProjectCommand:
     ) -> None:
         """Test successful project creation with custom configuration file."""
         # Arrange
-        default_config = api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(ssid="default", password="default"),
-                thread=api_models.ThreadExternalConfig(operational_dataset_hex="default")
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        )
+        default_config = {
+            "network": {
+                "wifi": {"ssid": "default", "password": "default"},
+                "thread": {"operational_dataset_hex": "default"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
         mock_sync_apis.projects_api.create_project_api_v1_projects_post.return_value = sample_project
 
@@ -109,18 +109,18 @@ class TestCreateProjectCommand:
     ) -> None:
         """Test project creation with non-existent config file."""
         # Arrange
-        default_config = api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(ssid="default", password="default"),
-                thread=api_models.ThreadExternalConfig(operational_dataset_hex="default")
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        )
+        default_config = {
+            "network": {
+                "wifi": {"ssid": "default", "password": "default"},
+                "thread": {"operational_dataset_hex": "default"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -142,18 +142,18 @@ class TestCreateProjectCommand:
         invalid_config_file = temp_dir / "invalid.json"
         invalid_config_file.write_text("{ invalid json content")
 
-        default_config = api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(ssid="default", password="default"),
-                thread=api_models.ThreadExternalConfig(operational_dataset_hex="default")
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        )
+        default_config = {
+            "network": {
+                "wifi": {"ssid": "default", "password": "default"},
+                "thread": {"operational_dataset_hex": "default"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -173,18 +173,18 @@ class TestCreateProjectCommand:
     ) -> None:
         """Test project creation with API error."""
         # Arrange
-        default_config = api_models.TestEnvironmentConfig(
-            network=api_models.NetworkConfig(
-                wifi=api_models.WiFiConfig(ssid="default", password="default"),
-                thread=api_models.ThreadExternalConfig(operational_dataset_hex="default")
-            ),
-            dut_config=api_models.DutConfig(
-                pairing_mode=api_models.DutPairingModeEnum.BLE_WIFI,
-                setup_code="20202021",
-                discriminator="3840",
-                trace_log=False
-            )
-        )
+        default_config = {
+            "network": {
+                "wifi": {"ssid": "default", "password": "default"},
+                "thread": {"operational_dataset_hex": "default"}
+            },
+            "dut_config": {
+                "pairing_mode": "ble-wifi",
+                "setup_code": "20202021",
+                "discriminator": "3840",
+                "trace_log": False
+            }
+        }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
         api_exception = UnexpectedResponse(
