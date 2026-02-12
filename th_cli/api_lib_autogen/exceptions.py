@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023-2026 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,49 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import json
-from typing import Any, Dict, Optional
+from typing import Any
 
-from httpx import Headers, Response
-
-MAX_CONTENT = 200
+from httpx import Response
 
 
 class ApiException(Exception):
-    """Base class"""
+    """Base exception for API client errors."""
 
-
-class UnexpectedResponse(ApiException):
-    def __init__(self, status_code: Optional[int], reason_phrase: str, content: bytes, headers: Headers) -> None:
-        self.status_code = status_code
-        self.reason_phrase = reason_phrase
-        self.content = content
-        self.headers = headers
-
-    @staticmethod
-    def for_response(response: Response) -> "ApiException":
-        return UnexpectedResponse(
-            status_code=response.status_code,
-            reason_phrase=response.reason_phrase,
-            content=response.content,
-            headers=response.headers,
-        )
-
-    def __str__(self) -> str:
-        status_code_str = f"{self.status_code}" if self.status_code is not None else ""
-        if self.reason_phrase == "" and self.status_code is not None:
-            reason_phrase_str = "(Unrecognized Status Code)"
-        else:
-            reason_phrase_str = f"({self.reason_phrase})"
-        status_str = f"{status_code_str} {reason_phrase_str}".strip()
-        short_content = self.content if len(self.content) <= MAX_CONTENT else self.content[: MAX_CONTENT - 3] + b" ..."
-        raw_content_str = f"Raw response content:\n{short_content!r}"
-        return f"Unexpected Response: {status_str}\n{raw_content_str}"
-
-    def structured(self) -> Dict[str, Any]:
-        return json.loads(self.content)
+    pass
 
 
 class ResponseHandlingException(ApiException):
-    def __init__(self, source: Exception):
-        self.source = source
+    """Exception raised when response handling fails."""
+
+    def __init__(self, error: Exception):
+        self.error = error
+        super().__init__(f"Error handling response: {error}")
+
+
+class UnexpectedResponse(ApiException):
+    """Exception raised when response status is unexpected."""
+
+    def __init__(self, status_code: int, content: Any):
+        self.status_code = status_code
+        self.content = content
+        super().__init__(f"Unexpected response status: {status_code}")
+
+    @classmethod
+    def for_response(cls, response: Response) -> "UnexpectedResponse":
+        """Create exception from httpx Response."""
+        try:
+            content = response.json()
+        except Exception:
+            content = response.text
+        return cls(response.status_code, content)

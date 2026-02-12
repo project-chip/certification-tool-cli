@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 import tempfile
+from datetime import UTC
 from pathlib import Path
 from typing import Any, Generator
 from unittest.mock import AsyncMock, Mock
@@ -220,8 +221,8 @@ def sample_project() -> api_models.Project:
                 "trace_log": False
             }
         },
-        created_at=fake.date_time(),
-        updated_at=fake.date_time()
+        created_at=fake.date_time(tzinfo=UTC),
+        updated_at=fake.date_time(tzinfo=UTC)
     )
 
 
@@ -244,8 +245,8 @@ def sample_projects() -> list[api_models.Project]:
                     "trace_log": False
                 }
             },
-            created_at=fake.date_time(),
-            updated_at=fake.date_time()
+            created_at=fake.date_time(tzinfo=UTC),
+            updated_at=fake.date_time(tzinfo=UTC)
         )
         for i in range(1, 4)
     ]
@@ -354,7 +355,7 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
     return api_models.TestRunExecutionWithChildren(
         id=1,
         title="Test Run 1",
-        state=api_models.TestStateEnum.PENDING,
+        state=api_models.TestStateEnum.pending,
         project_id=1,
         test_suite_executions=[
             api_models.TestSuiteExecution(
@@ -363,7 +364,7 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
                 collection_id="SDK YAML Tests",
                 public_id="FirstChipToolSuite",
                 mandatory=False,
-                state=api_models.TestStateEnum.PENDING,
+                state=api_models.TestStateEnum.pending,
                 test_run_execution_id=1,
                 test_suite_metadata_id=1,
                 test_case_executions=[
@@ -371,7 +372,7 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
                         id=1,
                         execution_index=1,
                         public_id="TC-ACE-1.1",
-                        state=api_models.TestStateEnum.PENDING,
+                        state=api_models.TestStateEnum.pending,
                         test_suite_execution_id=1,
                         test_case_metadata_id=1,
                         test_case_metadata=api_models.TestCaseMetadata(
@@ -402,7 +403,7 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
 def sample_test_runner_status() -> api_models.TestRunnerStatus:
     """Create a sample test runner status for testing."""
     return api_models.TestRunnerStatus(
-        state=api_models.TestRunnerState.IDLE,
+        state=api_models.TestRunnerState.idle,
         test_run_execution_id=None
     )
 
@@ -412,7 +413,6 @@ def mock_unexpected_response() -> UnexpectedResponse:
     """Create a mock UnexpectedResponse exception."""
     return UnexpectedResponse(
         status_code=404,
-        reason_phrase="Not Found",
         content=b"Not Found",
         headers=Headers()
     )

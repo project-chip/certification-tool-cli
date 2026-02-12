@@ -43,7 +43,7 @@ def test_runner_status(json: bool | None) -> None:
         if json:
             __print_json(test_runner_status)
         else:
-            __print_status_table(test_runner_status.dict())
+            __print_status_table(test_runner_status.model_dump())
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     finally:

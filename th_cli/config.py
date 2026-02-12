@@ -81,8 +81,8 @@ def get_config_search_paths() -> list[Path]:
 
 
 class LogConfig(BaseModel):
-    output_log_path = "./run_logs"
-    format = "<level>{level: <8}</level> | <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{message}</level>"
+    output_log_path: str = "./run_logs"
+    format: str = "<level>{level: <8}</level> | <green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{message}</level>"
 
 
 class Config(BaseModel):
@@ -109,14 +109,14 @@ def load_config():
     search_paths = get_config_search_paths()
 
     # Try different possible locations for config files
-    possible_locations = []
+    possible_locations: list[Path] = []
     for path in search_paths:
         possible_locations.append(path / "config.json")
 
     for config_path in possible_locations:
         if config_path.exists():
             try:
-                return Config.parse_file(config_path)
+                return Config.model_validate_json(config_path.read_text(encoding="utf-8"))
             except Exception as e:
                 CLIError(f"Could not load config from {config_path}: {e}")
                 continue

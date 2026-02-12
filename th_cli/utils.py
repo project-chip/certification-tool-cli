@@ -42,9 +42,9 @@ def __json_string(object: Any) -> str:
     if object is None:
         return "None"
     if isinstance(object, list):
-        return json.dumps([item.dict() for item in object], indent=4, default=str)
+        return json.dumps([item.model_dump() for item in object], indent=4, default=str)
     else:
-        return json.dumps(object.dict(), indent=4, default=str)
+        return json.dumps(object.model_dump(), indent=4, default=str)
 
 
 def build_test_selection(test_collections, tests_list) -> dict:
@@ -426,8 +426,8 @@ def get_versions() -> dict:
     try:
         client = get_client()
         sync_apis = SyncApis(client)
-        versions_api = sync_apis.versions_api
-        versions_info = versions_api.get_versions_api_v1_versions_get()
+        version_api = sync_apis.version_api
+        versions_info = version_api.get_test_harness_backend_version_api_v1_version_get()
         return versions_info
     except CLIError:
         raise  # Re-raise CLI Errors as-is

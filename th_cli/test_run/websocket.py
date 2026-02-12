@@ -99,7 +99,7 @@ class TestRunSocket:
                             )
                             continue
                         try:
-                            message_obj = SocketMessage.parse_raw(message)
+                            message_obj = SocketMessage.model_validate_json(message)
                             await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
                         except ValidationError as e:
                             click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)

@@ -44,17 +44,17 @@ class TestTestRunExecutionCommand:
             api_models.TestRunExecution(
                 id=1,
                 title="Test Run 1",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=2,
                 title="Test Run 2",
-                state=api_models.TestStateEnum.FAILED,
+                state=api_models.TestStateEnum.failed,
                 project_id=1,
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.return_value = test_executions
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -83,10 +83,10 @@ class TestTestRunExecutionCommand:
         test_execution = api_models.TestRunExecution(
             id=1,
             title="Specific Test Run",
-            state=api_models.TestStateEnum.EXECUTING,
+            state=api_models.TestStateEnum.executing,
             project_id=1
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -110,11 +110,11 @@ class TestTestRunExecutionCommand:
             api_models.TestRunExecution(
                 id=3,
                 title="Test Run 3",
-                state=api_models.TestStateEnum.PENDING,
+                state=api_models.TestStateEnum.pending,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.return_value = test_executions
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -136,10 +136,10 @@ class TestTestRunExecutionCommand:
         test_execution = api_models.TestRunExecution(
             id=1,
             title="JSON Test Run",
-            state=api_models.TestStateEnum.PASSED,
+            state=api_models.TestStateEnum.passed,
             project_id=1
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -177,11 +177,9 @@ class TestTestRunExecutionCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=404,
-            reason_phrase="Not Found",
             content=b"Not Found",
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -203,11 +201,9 @@ class TestTestRunExecutionCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=500,
-            reason_phrase="Internal Server Error",
             content=b"Internal Server Error",
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -250,13 +246,13 @@ class TestTestRunExecutionCommand:
         assert "--json" in result.output
 
     @pytest.mark.parametrize("state,expected_display", [
-        (api_models.TestStateEnum.PENDING, "PENDING"),
-        (api_models.TestStateEnum.EXECUTING, "EXECUTING"),
-        (api_models.TestStateEnum.PASSED, "PASSED"),
-        (api_models.TestStateEnum.FAILED, "FAILED"),
-        (api_models.TestStateEnum.ERROR, "ERROR"),
-        (api_models.TestStateEnum.CANCELLED, "CANCELLED"),
-        (api_models.TestStateEnum.NOT_APPLICABLE, "NOT_APPLICABLE"),
+        (api_models.TestStateEnum.pending, "PENDING"),
+        (api_models.TestStateEnum.executing, "EXECUTING"),
+        (api_models.TestStateEnum.passed, "PASSED"),
+        (api_models.TestStateEnum.failed, "FAILED"),
+        (api_models.TestStateEnum.error, "ERROR"),
+        (api_models.TestStateEnum.cancelled, "CANCELLED"),
+        (api_models.TestStateEnum.not_applicable, "NOT_APPLICABLE"),
     ])
     def test_test_run_execution_various_states(
         self,
@@ -273,7 +269,7 @@ class TestTestRunExecutionCommand:
             state=state,
             project_id=1
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -295,17 +291,17 @@ class TestTestRunExecutionCommand:
             api_models.TestRunExecution(
                 id=1,
                 title="Long Test Run Title That Should Be Formatted Properly",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=2,
                 title="Short Title",
-                state=api_models.TestStateEnum.FAILED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.return_value = test_executions
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -343,11 +339,11 @@ class TestTestRunExecutionCommand:
             api_models.TestRunExecution(
                 id=1,
                 title="Paginated Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.return_value = test_executions
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -373,10 +369,10 @@ class TestTestRunExecutionCommand:
         test_execution = api_models.TestRunExecution(
             id=1,
             title="Failed Test Run",
-            state=api_models.TestStateEnum.ERROR,
+            state=api_models.TestStateEnum.error,
             project_id=1
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -397,10 +393,10 @@ class TestTestRunExecutionCommand:
         test_execution = api_models.TestRunExecution(
             id=1,
             title="Successful Test Run",
-            state=api_models.TestStateEnum.PASSED,
+            state=api_models.TestStateEnum.passed,
             project_id=1
         )
-        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions_id_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -424,11 +420,11 @@ class TestTestRunExecutionCommand:
             api_models.TestRunExecution(
                 id=1,
                 title="Output Mode Test",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
         api.return_value = test_executions
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -465,7 +461,7 @@ class TestTestRunExecutionCommand:
             2025-01-01 10:00:11 [INFO] Test execution completed successfully
         """.strip()
 
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -486,7 +482,7 @@ class TestTestRunExecutionCommand:
     ) -> None:
         """Test successful test run execution log retrieval with no log content."""
         # Arrange
-        mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get.return_value = None
+        mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get.return_value = None
 
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -503,7 +499,7 @@ class TestTestRunExecutionCommand:
     ) -> None:
         """Test successful test run execution log retrieval with empty log content."""
         # Arrange
-        mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get.return_value = ""
+        mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get.return_value = ""
 
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -534,11 +530,9 @@ class TestTestRunExecutionCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=404,
-            reason_phrase="Test run execution not found",
             content=b"Test run execution not found",
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -578,7 +572,7 @@ class TestTestRunExecutionCommand:
             - Failed: 0
         """
 
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -605,7 +599,7 @@ JSON-like content: {"status": "success", "count": 42}
 XML-like content: <test result="passed">TC-ACE-1.1</test>
 Escape sequences: \n\t\r"""
 
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -629,7 +623,7 @@ Escape sequences: \n\t\r"""
         log_lines = [f"Log line {i}: Some test execution details" for i in range(1000)]
         log_content = "\n".join(log_lines)
 
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -653,7 +647,7 @@ Escape sequences: \n\t\r"""
         """Test test run execution log with various ID values."""
         # Arrange
         log_content = f"Log for test run execution ID: {test_id}"
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -686,11 +680,9 @@ Escape sequences: \n\t\r"""
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            reason_phrase=content,
             content=content.encode('utf-8'),
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -711,7 +703,7 @@ Escape sequences: \n\t\r"""
         """Test that client is properly managed using context manager."""
         # Arrange
         log_content = "Test log content"
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -732,7 +724,7 @@ Escape sequences: \n\t\r"""
         """Test that the correct API parameters are passed."""
         # Arrange
         log_content = "Test log content"
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -754,7 +746,7 @@ Escape sequences: \n\t\r"""
         """Test test run execution log with whitespace-only content."""
         # Arrange
         log_content = "   \n\t  \n   "
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.return_value = log_content
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -773,7 +765,7 @@ Escape sequences: \n\t\r"""
     ) -> None:
         """Test test run execution log with generic exception."""
         # Arrange
-        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions_id_log_get
+        api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
         api.side_effect = Exception("Network timeout")
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -796,17 +788,17 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=1,
                 title="Old Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=2,
                 title="New Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -832,17 +824,17 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=2,
                 title="New Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=1,
                 title="Old Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -869,17 +861,17 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=2,
                 title="New Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=1,
                 title="Old Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -906,17 +898,17 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=1,
                 title="Test Run 1",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=1
             ),
             api_models.TestRunExecution(
                 id=2,
                 title="Test Run 2",
-                state=api_models.TestStateEnum.FAILED,
+                state=api_models.TestStateEnum.failed,
                 project_id=1,
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -977,11 +969,11 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=1,
                 title="Project 5 Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=5
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -1007,11 +999,11 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=1,
                 title="Project 10 Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=10
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -1037,11 +1029,11 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=3,
                 title="Filtered Paginated Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=7
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
@@ -1067,11 +1059,11 @@ Escape sequences: \n\t\r"""
             api_models.TestRunExecution(
                 id=1,
                 title="Old Test Run",
-                state=api_models.TestStateEnum.PASSED,
+                state=api_models.TestStateEnum.passed,
                 project_id=3
             )
         ]
-        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions_get
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
 
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):

@@ -84,9 +84,7 @@ class TestAbortTestingCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=404,
-            reason_phrase="Not Found",
             content=b"Not Found",
-            headers=Headers(),
         )
         api = mock_sync_apis.test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post
 
@@ -203,9 +201,7 @@ class TestAbortTestingCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            reason_phrase=content,
             content=content.encode('utf-8'),
-            headers=Headers(),
         )
         api = mock_sync_apis.test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post
 

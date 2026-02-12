@@ -34,8 +34,8 @@ class UserResponseStatusEnum(IntEnum):
 
 class TestUpdateBase(BaseModel):
     state: TestStateEnum
-    errors: list[str] | None
-    failures: list[str] | None
+    errors: list[str] | None = None
+    failures: list[str] | None = None
 
 
 class TestRunUpdate(TestUpdateBase):
@@ -65,10 +65,11 @@ class TimeOutNotification(BaseModel):
 
 class TestLogRecord(BaseModel):
     level: str
-    timestamp: str
+    timestamp: float | str
     message: str
-    test_suite_execution_id: int | None
-    test_case_execution_id: int | None
+    test_suite_execution_index: int | None = None
+    test_case_execution_index: int | None = None
+    test_step_execution_index: int | None = None
 
 
 class PromptRequest(BaseModel):
@@ -82,9 +83,9 @@ class OptionsSelectPromptRequest(PromptRequest):
 
 
 class TextInputPromptRequest(PromptRequest):
-    placeholder_text: str | None
-    default_value: str | None
-    regex_pattern: str | None
+    placeholder_text: str | None = None
+    default_value: str | None = None
+    regex_pattern: str | None = None
 
 
 class MessagePromptRequest(PromptRequest):

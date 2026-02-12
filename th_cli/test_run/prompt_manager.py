@@ -547,7 +547,7 @@ async def _send_prompt_response(
     )
     payload_dict = {
         MessageKeysEnum.TYPE: "prompt_response",
-        MessageKeysEnum.PAYLOAD: response_obj.dict(),
+        MessageKeysEnum.PAYLOAD: response_obj.model_dump(),
     }
     payload = json.dumps(payload_dict)
     await socket.send(payload)

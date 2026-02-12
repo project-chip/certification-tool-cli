@@ -142,11 +142,11 @@ def test_run_execution(
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
-        test_run_execution = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions_id_get(id=id)
+        test_run_execution = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions__id__get(id=id)
         if json:
             __print_json(test_run_execution)
         else:
-            __print_table_test_execution(test_run_execution.dict())
+            __print_table_test_execution(test_run_execution.model_dump())
     except UnexpectedResponse as e:
         handle_api_error(e, "get test run execution")
 
@@ -201,7 +201,7 @@ def __test_run_execution_batch(
         # When --all is used, set limit to 0 to get all results
         effective_limit = 0 if show_all else limit
 
-        test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions_get(
+        test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions__get(
             skip=skip, limit=effective_limit, sort_order=sort_order, project_id=project_id
         )
 
@@ -260,7 +260,7 @@ def __test_run_execution_batch(
 def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
-        log_content = test_run_execution_api.download_log_api_v1_test_run_executions_id_log_get(
+        log_content = test_run_execution_api.download_log_api_v1_test_run_executions__id__log_get(
             id=id, json_entries=False, download=False
         )
 
@@ -277,7 +277,7 @@ def __print_table_test_executions(test_execution: list) -> None:
     __print_table_header()
     if isinstance(test_execution, list):
         for item_dict in test_execution:
-            __print_table_test_execution(item_dict.dict(), print_header=False)
+            __print_table_test_execution(item_dict.model_dump(), print_header=False)
 
 
 def __print_table_test_execution(item: dict, print_header=True) -> None:
