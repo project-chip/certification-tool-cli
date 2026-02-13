@@ -230,9 +230,19 @@ def _list_projects(
 def _update_project(sync_apis: SyncApis, id: int, config: str) -> None:
     """Update an existing project"""
     try:
+        # Get existing project to preserve its name and other fields
+        existing_project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
+
+        # Load the new config
         with open(config, "r") as f:
             config_dict = json.load(f)
-        project_update = ProjectUpdate(**config_dict)
+
+        project_update = ProjectUpdate(
+            name=existing_project.name,
+            config=config_dict,
+            pics=existing_project.pics,
+        )
+
         response = sync_apis.projects_api.update_project_api_v1_projects__id__put(id=id, body=project_update)
         click.echo(colorize_success(f"Project {response.name} is updated with the new config."))
     except json.JSONDecodeError as e:
@@ -242,7 +252,11 @@ def _update_project(sync_apis: SyncApis, id: int, config: str) -> None:
     except ValidationError as e:
         raise CLIError(f"Invalid configuration: {e}")
     except UnexpectedResponse as e:
-        handle_api_error(e, f"update project with '{id}'")
+        # Handle error when fetching existing project
+        if "read_project" in str(e):
+            handle_api_error(e, f"fetch project with ID '{id}'")
+        else:
+            handle_api_error(e, f"update project with '{id}'")
 
 
 def _delete_project(sync_apis: SyncApis, id: int) -> None:
