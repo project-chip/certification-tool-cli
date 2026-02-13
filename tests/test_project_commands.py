@@ -477,6 +477,7 @@ class TestUpdateProjectCommand:
     ) -> None:
         """Test successful project update."""
         # Arrange
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
         mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -526,7 +527,8 @@ class TestUpdateProjectCommand:
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
-        mock_config: Path
+        mock_config: Path,
+        sample_project: api_models.Project
     ) -> None:
         """Test project update with API error."""
         # Arrange
@@ -534,6 +536,7 @@ class TestUpdateProjectCommand:
             status_code=404,
             content=b"Not Found",
         )
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
         mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = api_exception
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
