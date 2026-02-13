@@ -164,7 +164,7 @@ def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
     project_create = ProjectCreate(name=name, config=test_environment_config)
 
     try:
-        response = sync_apis.projects_api.create_project_api_v1_projects__post(project_create)
+        response = sync_apis.projects_api.create_project_api_v1_projects__post(body=project_create)
         click.echo(colorize_success(f"Project '{response.name}' created with ID {response.id}"))
     except UnexpectedResponse as e:
         handle_api_error(e, f"create project '{name}'")
@@ -233,7 +233,7 @@ def _update_project(sync_apis: SyncApis, id: int, config: str) -> None:
         with open(config, "r") as f:
             config_dict = json.load(f)
         project_update = ProjectUpdate(**config_dict)
-        response = sync_apis.projects_api.update_project_api_v1_projects__id__put(id=id, project_update=project_update)
+        response = sync_apis.projects_api.update_project_api_v1_projects__id__put(id=id, body=project_update)
         click.echo(colorize_success(f"Project {response.name} is updated with the new config."))
     except json.JSONDecodeError as e:
         raise CLIError(f"Failed to parse JSON parameter: {e.msg}")
