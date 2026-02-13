@@ -4,19 +4,19 @@ This directory contains scripts for managing the CLI tool.
 
 ## Generate API Client
 
-The `generate_client.py` script generates the API client from the OpenAPI specification using `datamodel-code-generator` (Pydantic v2).
+The `generate_client.sh` script generates the API client from the OpenAPI specification using `datamodel-code-generator` (Pydantic v2).
 
 ### Usage
 
 ```bash
 # Generate from local openapi.json
-python scripts/generate_client.py --input openapi.json
+./scripts/generate_client.sh --input openapi.json
 
 # Generate from remote server
-python scripts/generate_client.py --input http://192.168.1.100/api/v1/openapi.json
+./scripts/generate_client.sh --input http://192.168.1.100/api/v1/openapi.json
 
 # Specify custom output directory
-python scripts/generate_client.py --input openapi.json --output th_cli/api_lib_autogen
+./scripts/generate_client.sh --input openapi.json --output th_cli/api_lib_autogen
 ```
 
 ### Features
