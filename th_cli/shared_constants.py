@@ -2,7 +2,7 @@
 # WARNING: This file was copied from the backend's shared_constants.py.
 # Do not edit here.
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,6 +63,8 @@ class MessageKeysEnum(str, Enum):
 class DutPairingModeEnum(str, Enum):
     ON_NETWORK = "onnetwork"
     BLE_WIFI = "ble-wifi"
+    NFC_WIFI = "nfc-wifi"
     BLE_THREAD = "ble-thread"
     WIFIPAF_WIFI = "wifipaf-wifi"
     NFC_THREAD = "nfc-thread"
+    THREAD_MESHCOP = "thread-meshcop"
