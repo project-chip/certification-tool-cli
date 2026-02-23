@@ -21,7 +21,7 @@ from pydantic import ValidationError
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate, TestEnvironmentConfig
+from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate
 from th_cli.client import get_client
 from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_header, colorize_help, colorize_success, italic
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
@@ -157,7 +157,7 @@ def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
         try:
             with open(config, "r") as f:
                 config_dict = json.load(f)
-            test_environment_config = TestEnvironmentConfig(**config_dict)
+            test_environment_config = config_dict
         except FileNotFoundError as e:
             handle_file_error(e, "config file")
         except json.JSONDecodeError as e:
@@ -237,7 +237,7 @@ def _update_project(sync_apis: SyncApis, id: int, config: str) -> None:
     try:
         with open(config, "r") as f:
             config_dict = json.load(f)
-        project_update = ProjectUpdate(**config_dict)
+        project_update = ProjectUpdate(config=config_dict)
         response = sync_apis.projects_api.update_project_api_v1_projects_id_put(id=id, project_update=project_update)
         click.echo(colorize_success(f"Project {response.name} is updated with the new config."))
     except json.JSONDecodeError as e:
