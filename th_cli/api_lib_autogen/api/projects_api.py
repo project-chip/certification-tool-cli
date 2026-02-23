@@ -67,12 +67,12 @@ class _ProjectsApi:
 
     def _build_for_default_config_api_v1_projects_default_config_get(
         self,
-    ) -> Awaitable[m.ResponseDefaultConfigApiV1ProjectsDefaultConfigGet]:
+    ) -> Awaitable[dict[str, Any]]:
         """
         Return default configuration for projects.  Returns:     List[Project]: List of projects
         """
         return self.api_client.request(
-            type_=m.ResponseDefaultConfigApiV1ProjectsDefaultConfigGet,
+            type_=dict[str, Any],
             method="GET",
             url="/api/v1/projects/default_config",
         )
@@ -237,7 +237,7 @@ class AsyncProjectsApi(_ProjectsApi):
 
     async def default_config_api_v1_projects_default_config_get(
         self,
-    ) -> m.ResponseDefaultConfigApiV1ProjectsDefaultConfigGet:
+    ) -> dict[str, Any]:
         """
         Return default configuration for projects.  Returns:     List[Project]: List of projects
         """
@@ -326,7 +326,7 @@ class SyncProjectsApi(_ProjectsApi):
         coroutine = self._build_for_create_project_api_v1_projects_post(project_create=project_create)
         return get_event_loop().run_until_complete(coroutine)
 
-    def default_config_api_v1_projects_default_config_get(self) -> m.ResponseDefaultConfigApiV1ProjectsDefaultConfigGet:
+    def default_config_api_v1_projects_default_config_get(self) -> dict[str, Any]:
         """
         Return default configuration for projects.  Returns:     List[Project]: List of projects
         """

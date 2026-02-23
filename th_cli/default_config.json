@@ -2,15 +2,18 @@
   "network": {
     "fabric_id": 0,
     "thread": {
-      "channel": 15,
-      "panid": "0x1234",
-      "extpanid": "1111111122222222",
-      "networkkey": "00112233445566778899aabbccddeeff",
-      "networkname": "DEMO",
       "rcp_serial_path": "/dev/ttyACM0",
       "rcp_baudrate": 115200,
       "on_mesh_prefix": "fd11:22::/64",
-      "network_interface": "eth0"
+      "network_interface": "eth0",
+      "dataset": {
+        "channel": 15,
+        "panid": "0x1234",
+        "extpanid": "1111111122222222",
+        "networkkey": "00112233445566778899aabbccddeeff",
+        "networkname": "DEMO"
+      },
+      "otbr_docker_image": null
     },
     "wifi": {
       "ssid": "testharness",
