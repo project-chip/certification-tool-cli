@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import json
+from contextlib import contextmanager
 from typing import Any
 
 import click
@@ -47,6 +48,21 @@ def project():
     pass
 
 
+@contextmanager
+def get_sync_apis(operation: str):
+    client = None
+    try:
+        client = get_client()
+        yield SyncApis(client)
+    except CLIError:
+        raise
+    except Exception as e:
+        raise CLIError(f"Unexpected error in {operation} operation: {e}")
+    finally:
+        if client:
+            client.close()
+
+
 # Click command to create a new project
 @project.command(
     "create",
@@ -67,18 +83,8 @@ def project():
 )
 def create(name: str, config: str | None) -> None:
     """Create a new project"""
-    client = None
-    try:
-        client = get_client()
-        sync_apis = SyncApis(client)
+    with get_sync_apis("create") as sync_apis:
         _create_project(sync_apis, name, config)
-    except CLIError:
-        raise
-    except Exception as e:
-        raise CLIError(f"Unexpected error in create operation: {e}")
-    finally:
-        if client:
-            client.close()
 
 
 # Click command to list projects
@@ -124,18 +130,8 @@ def list_projects(
     json: bool,
 ) -> None:
     """List projects"""
-    client = None
-    try:
-        client = get_client()
-        sync_apis = SyncApis(client)
+    with get_sync_apis("list") as sync_apis:
         _list_projects(sync_apis, id, archived, skip, limit, json)
-    except CLIError:
-        raise
-    except Exception as e:
-        raise CLIError(f"Unexpected error in list operation: {e}")
-    finally:
-        if client:
-            client.close()
 
 
 # Click command to update an existing project
@@ -164,18 +160,8 @@ def list_projects(
 )
 def update(id: int, config: str | None, name: str | None) -> None:
     """Update an existing project"""
-    client = None
-    try:
-        client = get_client()
-        sync_apis = SyncApis(client)
+    with get_sync_apis("update") as sync_apis:
         _update_project(sync_apis, id, name, config)
-    except CLIError:
-        raise
-    except Exception as e:
-        raise CLIError(f"Unexpected error in update operation: {e}")
-    finally:
-        if client:
-            client.close()
 
 
 # Click command to delete an existing project
@@ -203,18 +189,8 @@ def delete(id: int, yes: bool) -> None:
             click.echo("Operation cancelled.")
             return
 
-    client = None
-    try:
-        client = get_client()
-        sync_apis = SyncApis(client)
+    with get_sync_apis("delete") as sync_apis:
         _delete_project(sync_apis, id)
-    except CLIError:
-        raise  # Re-raise CLI Errors as-is
-    except Exception as e:
-        raise CLIError(f"Unexpected error in delete operation: {e}")
-    finally:
-        if client:
-            client.close()
 
 
 def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
