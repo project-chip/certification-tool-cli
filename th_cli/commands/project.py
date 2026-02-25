@@ -102,15 +102,13 @@ def project(
     # Validate operation-specific requirements
     if operation == "create":
         if not name:
-            raise click.ClickException("--name is required for create operation")
+            raise CLIError("--name is required for create operation")
     elif operation == "update":
         if not id:
-            raise click.ClickException("--id is required for update operation")
-        if not config:
-            raise click.ClickException("--config is required for update operation")
+            raise CLIError("--id is required for update operation")
     elif operation == "delete":
         if not id:
-            raise click.ClickException("--id is required for delete operation")
+            raise CLIError("--id is required for delete operation")
         if not yes:
             if not click.confirm(colorize_error("Are you sure you want to delete the project?")):
                 click.echo("Operation cancelled.")
@@ -126,7 +124,7 @@ def project(
         elif operation == "list":
             _list_projects(sync_apis, id, archived, skip, limit, json)
         elif operation == "update":
-            _update_project(sync_apis, id, config)
+            _update_project(sync_apis, id, name, config)
         elif operation == "delete":
             _delete_project(sync_apis, id)
     except CLIError:
@@ -227,19 +225,29 @@ def _list_projects(
         __print_table(projects)
 
 
-def _update_project(sync_apis: SyncApis, id: int, config: str) -> None:
+def _update_project(
+        sync_apis: SyncApis,
+        id: int,
+        name: str | None = None,
+        config_path: str | None = None,
+    ) -> None:
     """Update an existing project"""
     try:
+        if all(param is None for param in [name, config_path]):
+            raise CLIError(
+                "At least one of the following must be provided for the update operation: --name, --config"
+            )
+
         # Get existing project to preserve its name and other fields
         existing_project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
 
         # Load the new config
-        with open(config, "r") as f:
+        with open(config_path, "r") as f:
             config_dict = json.load(f)
 
         project_update = ProjectUpdate(
-            name=existing_project.name,
-            config=config_dict,
+            name=name if name is not None else existing_project.name,
+            config=config_dict if config_dict is not None else existing_project.config,
             pics=existing_project.pics,
         )
 

@@ -284,7 +284,7 @@ class APIGenerator:
             raise
         except FileNotFoundError:
             click.echo(
-                "  ✗ Error: datamodel-code-generator not found. Install it with: pip install 'datamodel-code-generator[http]'",
+                "  ✗ Error: datamodel-code-generator not found. Please verify the module installation.",
                 err=True,
             )
             raise

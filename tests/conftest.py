@@ -19,7 +19,6 @@ import asyncio
 import json
 import os
 import tempfile
-from datetime import UTC
 from pathlib import Path
 from typing import Any, Generator
 from unittest.mock import AsyncMock, Mock
@@ -221,8 +220,8 @@ def sample_project() -> api_models.Project:
                 "trace_log": False
             }
         },
-        created_at=fake.date_time(tzinfo=UTC),
-        updated_at=fake.date_time(tzinfo=UTC)
+        created_at=fake.date_time(),
+        updated_at=fake.date_time()
     )
 
 
@@ -245,8 +244,8 @@ def sample_projects() -> list[api_models.Project]:
                     "trace_log": False
                 }
             },
-            created_at=fake.date_time(tzinfo=UTC),
-            updated_at=fake.date_time(tzinfo=UTC)
+            created_at=fake.date_time(),
+            updated_at=fake.date_time()
         )
         for i in range(1, 4)
     ]
