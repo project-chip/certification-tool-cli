@@ -33,12 +33,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    "httpx>=0.15.4,<0.19.0",
+    "httpx>=0.28.1,<0.29.0",
     "attrs>=20.1.0,<22.0.0",
     "python-dateutil>=2.8.0,<3.0.0",
     "websockets>=10.0,<11.0",
     "click>=8.0.1,<9.0.0",
-    "pydantic>=1.4,<2.0",
+    "pydantic>=2.0,<3.0",
     "types-click>=7.1.5,<8.0.0",
     "fastapi>=0.68.1,<1.0.0",
     "loguru>=0.5.3,<1.0.0",
@@ -76,6 +76,9 @@ pytest-asyncio = "^0.21.1"  # Async support for pytest
 pytest-click = "^1.1.0"  # Click testing utilities
 pytest-xdist = "^3.3.1"  # Parallel test execution
 faker = "^19.3.0"  # Generate fake data for testing
+datamodel-code-generator = {extras = ["http"], version = "^0.53.0"}
+click = "^8.3.1"
+httpx = "^0.28.1"
 
 [tool.isort]
 multi_line_output = 3

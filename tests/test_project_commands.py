@@ -54,7 +54,7 @@ class TestCreateProjectCommand:
             }
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
-        mock_sync_apis.projects_api.create_project_api_v1_projects_post.return_value = sample_project
+        mock_sync_apis.projects_api.create_project_api_v1_projects__post.return_value = sample_project
 
         with patch("th_cli.commands.project.get_client", return_value=mock_api_client):
             with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -65,7 +65,7 @@ class TestCreateProjectCommand:
         assert result.exit_code == 0
         assert "Project 'Test Project' created with ID 1" in result.output
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.assert_called_once()
-        mock_sync_apis.projects_api.create_project_api_v1_projects_post.assert_called_once()
+        mock_sync_apis.projects_api.create_project_api_v1_projects__post.assert_called_once()
         mock_api_client.close.assert_called_once()
 
     def test_create_project_success_with_custom_config(
@@ -90,7 +90,7 @@ class TestCreateProjectCommand:
             }
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
-        mock_sync_apis.projects_api.create_project_api_v1_projects_post.return_value = sample_project
+        mock_sync_apis.projects_api.create_project_api_v1_projects__post.return_value = sample_project
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -189,11 +189,9 @@ class TestCreateProjectCommand:
 
         api_exception = UnexpectedResponse(
             status_code=400,
-            reason_phrase="Bad Request",
             content=b"Bad Request",
-            headers=Headers(),
         )
-        mock_sync_apis.projects_api.create_project_api_v1_projects_post.side_effect = api_exception
+        mock_sync_apis.projects_api.create_project_api_v1_projects__post.side_effect = api_exception
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -227,7 +225,7 @@ class TestDeleteProjectCommand:
     ) -> None:
         """Test successful project deletion with --yes flag."""
         # Arrange
-        mock_sync_apis.projects_api.delete_project_api_v1_projects_id_delete.return_value = None
+        mock_sync_apis.projects_api.delete_project_api_v1_projects__id__delete.return_value = None
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -236,7 +234,7 @@ class TestDeleteProjectCommand:
         # Assert
         assert result.exit_code == 0
         assert "Project 1 was deleted." in result.output
-        mock_sync_apis.projects_api.delete_project_api_v1_projects_id_delete.assert_called_once_with(id=1)
+        mock_sync_apis.projects_api.delete_project_api_v1_projects__id__delete.assert_called_once_with(id=1)
 
     def test_delete_project_success_with_confirmation(
         self,
@@ -245,7 +243,7 @@ class TestDeleteProjectCommand:
     ) -> None:
         """Test successful project deletion with user confirmation."""
         # Arrange
-        mock_sync_apis.projects_api.delete_project_api_v1_projects_id_delete.return_value = None
+        mock_sync_apis.projects_api.delete_project_api_v1_projects__id__delete.return_value = None
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -269,7 +267,7 @@ class TestDeleteProjectCommand:
         # Assert
         assert result.exit_code == 0  # Aborted
         assert "Operation cancelled." in result.output
-        mock_sync_apis.projects_api.delete_project_api_v1_projects_id_delete.assert_not_called()
+        mock_sync_apis.projects_api.delete_project_api_v1_projects__id__delete.assert_not_called()
 
     def test_delete_project_api_error(
         self,
@@ -280,11 +278,9 @@ class TestDeleteProjectCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=404,
-            reason_phrase="Not Found",
             content=b"Not Found",
-            headers=Headers(),
         )
-        mock_sync_apis.projects_api.delete_project_api_v1_projects_id_delete.side_effect = api_exception
+        mock_sync_apis.projects_api.delete_project_api_v1_projects__id__delete.side_effect = api_exception
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -319,7 +315,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test successful listing of all projects."""
         # Arrange
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.return_value = sample_projects
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.return_value = sample_projects
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -342,7 +338,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test successful listing of a specific project by ID."""
         # Arrange
-        mock_sync_apis.projects_api.read_project_api_v1_projects_id_get.return_value = sample_project
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -352,7 +348,7 @@ class TestListProjectsCommand:
         assert result.exit_code == 0
         assert str(sample_project.id) in result.output
         assert sample_project.name in result.output
-        mock_sync_apis.projects_api.read_project_api_v1_projects_id_get.assert_called_once_with(id=1)
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.assert_called_once_with(id=1)
 
     def test_list_projects_json_output(
         self,
@@ -362,7 +358,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test listing projects with JSON output."""
         # Arrange
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.return_value = sample_projects
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.return_value = sample_projects
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -382,7 +378,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test listing projects with pagination parameters."""
         # Arrange
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.return_value = sample_projects[:2]
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.return_value = sample_projects[:2]
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -390,7 +386,7 @@ class TestListProjectsCommand:
 
         # Assert
         assert result.exit_code == 0
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.assert_called_once_with(
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.assert_called_once_with(
             archived=False, skip=0, limit=2
         )
 
@@ -402,7 +398,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test listing archived projects."""
         # Arrange
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.return_value = sample_projects
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.return_value = sample_projects
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -410,7 +406,7 @@ class TestListProjectsCommand:
 
         # Assert
         assert result.exit_code == 0
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.assert_called_once_with(
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.assert_called_once_with(
             archived=True, skip=None, limit=None
         )
 
@@ -421,7 +417,7 @@ class TestListProjectsCommand:
     ) -> None:
         """Test listing projects when no projects are found."""
         # Arrange
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.return_value = []
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.return_value = []
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -440,11 +436,9 @@ class TestListProjectsCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=500,
-            reason_phrase="Internal Server Error",
             content=b"Internal Server Error",
-            headers=Headers(),
         )
-        mock_sync_apis.projects_api.read_projects_api_v1_projects_get.side_effect = api_exception
+        mock_sync_apis.projects_api.read_projects_api_v1_projects__get.side_effect = api_exception
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -483,7 +477,8 @@ class TestUpdateProjectCommand:
     ) -> None:
         """Test successful project update."""
         # Arrange
-        mock_sync_apis.projects_api.update_project_api_v1_projects_id_put.return_value = sample_project
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act
@@ -492,7 +487,7 @@ class TestUpdateProjectCommand:
         # Assert
         assert result.exit_code == 0
         assert "Project Test Project is updated with the new config." in result.output
-        mock_sync_apis.projects_api.update_project_api_v1_projects_id_put.assert_called_once()
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
 
     def test_update_project_config_file_not_found(
         self,
@@ -532,17 +527,17 @@ class TestUpdateProjectCommand:
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
-        mock_config: Path
+        mock_config: Path,
+        sample_project: api_models.Project
     ) -> None:
         """Test project update with API error."""
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=404,
-            reason_phrase="Not Found",
             content=b"Not Found",
-            headers=Headers(),
         )
-        mock_sync_apis.projects_api.update_project_api_v1_projects_id_put.side_effect = api_exception
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = api_exception
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             # Act

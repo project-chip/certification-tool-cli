@@ -89,7 +89,7 @@ def available_tests(
     try:
         client = get_client()
         sync_apis: SyncApis = SyncApis(client)
-        test_collections = sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get()
+        test_collections = sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get()
 
         if test_collections is None:
             raise CLIError("Server did not return test_collection")

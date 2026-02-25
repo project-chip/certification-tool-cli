@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023-2026 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import TYPE_CHECKING, Awaitable, List, Optional
-
-from fastapi.encoders import jsonable_encoder
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
@@ -29,47 +27,11 @@ class _OperatorsApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_create_operator_api_v1_operators_post(
-        self, operator_create: m.OperatorCreate
-    ) -> Awaitable[m.Operator]:
+    def _build_for_read_operators_api_v1_operators__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> Coroutine[Any, Any, list[m.Operator]]:
         """
-        Create new operator.  Args:     operator_in (OperatorCreate): Parameters for new operator.  Returns:     Operator: newly created operator record
-        """
-        body = jsonable_encoder(operator_create)
-
-        return self.api_client.request(type_=m.Operator, method="POST", url="/api/v1/operators/", json=body)
-
-    def _build_for_delete_operator_api_v1_operators_id_delete(self, id: int) -> Awaitable[m.Operator]:
-        """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record that was deleted
-        """
-        path_params = {"id": str(id)}
-
-        return self.api_client.request(
-            type_=m.Operator,
-            method="DELETE",
-            url="/api/v1/operators/{id}",
-            path_params=path_params,
-        )
-
-    def _build_for_read_operator_api_v1_operators_id_get(self, id: int) -> Awaitable[m.Operator]:
-        """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record
-        """
-        path_params = {"id": str(id)}
-
-        return self.api_client.request(
-            type_=m.Operator,
-            method="GET",
-            url="/api/v1/operators/{id}",
-            path_params=path_params,
-        )
-
-    def _build_for_read_operators_api_v1_operators_get(
-        self, skip: Optional[int] = None, limit: Optional[int] = None
-    ) -> Awaitable[List[m.Operator]]:
-        """
-        Retrive list of operators.  Args:     skip (int, optional): Pagination offset. Defaults to 0.     limit (int, optional): max number of records to return. Defaults to 100.  Returns:     List[Operator]: List of operators
+        Read Operators
         """
         query_params = {}
         if skip is not None:
@@ -78,95 +40,122 @@ class _OperatorsApi:
             query_params["limit"] = str(limit)
 
         return self.api_client.request(
-            type_=List[m.Operator],
-            method="GET",
-            url="/api/v1/operators/",
-            params=query_params,
+            type_=list[m.Operator], method="GET", url="/api/v1/operators/", params=query_params
         )
 
-    def _build_for_update_operator_api_v1_operators_id_put(
-        self, id: int, operator_update: m.OperatorUpdate
-    ) -> Awaitable[m.Operator]:
+    def _build_for_create_operator_api_v1_operators__post(
+        self, body: m.OperatorCreate
+    ) -> Coroutine[Any, Any, m.Operator]:
         """
-        Update an existing operator.  Args:     id (int): operator id     operator_in (schemas.OperatorUpdate): operators parameters to be updated  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: updated operator record
+        Create Operator
+        """
+        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+
+        return self.api_client.request(type_=m.Operator, method="POST", url="/api/v1/operators/", json=json_body)
+
+    def _build_for_read_operator_api_v1_operators__id__get(self, id: int) -> Coroutine[Any, Any, m.Operator]:
+        """
+        Read Operator
         """
         path_params = {"id": str(id)}
 
-        body = jsonable_encoder(operator_update)
+        return self.api_client.request(
+            type_=m.Operator, method="GET", url="/api/v1/operators/{id}", path_params=path_params
+        )
+
+    def _build_for_update_operator_api_v1_operators__id__put(
+        self, body: m.OperatorUpdate, id: int
+    ) -> Coroutine[Any, Any, m.Operator]:
+        """
+        Update Operator
+        """
+        path_params = {"id": str(id)}
+
+        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
 
         return self.api_client.request(
-            type_=m.Operator, method="PUT", url="/api/v1/operators/{id}", path_params=path_params, json=body
+            type_=m.Operator, method="PUT", url="/api/v1/operators/{id}", path_params=path_params, json=json_body
+        )
+
+    def _build_for_delete_operator_api_v1_operators__id__delete(self, id: int) -> Coroutine[Any, Any, m.Operator]:
+        """
+        Delete Operator
+        """
+        path_params = {"id": str(id)}
+
+        return self.api_client.request(
+            type_=m.Operator, method="DELETE", url="/api/v1/operators/{id}", path_params=path_params
         )
 
 
 class AsyncOperatorsApi(_OperatorsApi):
-    async def create_operator_api_v1_operators_post(self, operator_create: m.OperatorCreate) -> m.Operator:
+    async def read_operators_api_v1_operators__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> list[m.Operator]:
         """
-        Create new operator.  Args:     operator_in (OperatorCreate): Parameters for new operator.  Returns:     Operator: newly created operator record
+        Read Operators
         """
-        return await self._build_for_create_operator_api_v1_operators_post(operator_create=operator_create)
+        return await self._build_for_read_operators_api_v1_operators__get(skip=skip, limit=limit)
 
-    async def delete_operator_api_v1_operators_id_delete(self, id: int) -> m.Operator:
+    async def create_operator_api_v1_operators__post(self, body: m.OperatorCreate) -> m.Operator:
         """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record that was deleted
+        Create Operator
         """
-        return await self._build_for_delete_operator_api_v1_operators_id_delete(id=id)
+        return await self._build_for_create_operator_api_v1_operators__post(body=body)
 
-    async def read_operator_api_v1_operators_id_get(self, id: int) -> m.Operator:
+    async def read_operator_api_v1_operators__id__get(self, id: int) -> m.Operator:
         """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record
+        Read Operator
         """
-        return await self._build_for_read_operator_api_v1_operators_id_get(id=id)
+        return await self._build_for_read_operator_api_v1_operators__id__get(id=id)
 
-    async def read_operators_api_v1_operators_get(
-        self, skip: Optional[int] = None, limit: Optional[int] = None
-    ) -> List[m.Operator]:
+    async def update_operator_api_v1_operators__id__put(self, body: m.OperatorUpdate, id: int) -> m.Operator:
         """
-        Retrive list of operators.  Args:     skip (int, optional): Pagination offset. Defaults to 0.     limit (int, optional): max number of records to return. Defaults to 100.  Returns:     List[Operator]: List of operators
+        Update Operator
         """
-        return await self._build_for_read_operators_api_v1_operators_get(skip=skip, limit=limit)
+        return await self._build_for_update_operator_api_v1_operators__id__put(body=body, id=id)
 
-    async def update_operator_api_v1_operators_id_put(self, id: int, operator_update: m.OperatorUpdate) -> m.Operator:
+    async def delete_operator_api_v1_operators__id__delete(self, id: int) -> m.Operator:
         """
-        Update an existing operator.  Args:     id (int): operator id     operator_in (schemas.OperatorUpdate): operators parameters to be updated  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: updated operator record
+        Delete Operator
         """
-        return await self._build_for_update_operator_api_v1_operators_id_put(id=id, operator_update=operator_update)
+        return await self._build_for_delete_operator_api_v1_operators__id__delete(id=id)
 
 
 class SyncOperatorsApi(_OperatorsApi):
-    def create_operator_api_v1_operators_post(self, operator_create: m.OperatorCreate) -> m.Operator:
+    def read_operators_api_v1_operators__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> list[m.Operator]:
         """
-        Create new operator.  Args:     operator_in (OperatorCreate): Parameters for new operator.  Returns:     Operator: newly created operator record
+        Read Operators
         """
-        coroutine = self._build_for_create_operator_api_v1_operators_post(operator_create=operator_create)
+        coroutine = self._build_for_read_operators_api_v1_operators__get(skip=skip, limit=limit)
         return get_event_loop().run_until_complete(coroutine)
 
-    def delete_operator_api_v1_operators_id_delete(self, id: int) -> m.Operator:
+    def create_operator_api_v1_operators__post(self, body: m.OperatorCreate) -> m.Operator:
         """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record that was deleted
+        Create Operator
         """
-        coroutine = self._build_for_delete_operator_api_v1_operators_id_delete(id=id)
+        coroutine = self._build_for_create_operator_api_v1_operators__post(body=body)
         return get_event_loop().run_until_complete(coroutine)
 
-    def read_operator_api_v1_operators_id_get(self, id: int) -> m.Operator:
+    def read_operator_api_v1_operators__id__get(self, id: int) -> m.Operator:
         """
-        Lookup operator by id.  Args:     id (int): operator id  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: operator record
+        Read Operator
         """
-        coroutine = self._build_for_read_operator_api_v1_operators_id_get(id=id)
+        coroutine = self._build_for_read_operator_api_v1_operators__id__get(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def read_operators_api_v1_operators_get(
-        self, skip: Optional[int] = None, limit: Optional[int] = None
-    ) -> List[m.Operator]:
+    def update_operator_api_v1_operators__id__put(self, body: m.OperatorUpdate, id: int) -> m.Operator:
         """
-        Retrive list of operators.  Args:     skip (int, optional): Pagination offset. Defaults to 0.     limit (int, optional): max number of records to return. Defaults to 100.  Returns:     List[Operator]: List of operators
+        Update Operator
         """
-        coroutine = self._build_for_read_operators_api_v1_operators_get(skip=skip, limit=limit)
+        coroutine = self._build_for_update_operator_api_v1_operators__id__put(body=body, id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def update_operator_api_v1_operators_id_put(self, id: int, operator_update: m.OperatorUpdate) -> m.Operator:
+    def delete_operator_api_v1_operators__id__delete(self, id: int) -> m.Operator:
         """
-        Update an existing operator.  Args:     id (int): operator id     operator_in (schemas.OperatorUpdate): operators parameters to be updated  Raises:     HTTPException: if no operator exists for provided operator id  Returns:     Operator: updated operator record
+        Delete Operator
         """
-        coroutine = self._build_for_update_operator_api_v1_operators_id_put(id=id, operator_update=operator_update)
+        coroutine = self._build_for_delete_operator_api_v1_operators__id__delete(id=id)
         return get_event_loop().run_until_complete(coroutine)

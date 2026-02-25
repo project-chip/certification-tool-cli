@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023-2026 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import TYPE_CHECKING, Any, Awaitable
-
-from fastapi.encoders import jsonable_encoder
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
@@ -29,32 +27,48 @@ class _DevicesApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_add_device_config_api_v1_devices_put(self, body: Any) -> Awaitable[m.Any]:
-        body = jsonable_encoder(body)
+    def _build_for_get_device_configs_api_v1_devices__get(self) -> Coroutine[Any, Any, dict[str, Any]]:
+        """
+        Get Device Configs
+        """
+        return self.api_client.request(type_=dict[str, Any], method="GET", url="/api/v1/devices/")
 
-        return self.api_client.request(type_=m.Any, method="PUT", url="/api/v1/devices/", json=body)
+    def _build_for_add_device_config_api_v1_devices__put(
+        self, body: dict[str, Any]
+    ) -> Coroutine[Any, Any, dict[str, Any]]:
+        """
+        Add Device Config
+        """
+        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
 
-    def _build_for_get_device_configs_api_v1_devices_get(self) -> Awaitable[m.Any]:
-        return self.api_client.request(
-            type_=m.Any,
-            method="GET",
-            url="/api/v1/devices/",
-        )
+        return self.api_client.request(type_=dict[str, Any], method="PUT", url="/api/v1/devices/", json=json_body)
 
 
 class AsyncDevicesApi(_DevicesApi):
-    async def add_device_config_api_v1_devices_put(self, body: Any) -> m.Any:
-        return await self._build_for_add_device_config_api_v1_devices_put(body=body)
+    async def get_device_configs_api_v1_devices__get(self) -> dict[str, Any]:
+        """
+        Get Device Configs
+        """
+        return await self._build_for_get_device_configs_api_v1_devices__get()
 
-    async def get_device_configs_api_v1_devices_get(self) -> m.Any:
-        return await self._build_for_get_device_configs_api_v1_devices_get()
+    async def add_device_config_api_v1_devices__put(self, body: dict[str, Any]) -> dict[str, Any]:
+        """
+        Add Device Config
+        """
+        return await self._build_for_add_device_config_api_v1_devices__put(body=body)
 
 
 class SyncDevicesApi(_DevicesApi):
-    def add_device_config_api_v1_devices_put(self, body: Any) -> m.Any:
-        coroutine = self._build_for_add_device_config_api_v1_devices_put(body=body)
+    def get_device_configs_api_v1_devices__get(self) -> dict[str, Any]:
+        """
+        Get Device Configs
+        """
+        coroutine = self._build_for_get_device_configs_api_v1_devices__get()
         return get_event_loop().run_until_complete(coroutine)
 
-    def get_device_configs_api_v1_devices_get(self) -> m.Any:
-        coroutine = self._build_for_get_device_configs_api_v1_devices_get()
+    def add_device_config_api_v1_devices__put(self, body: dict[str, Any]) -> dict[str, Any]:
+        """
+        Add Device Config
+        """
+        coroutine = self._build_for_add_device_config_api_v1_devices__put(body=body)
         return get_event_loop().run_until_complete(coroutine)

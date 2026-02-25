@@ -39,7 +39,7 @@ class TestTestRunnerStatusCommand:
         """Test successful test runner status retrieval when idle."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.IDLE,
+            state=api_models.TestRunnerState.idle,
             test_run_execution_id=None
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -66,7 +66,7 @@ class TestTestRunnerStatusCommand:
         """Test successful test runner status retrieval when running."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.RUNNING,
+            state=api_models.TestRunnerState.running,
             test_run_execution_id=123
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -91,7 +91,7 @@ class TestTestRunnerStatusCommand:
         """Test successful test runner status retrieval with JSON output."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.READY,
+            state=api_models.TestRunnerState.ready,
             test_run_execution_id=None
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -168,10 +168,10 @@ class TestTestRunnerStatusCommand:
         assert "Print JSON response for more details" in result.output
 
     @pytest.mark.parametrize("state,execution_id,expected_state", [
-        (api_models.TestRunnerState.IDLE, None, "IDLE"),
-        (api_models.TestRunnerState.LOADING, None, "LOADING"),
-        (api_models.TestRunnerState.READY, None, "READY"),
-        (api_models.TestRunnerState.RUNNING, 456, "RUNNING"),
+        (api_models.TestRunnerState.idle, None, "IDLE"),
+        (api_models.TestRunnerState.loading, None, "LOADING"),
+        (api_models.TestRunnerState.ready, None, "READY"),
+        (api_models.TestRunnerState.running, 456, "RUNNING"),
     ])
     def test_test_runner_status_various_states(
         self,
@@ -210,7 +210,7 @@ class TestTestRunnerStatusCommand:
         """Test that output format is consistent and well-formatted."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.RUNNING,
+            state=api_models.TestRunnerState.running,
             test_run_execution_id=789
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -240,7 +240,7 @@ class TestTestRunnerStatusCommand:
         """Test test runner status with both table and JSON output modes."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.IDLE,
+            state=api_models.TestRunnerState.idle,
             test_run_execution_id=None
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -272,7 +272,7 @@ class TestTestRunnerStatusCommand:
         """Test that state is properly formatted with colorization."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.RUNNING,
+            state=api_models.TestRunnerState.running,
             test_run_execution_id=999
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
@@ -296,7 +296,7 @@ class TestTestRunnerStatusCommand:
         """Test the 'No active test run' message is displayed correctly."""
         # Arrange
         status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.READY,
+            state=api_models.TestRunnerState.ready,
             test_run_execution_id=None
         )
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get

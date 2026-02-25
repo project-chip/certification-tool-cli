@@ -41,7 +41,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test successful available tests retrieval with YAML output (default)."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.return_value = sample_test_collections
         with patch("th_cli.commands.available_tests.get_client", return_value=mock_api_client):
@@ -66,7 +66,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test successful available tests retrieval with JSON output."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.return_value = sample_test_collections
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -89,7 +89,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test handling of empty test collections."""
         # Arrange
-        mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get.return_value = None
+        mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get.return_value = None
 
         with patch("th_cli.commands.available_tests.get_client", return_value=mock_api_client):
             with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -125,11 +125,9 @@ class TestAvailableTestsCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=500,
-            reason_phrase="Internal Server Error",
             content=b"Internal Server Error",
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.available_tests.get_client", return_value=mock_api_client):
@@ -150,7 +148,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test available tests with generic exception."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.side_effect = Exception("Network error")
         with patch("th_cli.commands.available_tests.get_client", return_value=mock_api_client):
@@ -199,7 +197,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test available tests with both JSON and YAML output formats."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.return_value = sample_test_collections
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -270,7 +268,7 @@ class TestAvailableTestsCommand:
                 )
             }
         )
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.return_value = complex_collections
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -304,11 +302,9 @@ class TestAvailableTestsCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            reason_phrase=content,
             content=content.encode('utf-8'),
-            headers=Headers(),
         )
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.side_effect = api_exception
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -328,7 +324,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test that YAML output is properly formatted and readable."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
         api.return_value = sample_test_collections
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -351,7 +347,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --compact flag shows test IDs with titles."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -375,7 +371,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --group-by-cluster flag groups tests by cluster."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -401,7 +397,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --cluster filter shows only tests from specified cluster."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -425,7 +421,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --cluster filter is case insensitive."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -447,7 +443,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test combining --cluster and --compact flags."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -496,7 +492,7 @@ class TestAvailableTestsCommand:
         from th_cli.commands.available_tests import _extract_test_cases, _generate_compact
 
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -526,7 +522,7 @@ class TestAvailableTestsCommand:
         from th_cli.commands.available_tests import _extract_test_cases, _generate_grouped_by_cluster
 
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -558,7 +554,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --compact flag shows 4 elements per line."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -585,7 +581,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --group-by-cluster flag shows 4 elements per line within clusters."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -610,7 +606,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test available_tests command uses echo_via_pager."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -636,7 +632,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test that echo_via_pager is called for all custom formatting options."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
@@ -659,7 +655,7 @@ class TestAvailableTestsCommand:
     ) -> None:
         """Test --cluster flag shows detailed information."""
         # Arrange
-        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
 
         with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):

@@ -45,7 +45,7 @@ class TestRunTestsCommand:
         """Test successful test run with minimal arguments."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -92,7 +92,7 @@ class TestRunTestsCommand:
         """Test successful test run with custom JSON configuration file."""
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -138,7 +138,7 @@ class TestRunTestsCommand:
         """Test successful test run with PICS configuration."""
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -185,7 +185,7 @@ class TestRunTestsCommand:
         """Test successful test run with project ID."""
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -224,7 +224,7 @@ class TestRunTestsCommand:
         """Test successful test run with colors disabled."""
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -354,7 +354,7 @@ class TestRunTestsCommand:
         # Arrange
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
         projects_api.return_value = sample_default_config_dict
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_collections_api.side_effect = Exception("Collections API error")
 
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
@@ -382,13 +382,11 @@ class TestRunTestsCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=400,
-            reason_phrase="Bad Request",
             content=b"Bad Request",
-            headers=Headers(),
         )
 
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
 
@@ -421,16 +419,14 @@ class TestRunTestsCommand:
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=500,
-            reason_phrase="Internal Server Error",
             content=b"Internal Server Error",
-            headers=Headers(),
         )
 
         projects_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collections_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
-        start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+        start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
 
         test_collections_api.return_value = sample_test_collections
         projects_api.return_value = sample_default_config_dict
@@ -500,7 +496,7 @@ class TestRunTestsCommand:
         """Test run tests with various test list formats."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         start_api = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -538,7 +534,7 @@ class TestRunTestsCommand:
         """Test that test selection is properly built from test collections."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -582,7 +578,7 @@ class TestRunTestsCommand:
         """Test that logger is properly configured for the test run."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -623,7 +619,7 @@ class TestRunTestsCommand:
         """Test that default title is generated when not provided."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -672,7 +668,7 @@ class TestRunTestsCommand:
         """Test that JSON configuration data is properly processed and displayed."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -870,7 +866,7 @@ class TestRunTestsWithExtraArgs:
         """Test run tests with basic extra arguments."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -912,7 +908,7 @@ class TestRunTestsWithExtraArgs:
         """Test run tests with multiple extra arguments."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -958,7 +954,7 @@ class TestRunTestsWithExtraArgs:
         """Test run tests without extra arguments (normal behavior)."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -1000,7 +996,7 @@ class TestRunTestsWithExtraArgs:
         """Test run tests with both config file and extra arguments."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
@@ -1043,7 +1039,7 @@ class TestRunTestsWithExtraArgs:
         """Test that test_run_config uses deepcopy for isolation."""
         # Arrange
         project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
-        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         test_run_executions_api = mock_async_apis.test_run_executions_api
         cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
         id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023-2026 Project CHIP Authors
+# Copyright (c) 2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import inspect
+"""Auto-generated API client for Test Harness."""
 
-from pydantic import BaseModel
+from th_cli.api_lib_autogen.api_client import ApiClient, AsyncApis, SyncApis
+from th_cli.api_lib_autogen.exceptions import ApiException, ResponseHandlingException, UnexpectedResponse
 
-from th_cli.api_lib_autogen import models
-from th_cli.api_lib_autogen.api_client import ApiClient, AsyncApis, SyncApis  # noqa F401
-
-for model in inspect.getmembers(models, inspect.isclass):
-    if model[1].__module__ == "th_cli.api_lib_autogen.models":
-        model_class = model[1]
-        if issubclass(model_class, BaseModel):
-            model_class.update_forward_refs()
+__all__ = [
+    "ApiClient",
+    "AsyncApis",
+    "SyncApis",
+    "ApiException",
+    "ResponseHandlingException",
+    "UnexpectedResponse",
+]

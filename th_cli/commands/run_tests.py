@@ -178,7 +178,7 @@ async def run_tests(
         click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
 
         # Retrieve available test collections to build test selection
-        test_collections = await test_collections_api.read_test_collections_api_v1_test_collections_get()
+        test_collections = await test_collections_api.read_test_collections_api_v1_test_collections__get()
         selected_tests_dict = build_test_selection(test_collections, validated_test_ids)
 
         click.echo(colorize_key_value("Selected tests", json.dumps(selected_tests_dict, indent=JSON_INDENT)))
@@ -207,7 +207,7 @@ async def run_tests(
             await client.aclose()
 
 
-async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> m.TestEnvironmentConfig:
+async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
     """Retrieve project configuration for given project ID or default configuration.
 
     Args:
@@ -215,7 +215,7 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
         project_id: Optional project ID to retrieve configuration from
 
     Returns:
-        TestEnvironmentConfig object containing project configuration
+        Dictionary containing project configuration
 
     Raises:
         May raise API-related exceptions if default config retrieval fails
@@ -224,7 +224,7 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
 
     if project_id is not None:
         try:
-            project = await projects_api.read_project_api_v1_projects_id_get(id=project_id)
+            project = await projects_api.read_project_api_v1_projects__id__get(id=project_id)
             return project.config
         except UnexpectedResponse as e:
             msg = (
@@ -353,7 +353,7 @@ async def _start_test_run(
     click.echo(f"{header}:\n- {title}\n- {test_run_id}\n")
 
     try:
-        return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post(
+        return await test_run_executions_api.start_test_run_execution_api_v1_test_run_executions__id__start_post(
             id=test_run.id
         )
     except UnexpectedResponse as e:

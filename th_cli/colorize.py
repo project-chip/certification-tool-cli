@@ -45,21 +45,21 @@ class ColorConfig:
 
     # Default color mapping for different test states
     DEFAULT_STATE_COLORS: dict[str, str] = {
-        TestStateEnum.PASSED.value: "green",
-        TestStateEnum.FAILED.value: "red",
-        TestStateEnum.ERROR.value: "red",
-        TestStateEnum.CANCELLED.value: "bright_red",
-        TestStateEnum.EXECUTING.value: "yellow",
-        TestStateEnum.PENDING.value: "bright_white",
-        TestStateEnum.PENDING_ACTUATION.value: "bright_white",
-        TestStateEnum.NOT_APPLICABLE.value: "bright_black",
+        TestStateEnum.passed.value: "green",
+        TestStateEnum.failed.value: "red",
+        TestStateEnum.error.value: "red",
+        TestStateEnum.cancelled.value: "bright_red",
+        TestStateEnum.executing.value: "yellow",
+        TestStateEnum.pending.value: "bright_white",
+        TestStateEnum.pending_actuation.value: "bright_white",
+        TestStateEnum.not_applicable.value: "bright_black",
     }
 
     RUNNER_STATE_COLORS: dict[str, str] = {
-        TestRunnerState.IDLE.value: "bright_black",
-        TestRunnerState.READY.value: "green",
-        TestRunnerState.LOADING.value: "yellow",
-        TestRunnerState.RUNNING.value: "red",
+        TestRunnerState.idle.value: "bright_black",
+        TestRunnerState.ready.value: "green",
+        TestRunnerState.loading.value: "yellow",
+        TestRunnerState.running.value: "red",
     }
 
     # Hierarchy colors for different levels of test organization
@@ -161,7 +161,7 @@ def colorize_runner_state(runner_state_name: str) -> str:
     Returns:
         Colored string if colors are enabled, plain string otherwise
     """
-    blink = runner_state_name.lower() == TestRunnerState.RUNNING.value
+    blink = runner_state_name.lower() == TestRunnerState.running
     state_text = f"{runner_state_name.upper()}"
 
     if not color_config.colors_enabled:
