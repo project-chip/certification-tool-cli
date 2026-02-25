@@ -1,4 +1,4 @@
-# API Client Generator
+# CLI Support Scripts
 
 This directory contains scripts for managing the CLI tool.
 
