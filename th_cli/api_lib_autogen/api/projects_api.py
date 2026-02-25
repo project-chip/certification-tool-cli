@@ -125,7 +125,15 @@ class _ProjectsApi:
 
         files: dict[str, IO[Any]] = {}
         data: dict[str, Any] = {}
-        # TODO: Parse body for files and data
+
+        # Process body fields to populate files and data dictionaries
+        if body is not None:
+            # Process field: file
+            if hasattr(body, "file"):
+                field_value = getattr(body, "file")
+                if field_value is not None:
+                    # File field
+                    files["file"] = field_value
 
         return self.api_client.request(
             type_=m.Project,
@@ -189,7 +197,15 @@ class _ProjectsApi:
         """
         files: dict[str, IO[Any]] = {}
         data: dict[str, Any] = {}
-        # TODO: Parse body for files and data
+
+        # Process body fields to populate files and data dictionaries
+        if body is not None:
+            # Process field: import_file
+            if hasattr(body, "import_file"):
+                field_value = getattr(body, "import_file")
+                if field_value is not None:
+                    # File field
+                    files["import_file"] = field_value
 
         return self.api_client.request(
             type_=m.Project, method="POST", url="/api/v1/projects/import", data=data, files=files

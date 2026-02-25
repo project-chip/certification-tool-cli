@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+import httpx
 
 
 class OpenAPIParser:
@@ -104,9 +105,41 @@ class OpenAPIParser:
                     "required": request_body.get("required", False),
                     "content_type": content_type,
                     "is_multipart": content_type == "multipart/form-data",
+                    "schema": schema,  # Keep the original schema for field inspection
                 }
 
         return None
+
+    def get_schema_fields(self, schema: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract field information from a schema, resolving $ref if needed."""
+        # Resolve $ref if present
+        if "$ref" in schema:
+            ref = schema["$ref"]
+            schema_name = ref.split("/")[-1]
+            schema = self.schemas.get(schema_name, {})
+
+        properties = schema.get("properties", {})
+        required_fields = schema.get("required", [])
+
+        fields = []
+        for field_name, field_schema in properties.items():
+            field_type = field_schema.get("type", "string")
+            field_format = field_schema.get("format", "")
+
+            # Determine if this is a file field
+            # In OpenAPI, file uploads are typically: type=string, format=binary
+            is_file = (field_type == "string" and field_format == "binary")
+
+            fields.append({
+                "name": field_name,
+                "type": field_type,
+                "format": field_format,
+                "is_file": is_file,
+                "required": field_name in required_fields,
+                "schema": field_schema,
+            })
+
+        return fields
 
     def get_response_type(self, responses: dict[str, Any]) -> str:
         """Extract response type from responses."""
@@ -194,7 +227,6 @@ class APIGenerator:
         """Load OpenAPI specification from file or URL."""
         if self.spec_path.startswith("http://") or self.spec_path.startswith("https://"):
             click.echo(f"📥 Downloading OpenAPI spec from {self.spec_path}")
-            import httpx
             response = httpx.get(self.spec_path, follow_redirects=True)
             response.raise_for_status()
             return response.json()
@@ -449,13 +481,54 @@ if TYPE_CHECKING:
                 body_lines.append(f"            query_params[\"{p['name']}\"] = str({p['name']})")
             body_lines.append("")
 
+        # Header parameters
+        if header_params:
+            req_headers = [p for p in header_params if p["required"]]
+            opt_headers = [p for p in header_params if not p["required"]]
+
+            if req_headers:
+                header_dict_items = [f'"{p["name"]}": str({p["name"]})' for p in req_headers]
+                body_lines.append(f"        headers = {{{', '.join(header_dict_items)}}}")
+            else:
+                body_lines.append("        headers = {}")
+
+            for p in opt_headers:
+                body_lines.append(f"        if {p['name']} is not None:")
+                body_lines.append(f"            headers[\"{p['name']}\"] = str({p['name']})")
+            body_lines.append("")
+
         # Request body handling
         if body_info:
             if body_info["is_multipart"]:
-                # Handle multipart form data (files)
+                # Handle multipart form data (files and data)
+                schema = body_info.get("schema", {})
+                fields = self.parser.get_schema_fields(schema)
+
                 body_lines.append("        files: dict[str, IO[Any]] = {}")
                 body_lines.append("        data: dict[str, Any] = {}")
-                body_lines.append("        # TODO: Parse body for files and data")
+                body_lines.append("")
+                body_lines.append("        # Process body fields to populate files and data dictionaries")
+                body_lines.append("        if body is not None:")
+
+                # Generate field processing logic
+                for field in fields:
+                    field_name = field["name"]
+                    is_file = field["is_file"]
+
+                    body_lines.append(f"            # Process field: {field_name}")
+                    body_lines.append(f"            if hasattr(body, '{field_name}'):")
+                    body_lines.append(f"                field_value = getattr(body, '{field_name}')")
+                    body_lines.append("                if field_value is not None:")
+
+                    if is_file:
+                        # File field - add to files dict
+                        body_lines.append("                    # File field")
+                        body_lines.append(f"                    files['{field_name}'] = field_value")
+                    else:
+                        # Regular field - add to data dict, convert to string if needed
+                        body_lines.append("                    # Data field")
+                        body_lines.append(f"                    data['{field_name}'] = field_value")
+
                 body_lines.append("")
             else:
                 # JSON body - use model_dump for Pydantic v2
@@ -474,7 +547,7 @@ if TYPE_CHECKING:
         if query_params:
             request_args.append("params=query_params")
         if header_params:
-            request_args.append("# TODO: Add headers")
+            request_args.append("headers=headers")
         if body_info:
             if body_info["is_multipart"]:
                 request_args.append("data=data")
