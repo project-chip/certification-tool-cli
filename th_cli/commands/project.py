@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Project CHIP Authors
+# Copyright (c) 2023-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import json
+from contextlib import contextmanager
 from typing import Any
 
 import click
@@ -23,118 +24,173 @@ from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate
 from th_cli.client import get_client
-from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_header, colorize_help, colorize_success, italic
+from th_cli.colorize import (
+    colorize_cmd_help,
+    colorize_error,
+    colorize_header,
+    colorize_help,
+    colorize_success,
+    colorize_warning,
+    italic
+)
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.utils import __print_json
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
 
-
-@click.command(
+# Click command group for project management
+@click.group(
     short_help=colorize_help("Manage projects"),
     help=colorize_cmd_help("project", "Create, list, update, or delete projects"),
 )
-@click.argument(
-    "operation",
-    type=click.Choice(["create", "list", "update", "delete"], case_sensitive=False),
-)
-@click.option(
-    "--id",
-    "-i",
-    type=int,
-    help=colorize_help("Project ID (required for update/delete operations, optional for list)"),
+def project():
+    """Manage projects - create, list, update, or delete"""
+    pass
+
+
+@contextmanager
+def get_sync_apis(operation: str):
+    client = None
+    try:
+        client = get_client()
+        yield SyncApis(client)
+    except CLIError:
+        raise
+    except Exception as e:
+        raise CLIError(f"Unexpected error in {operation} operation: {e}")
+    finally:
+        if client:
+            client.close()
+
+
+# Click command to create a new project
+@project.command(
+    "create",
+    short_help=colorize_help("Create a new project"),
 )
 @click.option(
     "--name",
     "-n",
     type=str,
-    help=colorize_help("Name of the project (required for create operation)"),
+    required=True,
+    help=colorize_help("Name of the project"),
 )
 @click.option(
     "--config",
     "-c",
     type=click.Path(file_okay=True, dir_okay=False),
-    help=colorize_help("Config JSON file for the project (optional for create, required for update)"),
+    help=colorize_help("Config JSON file for the project"),
+)
+def create(name: str, config: str | None) -> None:
+    """Create a new project"""
+    with get_sync_apis("create") as sync_apis:
+        _create_project(sync_apis, name, config)
+
+
+# Click command to list projects
+@project.command(
+    "list",
+    short_help=colorize_help("List projects"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    help=colorize_help("Project ID to retrieve a specific project"),
 )
 @click.option(
     "--skip",
     "-s",
     type=int,
-    help=colorize_help("The first N projects to skip, ordered by ID (list operation only)"),
+    help=colorize_help("The first N projects to skip, ordered by ID"),
 )
 @click.option(
     "--limit",
     "-l",
     type=int,
-    help=colorize_help("Maximum number of projects to fetch (list operation only)"),
+    help=colorize_help("Maximum number of projects to fetch"),
 )
 @click.option(
     "--archived",
     is_flag=True,
     default=False,
-    help=colorize_help("List only archived projects (list operation only)"),
+    help=colorize_help("List only archived projects"),
 )
 @click.option(
     "--json",
     is_flag=True,
     default=False,
-    help=colorize_help("Print JSON response for more details (list operation only)"),
+    help=colorize_help("Print JSON response for more details"),
+)
+def list_projects(
+    id: int | None,
+    skip: int | None,
+    limit: int | None,
+    archived: bool,
+    json: bool,
+) -> None:
+    """List projects"""
+    with get_sync_apis("list") as sync_apis:
+        _list_projects(sync_apis, id, archived, skip, limit, json)
+
+
+# Click command to update an existing project
+@project.command(
+    "update",
+    short_help=colorize_help("Update an existing project"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID to update"),
+)
+@click.option(
+    "--name",
+    "-n",
+    type=str,
+    help=colorize_help("Name of the project"),
+)
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(file_okay=True, dir_okay=False),
+    help=colorize_help("Config JSON file for the project"),
+)
+def update(id: int, config: str | None, name: str | None) -> None:
+    """Update an existing project"""
+    with get_sync_apis("update") as sync_apis:
+        _update_project(sync_apis, id, name, config)
+
+
+# Click command to delete an existing project
+@project.command(
+    "delete",
+    short_help=colorize_help("Delete a project"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID to delete"),
 )
 @click.option(
     "--yes",
     "-y",
     is_flag=True,
-    help=colorize_help("Delete the project without confirmation (delete operation only)"),
+    help=colorize_help("Delete the project without confirmation"),
 )
-def project(
-    operation: str,
-    id: int | None,
-    name: str | None,
-    config: str | None,
-    skip: int | None,
-    limit: int | None,
-    archived: bool | None = False,
-    json: bool | None = False,
-    yes: bool | None = False,
-) -> None:
-    """Manage projects - create, list, update, or delete"""
+def delete(id: int, yes: bool) -> None:
+    """Delete a project"""
+    if not yes:
+        if not click.confirm(colorize_error("Are you sure you want to delete the project?")):
+            click.echo("Operation cancelled.")
+            return
 
-    # Validate operation-specific requirements
-    if operation == "create":
-        if not name:
-            raise CLIError("--name is required for create operation")
-    elif operation == "update":
-        if not id:
-            raise CLIError("--id is required for update operation")
-    elif operation == "delete":
-        if not id:
-            raise CLIError("--id is required for delete operation")
-        if not yes:
-            if not click.confirm(colorize_error("Are you sure you want to delete the project?")):
-                click.echo("Operation cancelled.")
-                return
-
-    client = None
-    sync_apis = None
-    try:
-        client = get_client()
-        sync_apis = SyncApis(client)
-        if operation == "create":
-            _create_project(sync_apis, name, config)
-        elif operation == "list":
-            _list_projects(sync_apis, id, archived, skip, limit, json)
-        elif operation == "update":
-            _update_project(sync_apis, id, name, config)
-        elif operation == "delete":
-            _delete_project(sync_apis, id)
-    except CLIError:
-        raise  # Re-raise CLI Errors as-is
-    except Exception as e:
-        # Catch any unexpected errors
-        raise CLIError(f"Unexpected error in {operation} operation: {e}")
-    finally:
-        if client:
-            client.close()
+    with get_sync_apis("delete") as sync_apis:
+        _delete_project(sync_apis, id)
 
 
 def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
@@ -211,6 +267,7 @@ def _list_projects(
             )
         )
 
+    projects: Project | list[Project]
     if id is not None:
         projects = __list_project_by_id(id)
     else:
@@ -234,9 +291,8 @@ def _update_project(
     """Update an existing project"""
     try:
         if all(param is None for param in [name, config_path]):
-            raise CLIError(
-                "At least one of the following must be provided for the update operation: --name, --config"
-            )
+            click.echo(colorize_warning("Nothing to be done. Please provide at least one parameter to update."))
+            return
 
         # Get existing project to preserve its name and other fields
         existing_project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)

@@ -31,6 +31,7 @@ class TextTypeEnum(str, Enum):
     DUMP = "dump"
     SUCCESS = "success"
     ERROR = "error"
+    WARNING = "warning"
 
 
 class HierarchyEnum(str, Enum):
@@ -80,6 +81,7 @@ class ColorConfig:
         TextTypeEnum.DUMP.value: "bright_black",
         TextTypeEnum.SUCCESS.value: "green",
         TextTypeEnum.ERROR.value: "red",
+        TextTypeEnum.WARNING.value: "yellow",
     }
 
     def __init__(self):
@@ -235,6 +237,22 @@ def colorize_error(error_message: str) -> str:
 
     color = color_config.get_text_color(TextTypeEnum.ERROR.value)
     return click.style(error_message, fg=color, bold=True, italic=True)
+
+
+def colorize_warning(warning_message: str) -> str:
+    """
+    Colorize warning messages in logs.
+
+    Args:
+        warning_message: The warning message to colorize
+    Returns:
+        Colored string if colors are enabled, plain string otherwise
+    """
+    if not color_config.colors_enabled:
+        return warning_message
+
+    color = color_config.get_text_color(TextTypeEnum.WARNING.value)
+    return click.style(warning_message, fg=color, bold=True, italic=True)
 
 
 def colorize_key_value(key: str, value: any) -> str:
