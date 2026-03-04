@@ -162,7 +162,7 @@ def load_json_config(config_path: str) -> dict[str, Any]:
     except FileNotFoundError as e:
         handle_file_error(e, "config file")
     except json.JSONDecodeError as e:
-        raise CLIError(f"Invalid JSON in config file '{config_path}': {e.msg} " f"(line {e.lineno}, column {e.colno})")
+        raise CLIError(f"Invalid JSON in config file '{config_path}': {e.msg} (line {e.lineno}, column {e.colno})")
     except OSError as e:
         raise CLIError(f"Failed to read config file '{config_path}': {e}")
 
