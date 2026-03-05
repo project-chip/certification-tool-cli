@@ -74,8 +74,8 @@ def build_test_selection(test_collections, tests_list) -> dict:
     """
     selected_tests = {}
 
-    # Convert test IDs to a set for faster lookup and normalize them
-    tests_set = {test_id.strip().replace("-", "_").replace(".", "_") for test_id in tests_list}
+    # Convert test IDs to a set for faster lookup and normalize them (case-insensitive)
+    tests_set = {test_id.strip().replace("-", "_").replace(".", "_").upper() for test_id in tests_list}
 
     # Iterate through test collections
     for collection_name, collection in test_collections.test_collections.items():
@@ -87,8 +87,8 @@ def build_test_selection(test_collections, tests_list) -> dict:
 
             # Iterate through test cases
             for test_case_id, test_case in suite.test_cases.items():
-                # Normalize the test case ID for comparison
-                normalized_test_case_id = test_case_id.replace("-", "_").replace(".", "_")
+                # Normalize the test case ID for comparison (case-insensitive)
+                normalized_test_case_id = test_case_id.replace("-", "_").replace(".", "_").upper()
                 if normalized_test_case_id in tests_set:
                     selected_tests[collection_name][suite_name][test_case_id] = 1
 
