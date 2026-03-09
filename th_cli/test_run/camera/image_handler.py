@@ -45,7 +45,6 @@ class ImageVerificationHTTPHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -68,10 +67,11 @@ class ImageVerificationHTTPHandler(BaseHTTPRequestHandler):
 
         radio_options_html = ""
         for key, value in prompt_options.items():
+            safe_value = int(value)
             radio_options_html += f"""
-            <div class="popup-radio-row" data-value="{value}" onclick="selectOption({value})">
-                <input type="radio" name="option" value="{value}" id="radio_{value}">
-                <label for="radio_{value}">{html.escape(key)}</label>
+            <div class="popup-radio-row" data-value="{safe_value}" onclick="selectOption({safe_value})">
+                <input type="radio" name="option" value="{safe_value}" id="radio_{safe_value}">
+                <label for="radio_{safe_value}">{html.escape(key)}</label>
             </div>
             """
 
@@ -108,35 +108,30 @@ class ImageVerificationHTTPHandler(BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(b'{"status": "success"}')
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             logger.error(f"Malformed request body: {e}")
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": f"Invalid JSON: {e}"}).encode())
         except KeyError as e:
             logger.error(f"Missing required field in request: {e}")
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": f"Missing field: {e}"}).encode())
         except ValueError as e:
             logger.error(f"Invalid value in request: {e}")
             self.send_response(400)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": f"Invalid value: {e}"}).encode())
         except Exception as e:
             logger.error(f"Unexpected error handling image verification response: {e}")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}).encode())
 
