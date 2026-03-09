@@ -83,7 +83,7 @@ class ImageVerificationHTTPHandler(BaseHTTPRequestHandler):
                 prompt_text=html.escape(prompt_text),
                 radio_options_html=radio_options_html,
             )
-        except Exception as e:
+        except (FileNotFoundError, IOError) as e:
             logger.error(f"Failed to load image verification HTML template: {e}")
             page = f"<html><body><h1>Error loading template</h1><p>{e}</p></body></html>"
 
@@ -111,8 +111,29 @@ class ImageVerificationHTTPHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(b'{"status": "success"}')
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.error(f"Malformed request body: {e}")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Invalid JSON: {e}"}).encode())
+        except KeyError as e:
+            logger.error(f"Missing required field in request: {e}")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Missing field: {e}"}).encode())
+        except ValueError as e:
+            logger.error(f"Invalid value in request: {e}")
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": f"Invalid value: {e}"}).encode())
         except Exception as e:
-            logger.error(f"Error handling image verification response: {e}")
+            logger.error(f"Unexpected error handling image verification response: {e}")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -137,7 +158,7 @@ class ImageVerificationHandler:
         self._options = options
         self._image_data = image_data
 
-    async def start_image_server(self, prompt_id: str):
+    async def start_image_server(self):
         """Start the HTTP server to serve the image page."""
         server = ThreadingHTTPServer(("0.0.0.0", self.port), ImageVerificationHTTPHandler)
         server.allow_reuse_address = True
