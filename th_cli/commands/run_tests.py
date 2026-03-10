@@ -146,15 +146,15 @@ async def run_tests(
         project_config_dict = convert_nested_to_dict(project_config)
         click.echo(colorize_key_value("Project Config", project_config_dict))
 
-        # Create execution config starting from project config
-        # This ensures we don't modify the original project config
-        test_run_config = copy.deepcopy(project_config_dict)
-
-        # If config file is provided, merge it into execution config only
+        # Create execution config. If a config file is provided, merge it with the
+        # project config. Otherwise, just use a copy of the project config.
+        # This avoids modifying the original project_config_dict.
         if config:
             config_data = load_json_config(config)
-            test_run_config = merge_configs(test_run_config, config_data)
+            test_run_config = merge_configs(project_config_dict, config_data)
             click.echo(colorize_key_value("CLI Test Run Execution Config", test_run_config))
+        else:
+            test_run_config = copy.deepcopy(project_config_dict)
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
