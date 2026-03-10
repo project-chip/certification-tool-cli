@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -33,25 +32,21 @@ class TestCreateProjectCommand:
     """Test cases for the create_project command."""
 
     def test_create_project_success_with_default_config(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock,
-        sample_project: api_models.Project
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock, sample_project: api_models.Project
     ) -> None:
         """Test successful project creation with default configuration."""
         # Arrange
         default_config = {
             "network": {
                 "wifi": {"ssid": "default", "password": "default"},
-                "thread": {"operational_dataset_hex": "default"}
+                "thread": {"operational_dataset_hex": "default"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
         mock_sync_apis.projects_api.create_project_api_v1_projects__post.return_value = sample_project
@@ -69,25 +64,21 @@ class TestCreateProjectCommand:
         mock_api_client.close.assert_called_once()
 
     def test_create_project_success_with_custom_config(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_project: api_models.Project,
-        mock_project_config: Path
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project, mock_project_config: Path
     ) -> None:
         """Test successful project creation with custom configuration file."""
         # Arrange
         default_config = {
             "network": {
                 "wifi": {"ssid": "default", "password": "default"},
-                "thread": {"operational_dataset_hex": "default"}
+                "thread": {"operational_dataset_hex": "default"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
         mock_sync_apis.projects_api.create_project_api_v1_projects__post.return_value = sample_project
@@ -112,14 +103,14 @@ class TestCreateProjectCommand:
         default_config = {
             "network": {
                 "wifi": {"ssid": "default", "password": "default"},
-                "thread": {"operational_dataset_hex": "default"}
+                "thread": {"operational_dataset_hex": "default"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
@@ -132,10 +123,7 @@ class TestCreateProjectCommand:
         assert "File not found: nonexistent.json" in result.output
 
     def test_create_project_invalid_json_config(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        temp_dir: Path
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, temp_dir: Path
     ) -> None:
         """Test project creation with invalid JSON in config file."""
         # Arrange
@@ -145,14 +133,14 @@ class TestCreateProjectCommand:
         default_config = {
             "network": {
                 "wifi": {"ssid": "default", "password": "default"},
-                "thread": {"operational_dataset_hex": "default"}
+                "thread": {"operational_dataset_hex": "default"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
@@ -176,14 +164,14 @@ class TestCreateProjectCommand:
         default_config = {
             "network": {
                 "wifi": {"ssid": "default", "password": "default"},
-                "thread": {"operational_dataset_hex": "default"}
+                "thread": {"operational_dataset_hex": "default"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         }
         mock_sync_apis.projects_api.default_config_api_v1_projects_default_config_get.return_value = default_config
 
@@ -308,10 +296,7 @@ class TestListProjectsCommand:
     """Test cases for the list_projects command."""
 
     def test_list_projects_success_all_projects(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_projects: list[api_models.Project]
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_projects: list[api_models.Project]
     ) -> None:
         """Test successful listing of all projects."""
         # Arrange
@@ -331,10 +316,7 @@ class TestListProjectsCommand:
             assert sample_project.name in result.output
 
     def test_list_projects_success_specific_project(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_project: api_models.Project
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
     ) -> None:
         """Test successful listing of a specific project by ID."""
         # Arrange
@@ -351,10 +333,7 @@ class TestListProjectsCommand:
         mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.assert_called_once_with(id=1)
 
     def test_list_projects_json_output(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_projects: list[api_models.Project]
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_projects: list[api_models.Project]
     ) -> None:
         """Test listing projects with JSON output."""
         # Arrange
@@ -371,10 +350,7 @@ class TestListProjectsCommand:
         assert '"name":' in result.output
 
     def test_list_projects_with_pagination(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_projects: list[api_models.Project]
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_projects: list[api_models.Project]
     ) -> None:
         """Test listing projects with pagination parameters."""
         # Arrange
@@ -391,10 +367,7 @@ class TestListProjectsCommand:
         )
 
     def test_list_projects_archived(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_projects: list[api_models.Project]
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_projects: list[api_models.Project]
     ) -> None:
         """Test listing archived projects."""
         # Arrange
@@ -469,11 +442,7 @@ class TestUpdateProjectCommand:
     """Test cases for the update_project command."""
 
     def test_update_project_success(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_project: api_models.Project,
-        mock_config: Path
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project, mock_config: Path
     ) -> None:
         """Test successful project update."""
         # Arrange
@@ -505,10 +474,7 @@ class TestUpdateProjectCommand:
         assert "File not found: nonexistent.json" in result.output
 
     def test_update_project_invalid_json_config(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        temp_dir: Path
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, temp_dir: Path
     ) -> None:
         """Test project update with invalid JSON in config file."""
         # Arrange
@@ -524,11 +490,7 @@ class TestUpdateProjectCommand:
         assert "Error: Failed to parse JSON parameter" in result.output
 
     def test_update_project_api_error(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_config: Path,
-        sample_project: api_models.Project
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_config: Path, sample_project: api_models.Project
     ) -> None:
         """Test project update with API error."""
         # Arrange

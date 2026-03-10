@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -33,26 +32,18 @@ class TestTestRunExecutionCommand:
     """Test cases for the test_run_execution command."""
 
     def test_test_run_execution_success_all(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test successful test run execution history retrieval (all executions)."""
         # Arrange
         test_executions = [
-            api_models.TestRunExecution(
-                id=1,
-                title="Test Run 1",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            ),
+            api_models.TestRunExecution(id=1, title="Test Run 1", state=api_models.TestStateEnum.passed, project_id=1),
             api_models.TestRunExecution(
                 id=2,
                 title="Test Run 2",
                 state=api_models.TestStateEnum.failed,
                 project_id=1,
-            )
+            ),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
@@ -81,10 +72,7 @@ class TestTestRunExecutionCommand:
         """Test successful test run execution history retrieval for specific ID."""
         # Arrange
         test_execution = api_models.TestRunExecution(
-            id=1,
-            title="Specific Test Run",
-            state=api_models.TestStateEnum.executing,
-            project_id=1
+            id=1, title="Specific Test Run", state=api_models.TestStateEnum.executing, project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
@@ -107,12 +95,7 @@ class TestTestRunExecutionCommand:
         """Test successful test run execution history retrieval with pagination."""
         # Arrange
         test_executions = [
-            api_models.TestRunExecution(
-                id=3,
-                title="Test Run 3",
-                state=api_models.TestStateEnum.pending,
-                project_id=1
-            )
+            api_models.TestRunExecution(id=3, title="Test Run 3", state=api_models.TestStateEnum.pending, project_id=1)
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
@@ -134,10 +117,7 @@ class TestTestRunExecutionCommand:
         """Test successful test run execution history retrieval with JSON output."""
         # Arrange
         test_execution = api_models.TestRunExecution(
-            id=1,
-            title="JSON Test Run",
-            state=api_models.TestStateEnum.passed,
-            project_id=1
+            id=1, title="JSON Test Run", state=api_models.TestStateEnum.passed, project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
@@ -158,8 +138,10 @@ class TestTestRunExecutionCommand:
     def test_test_run_execution_configuration_error(self, cli_runner: CliRunner) -> None:
         """Test test run execution history with configuration error."""
         # Arrange
-        with patch("th_cli.commands.test_run_execution.get_client",
-                   side_effect=ConfigurationError("Could not connect to server")):
+        with patch(
+            "th_cli.commands.test_run_execution.get_client",
+            side_effect=ConfigurationError("Could not connect to server"),
+        ):
             # Act
             result = cli_runner.invoke(test_run_execution)
 
@@ -168,10 +150,7 @@ class TestTestRunExecutionCommand:
         assert "Error: Could not connect to server" in result.output
 
     def test_test_run_execution_api_error_by_id(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution history with API error when fetching by ID."""
         # Arrange
@@ -214,16 +193,11 @@ class TestTestRunExecutionCommand:
         assert result.exit_code == 1
         assert "Error: Failed to get test run executions (Status: 500) - Internal Server Error" in result.output
 
-    def test_test_run_execution_client_cleanup_on_exception(
-            self,
-            cli_runner: CliRunner,
-            mock_api_client: Mock
-    ) -> None:
+    def test_test_run_execution_client_cleanup_on_exception(self, cli_runner: CliRunner, mock_api_client: Mock) -> None:
         """Test that client is properly cleaned up even when an exception occurs."""
         # Arrange
         with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
-            with patch("th_cli.commands.test_run_execution.SyncApis",
-                       side_effect=Exception("API creation failed")):
+            with patch("th_cli.commands.test_run_execution.SyncApis", side_effect=Exception("API creation failed")):
                 # Act
                 result = cli_runner.invoke(test_run_execution)
 
@@ -245,30 +219,24 @@ class TestTestRunExecutionCommand:
         assert "--project-id" in result.output
         assert "--json" in result.output
 
-    @pytest.mark.parametrize("state,expected_display", [
-        (api_models.TestStateEnum.pending, "PENDING"),
-        (api_models.TestStateEnum.executing, "EXECUTING"),
-        (api_models.TestStateEnum.passed, "PASSED"),
-        (api_models.TestStateEnum.failed, "FAILED"),
-        (api_models.TestStateEnum.error, "ERROR"),
-        (api_models.TestStateEnum.cancelled, "CANCELLED"),
-        (api_models.TestStateEnum.not_applicable, "NOT_APPLICABLE"),
-    ])
+    @pytest.mark.parametrize(
+        "state,expected_display",
+        [
+            (api_models.TestStateEnum.pending, "PENDING"),
+            (api_models.TestStateEnum.executing, "EXECUTING"),
+            (api_models.TestStateEnum.passed, "PASSED"),
+            (api_models.TestStateEnum.failed, "FAILED"),
+            (api_models.TestStateEnum.error, "ERROR"),
+            (api_models.TestStateEnum.cancelled, "CANCELLED"),
+            (api_models.TestStateEnum.not_applicable, "NOT_APPLICABLE"),
+        ],
+    )
     def test_test_run_execution_various_states(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        state: api_models.TestStateEnum,
-        expected_display: str
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, state: api_models.TestStateEnum, expected_display: str
     ) -> None:
         """Test test run execution history with various execution states."""
         # Arrange
-        test_execution = api_models.TestRunExecution(
-            id=1,
-            title="State Test Run",
-            state=state,
-            project_id=1
-        )
+        test_execution = api_models.TestRunExecution(id=1, title="State Test Run", state=state, project_id=1)
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
         api.return_value = test_execution
@@ -292,14 +260,9 @@ class TestTestRunExecutionCommand:
                 id=1,
                 title="Long Test Run Title That Should Be Formatted Properly",
                 state=api_models.TestStateEnum.passed,
-                project_id=1
+                project_id=1,
             ),
-            api_models.TestRunExecution(
-                id=2,
-                title="Short Title",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            )
+            api_models.TestRunExecution(id=2, title="Short Title", state=api_models.TestStateEnum.passed, project_id=1),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
 
@@ -311,7 +274,7 @@ class TestTestRunExecutionCommand:
         # Assert
         assert result.exit_code == 0
         # Check for proper table formatting
-        lines = result.output.strip().split('\n')
+        lines = result.output.strip().split("\n")
         # Should have header line and at least two data lines
         assert len(lines) >= 3
         # Header should be present
@@ -320,27 +283,23 @@ class TestTestRunExecutionCommand:
         assert any("Long Test Run Title" in line for line in lines)
         assert any("Short Title" in line for line in lines)
 
-    @pytest.mark.parametrize("skip,limit", [
-        (None, None),
-        (0, 10),
-        (5, 20),
-        (100, 1),
-    ])
+    @pytest.mark.parametrize(
+        "skip,limit",
+        [
+            (None, None),
+            (0, 10),
+            (5, 20),
+            (100, 1),
+        ],
+    )
     def test_test_run_execution_pagination_parameters(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        skip: int,
-        limit: int
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, skip: int, limit: int
     ) -> None:
         """Test test run execution history with various pagination parameters."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=1,
-                title="Paginated Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
+                id=1, title="Paginated Test Run", state=api_models.TestStateEnum.passed, project_id=1
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
@@ -367,10 +326,7 @@ class TestTestRunExecutionCommand:
         """Test that error state is properly displayed in the State column."""
         # Arrange
         test_execution = api_models.TestRunExecution(
-            id=1,
-            title="Failed Test Run",
-            state=api_models.TestStateEnum.error,
-            project_id=1
+            id=1, title="Failed Test Run", state=api_models.TestStateEnum.error, project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
@@ -391,10 +347,7 @@ class TestTestRunExecutionCommand:
         """Test that PASSED state is properly displayed."""
         # Arrange
         test_execution = api_models.TestRunExecution(
-            id=1,
-            title="Successful Test Run",
-            state=api_models.TestStateEnum.passed,
-            project_id=1
+            id=1, title="Successful Test Run", state=api_models.TestStateEnum.passed, project_id=1
         )
         api = mock_sync_apis.test_run_executions_api.read_test_run_execution_api_v1_test_run_executions__id__get
 
@@ -409,19 +362,13 @@ class TestTestRunExecutionCommand:
 
     @pytest.mark.parametrize("json_flag", [True, False])
     def test_test_run_execution_output_modes(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        json_flag: bool
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, json_flag: bool
     ) -> None:
         """Test test run execution history with both table and JSON output modes."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=1,
-                title="Output Mode Test",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
+                id=1, title="Output Mode Test", state=api_models.TestStateEnum.passed, project_id=1
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
@@ -512,8 +459,10 @@ class TestTestRunExecutionCommand:
     def test_test_run_execution_log_configuration_error(self, cli_runner: CliRunner) -> None:
         """Test test run execution log with configuration error."""
         # Arrange
-        with patch("th_cli.commands.test_run_execution.get_client",
-                   side_effect=ConfigurationError("Could not connect to server")):
+        with patch(
+            "th_cli.commands.test_run_execution.get_client",
+            side_effect=ConfigurationError("Could not connect to server"),
+        ):
             # Act
             result = cli_runner.invoke(test_run_execution, ["--id", "123", "--log"])
 
@@ -635,14 +584,11 @@ Escape sequences: \n\t\r"""
         assert "Log line 1:" in result.output
         assert "Log line 999:" in result.output
         # Verify that we can handle large content without truncation
-        assert len(result.output.split('\n')) >= 1000
+        assert len(result.output.split("\n")) >= 1000
 
     @pytest.mark.parametrize("test_id", ["1", "123", "999", "12345"])
     def test_test_run_execution_log_various_ids(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        test_id: str
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, test_id: str
     ) -> None:
         """Test test run execution log with various ID values."""
         # Arrange
@@ -657,30 +603,27 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         assert f"Log for test run execution ID: {test_id}" in result.output
-        api.assert_called_once_with(
-            id=int(test_id), json_entries=False, download=False
-        )
+        api.assert_called_once_with(id=int(test_id), json_entries=False, download=False)
 
-    @pytest.mark.parametrize("status_code,content", [
-        (400, "Bad Request"),
-        (401, "Unauthorized"),
-        (403, "Forbidden"),
-        (404, "Test run execution not found"),
-        (500, "Internal Server Error"),
-        (503, "Service Unavailable")
-    ])
+    @pytest.mark.parametrize(
+        "status_code,content",
+        [
+            (400, "Bad Request"),
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+            (404, "Test run execution not found"),
+            (500, "Internal Server Error"),
+            (503, "Service Unavailable"),
+        ],
+    )
     def test_test_run_execution_log_various_api_errors(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        status_code: int,
-        content: str
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, status_code: int, content: str
     ) -> None:
         """Test test run execution log with various API error status codes."""
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            content=content.encode('utf-8'),
+            content=content.encode("utf-8"),
         )
         api = mock_sync_apis.test_run_executions_api.download_log_api_v1_test_run_executions__id__log_get
 
@@ -695,10 +638,7 @@ Escape sequences: \n\t\r"""
         assert content in result.output
 
     def test_test_run_execution_log_client_context_manager(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test that client is properly managed using context manager."""
         # Arrange
@@ -734,9 +674,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         # Verify the API is called with correct parameters
-        api.assert_called_once_with(
-            id=42, json_entries=False, download=False
-        )
+        api.assert_called_once_with(id=42, json_entries=False, download=False)
 
     def test_test_run_execution_log_whitespace_content(
         self,
@@ -777,26 +715,17 @@ Escape sequences: \n\t\r"""
         assert "Network timeout" in str(result.exception)
 
     def test_test_run_execution_sort_parameter_asc(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with sort parameter set to asc."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=1,
-                title="Old Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
+                id=1, title="Old Test Run", state=api_models.TestStateEnum.passed, project_id=1
             ),
             api_models.TestRunExecution(
-                id=2,
-                title="New Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            )
+                id=2, title="New Test Run", state=api_models.TestStateEnum.passed, project_id=1
+            ),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
@@ -813,26 +742,17 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_sort_parameter_desc_default(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with sort parameter default (desc)."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=2,
-                title="New Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
+                id=2, title="New Test Run", state=api_models.TestStateEnum.passed, project_id=1
             ),
             api_models.TestRunExecution(
-                id=1,
-                title="Old Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            )
+                id=1, title="Old Test Run", state=api_models.TestStateEnum.passed, project_id=1
+            ),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
@@ -850,26 +770,17 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_sort_parameter_explicit_desc(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with sort parameter explicitly set to desc."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=2,
-                title="New Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
+                id=2, title="New Test Run", state=api_models.TestStateEnum.passed, project_id=1
             ),
             api_models.TestRunExecution(
-                id=1,
-                title="Old Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            )
+                id=1, title="Old Test Run", state=api_models.TestStateEnum.passed, project_id=1
+            ),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
@@ -887,26 +798,18 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_all_flag(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with --all flag."""
         # Arrange
         test_executions = [
-            api_models.TestRunExecution(
-                id=1,
-                title="Test Run 1",
-                state=api_models.TestStateEnum.passed,
-                project_id=1
-            ),
+            api_models.TestRunExecution(id=1, title="Test Run 1", state=api_models.TestStateEnum.passed, project_id=1),
             api_models.TestRunExecution(
                 id=2,
                 title="Test Run 2",
                 state=api_models.TestStateEnum.failed,
                 project_id=1,
-            )
+            ),
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions
@@ -958,19 +861,13 @@ Escape sequences: \n\t\r"""
         assert "(cannot be used with --limit)" in result.output
 
     def test_test_run_execution_with_project_id(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution history filtered by project ID."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=1,
-                title="Project 5 Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=5
+                id=1, title="Project 5 Test Run", state=api_models.TestStateEnum.passed, project_id=5
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
@@ -988,19 +885,13 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_short_form(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution history filtered by project ID using short form."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=1,
-                title="Project 10 Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=10
+                id=1, title="Project 10 Test Run", state=api_models.TestStateEnum.passed, project_id=10
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
@@ -1018,19 +909,13 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_and_pagination(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with project ID combined with pagination."""
         # Arrange
         test_executions = [
             api_models.TestRunExecution(
-                id=3,
-                title="Filtered Paginated Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=7
+                id=3, title="Filtered Paginated Test Run", state=api_models.TestStateEnum.passed, project_id=7
             )
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
@@ -1048,20 +933,12 @@ Escape sequences: \n\t\r"""
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_and_sort(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test run execution with project ID combined with sort order."""
         # Arrange
         test_executions = [
-            api_models.TestRunExecution(
-                id=1,
-                title="Old Test Run",
-                state=api_models.TestStateEnum.passed,
-                project_id=3
-            )
+            api_models.TestRunExecution(id=1, title="Old Test Run", state=api_models.TestStateEnum.passed, project_id=3)
         ]
         api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
         api.return_value = test_executions

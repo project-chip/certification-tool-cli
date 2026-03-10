@@ -20,11 +20,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.commands.run_tests import run_tests, _parse_extra_args
+from th_cli.commands.run_tests import _parse_extra_args, run_tests
 from th_cli.exceptions import ConfigurationError
 
 
@@ -54,24 +53,21 @@ class TestRunTestsCommand:
         test_collection_api.return_value = sample_test_collections
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
             patch(
-            "th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-            return_value="./test_logs/test.log"), \
-            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-            patch(
-                "th_cli.commands.run_tests.convert_nested_to_dict",
-                return_value=sample_default_config_dict
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1,TC-ACE-1.2"
-            ])
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-ACE-1.2"])
 
         # Assert
         assert result.exit_code == 0
@@ -87,7 +83,7 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        mock_json_config_file: Path
+        mock_json_config_file: Path,
     ) -> None:
         """Test successful test run with custom JSON configuration file."""
         # Arrange
@@ -103,24 +99,28 @@ class TestRunTestsCommand:
         id_start_api.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
             with patch(
-                "th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                return_value="./test_logs/test.log"
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
             ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
                     with patch(
-                        "th_cli.commands.run_tests.convert_nested_to_dict",
-                        return_value=sample_default_config_dict
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1",
-                            "--config", str(mock_json_config_file),
-                            "--title", "Custom Test Run"
-                        ])
+                        result = cli_runner.invoke(
+                            run_tests,
+                            [
+                                "--tests-list",
+                                "TC-ACE-1.1",
+                                "--config",
+                                str(mock_json_config_file),
+                                "--title",
+                                "Custom Test Run",
+                            ],
+                        )
 
         # Assert
         assert result.exit_code == 0
@@ -133,7 +133,7 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        mock_pics_dir: Path
+        mock_pics_dir: Path,
     ) -> None:
         """Test successful test run with PICS configuration."""
         # Arrange
@@ -149,23 +149,20 @@ class TestRunTestsCommand:
         start_api.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
             with patch(
-                "th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                return_value="./test_logs/test.log"
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
             ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
                     with patch(
-                        "th_cli.commands.run_tests.convert_nested_to_dict",
-                        return_value=sample_default_config_dict
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1",
-                            "--pics-config-folder", str(mock_pics_dir)
-                        ])
+                        result = cli_runner.invoke(
+                            run_tests, ["--tests-list", "TC-ACE-1.1", "--pics-config-folder", str(mock_pics_dir)]
+                        )
 
         # Assert
         assert result.exit_code == 0
@@ -180,7 +177,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test successful test run with project ID."""
         # Arrange
@@ -195,20 +192,19 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         start_api.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1",
-                            "--project-id", "42"
-                        ])
+                        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--project-id", "42"])
 
         # Assert
         assert result.exit_code == 0
@@ -219,7 +215,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test successful test run with colors disabled."""
         # Arrange
@@ -234,21 +230,20 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         start_api.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
                     with patch("th_cli.commands.run_tests.set_colors_enabled") as mock_set_colors:
-                        with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                                   return_value=sample_default_config_dict):
+                        with patch(
+                            "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                        ):
                             mock_socket = Mock()
                             mock_socket.connect_websocket = AsyncMock()
                             mock_socket_class.return_value = mock_socket
 
                             # Act
-                            result = cli_runner.invoke(run_tests, [
-                                "--tests-list", "TC-ACE-1.1",
-                                "--no-color"
-                            ])
+                            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--no-color"])
 
         # Assert
         assert result.exit_code == 0
@@ -257,25 +252,24 @@ class TestRunTestsCommand:
     def test_run_tests_invalid_test_ids(self, cli_runner: CliRunner) -> None:
         """Test run tests with invalid test IDs format."""
         # Act
-        result = cli_runner.invoke(run_tests, [
-            "--tests-list", "invalid-test-id,another-invalid"
-        ])
+        result = cli_runner.invoke(run_tests, ["--tests-list", "invalid-test-id,another-invalid"])
 
         # Assert
         assert result.exit_code == 1
         assert "Error: Invalid test ID format" in result.output
 
-    @pytest.mark.parametrize("empty_test_id", [
-        "",
-        " ",
-        "   ",
-    ])
+    @pytest.mark.parametrize(
+        "empty_test_id",
+        [
+            "",
+            " ",
+            "   ",
+        ],
+    )
     def test_run_tests_empty_test_list(self, cli_runner: CliRunner, empty_test_id: str) -> None:
         """Test run tests with empty test list."""
         # Act
-        result = cli_runner.invoke(run_tests, [
-            "--tests-list", empty_test_id
-        ])
+        result = cli_runner.invoke(run_tests, ["--tests-list", empty_test_id])
 
         # Assert
         assert result.exit_code == 1
@@ -284,10 +278,7 @@ class TestRunTestsCommand:
     def test_run_tests_config_file_not_found(self, cli_runner: CliRunner) -> None:
         """Test run tests with non-existent config file."""
         # Act
-        result = cli_runner.invoke(run_tests, [
-            "--tests-list", "TC-ACE-1.1",
-            "--config", "nonexistent.json"
-        ])
+        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--config", "nonexistent.json"])
 
         # Assert
         assert result.exit_code == 1
@@ -296,10 +287,9 @@ class TestRunTestsCommand:
     def test_run_tests_pics_directory_not_found(self, cli_runner: CliRunner) -> None:
         """Test run tests with non-existent PICS directory."""
         # Act
-        result = cli_runner.invoke(run_tests, [
-            "--tests-list", "TC-ACE-1.1",
-            "--pics-config-folder", "nonexistent_pics_dir"
-        ])
+        result = cli_runner.invoke(
+            run_tests, ["--tests-list", "TC-ACE-1.1", "--pics-config-folder", "nonexistent_pics_dir"]
+        )
 
         # Assert
         assert result.exit_code == 1
@@ -309,23 +299,17 @@ class TestRunTestsCommand:
         """Test run tests with configuration error."""
         # Arrange
         with patch(
-            "th_cli.commands.run_tests.get_client",
-            side_effect=ConfigurationError("Could not connect to server")
+            "th_cli.commands.run_tests.get_client", side_effect=ConfigurationError("Could not connect to server")
         ):
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1"
-            ])
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
         assert "Error: Could not connect to server" in result.output
 
     def test_run_tests_api_error_getting_default_config(
-        self,
-        cli_runner: CliRunner,
-        mock_async_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test run tests with API error when getting default config."""
         # Arrange
@@ -335,9 +319,7 @@ class TestRunTestsCommand:
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client):
             with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
                 # Act
-                result = cli_runner.invoke(run_tests, [
-                    "--tests-list", "TC-ACE-1.1"
-                ])
+                result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
@@ -345,10 +327,7 @@ class TestRunTestsCommand:
         mock_api_client.aclose.assert_called_once()
 
     def test_run_tests_api_error_getting_test_collections(
-        self,
-        cli_runner: CliRunner,
-        mock_async_apis: Mock,
-        sample_default_config_dict: dict
+        self, cli_runner: CliRunner, mock_async_apis: Mock, sample_default_config_dict: dict
     ) -> None:
         """Test run tests with API error when getting test collections."""
         # Arrange
@@ -358,14 +337,12 @@ class TestRunTestsCommand:
         test_collections_api.side_effect = Exception("Collections API error")
 
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
-                with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                           return_value=sample_default_config_dict):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
+                with patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
                     # Act
-                    result = cli_runner.invoke(run_tests, [
-                        "--tests-list", "TC-ACE-1.1"
-                    ])
+                    result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
@@ -376,7 +353,7 @@ class TestRunTestsCommand:
         cli_runner: CliRunner,
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test run tests with API error when creating test run."""
         # Arrange
@@ -394,14 +371,12 @@ class TestRunTestsCommand:
         projects_api.return_value = sample_default_config_dict
         cli_api.side_effect = api_exception
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
-                with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                           return_value=sample_default_config_dict):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
+                with patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
                     # Act
-                    result = cli_runner.invoke(run_tests, [
-                        "--tests-list", "TC-ACE-1.1"
-                    ])
+                    result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
@@ -413,7 +388,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test run tests with API error when starting test run."""
         # Arrange
@@ -433,19 +408,19 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         start_api.side_effect = api_exception
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1"
-                        ])
+                        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
@@ -475,15 +450,19 @@ class TestRunTestsCommand:
         assert result.exit_code != 0
         assert "required" in result.output
 
-    @pytest.mark.parametrize("test_list", [
-        "TC-ACE-1.1",
-        "TC-ACE-1.1,TC-ACE-1.2",
-        "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3",
-        "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3,TC_ACE_1_3-custom",
-        "TC-ACE-1.1, TC-ACE-1.2, TC-ACE-1.3",  # with spaces
-        "TC-MCORE_FS-1.1, TC-MCORE_FS-1_2, TC_MCORE_FS-1.2",
-        "TC_CADMIN_1_3_4", "TC_CADMIN_1_3_102"
-    ])
+    @pytest.mark.parametrize(
+        "test_list",
+        [
+            "TC-ACE-1.1",
+            "TC-ACE-1.1,TC-ACE-1.2",
+            "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3",
+            "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3,TC_ACE_1_3-custom",
+            "TC-ACE-1.1, TC-ACE-1.2, TC-ACE-1.3",  # with spaces
+            "TC-MCORE_FS-1.1, TC-MCORE_FS-1_2, TC_MCORE_FS-1.2",
+            "TC_CADMIN_1_3_4",
+            "TC_CADMIN_1_3_102",
+        ],
+    )
     def test_run_tests_various_test_lists(
         self,
         cli_runner: CliRunner,
@@ -491,7 +470,7 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        test_list: str
+        test_list: str,
     ) -> None:
         """Test run tests with various test list formats."""
         # Arrange
@@ -506,19 +485,19 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         start_api.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", test_list
-                        ])
+                        result = cli_runner.invoke(run_tests, ["--tests-list", test_list])
 
         # Assert
         assert result.exit_code == 0
@@ -529,7 +508,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test that test selection is properly built from test collections."""
         # Arrange
@@ -545,21 +524,21 @@ class TestRunTestsCommand:
         id_start.return_value = sample_test_run_execution
 
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.build_test_selection") as mock_build_test_selection:
                     with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                        with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                                   return_value=sample_default_config_dict):
+                        with patch(
+                            "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                        ):
                             mock_build_test_selection.return_value = {"mock_collection": {"mock_suite": {"mock": 1}}}
                             mock_socket = Mock()
                             mock_socket.connect_websocket = AsyncMock()
                             mock_socket_class.return_value = mock_socket
 
                             # Act
-                            result = cli_runner.invoke(run_tests, [
-                                "--tests-list", "TC-ACE-1.1,TC-ACE-1.2"
-                            ])
+                            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-ACE-1.2"])
 
         # Assert
         assert result.exit_code == 0
@@ -573,7 +552,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test that logger is properly configured for the test run."""
         # Arrange
@@ -590,18 +569,18 @@ class TestRunTestsCommand:
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
             with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run") as mock_configure_logger:
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_configure_logger.return_value = "/path/to/test_logs/custom_run.log"
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1",
-                            "--title", "Custom Logger Test"
-                        ])
+                        result = cli_runner.invoke(
+                            run_tests, ["--tests-list", "TC-ACE-1.1", "--title", "Custom Logger Test"]
+                        )
 
         # Assert
         assert result.exit_code == 0
@@ -614,7 +593,7 @@ class TestRunTestsCommand:
         mock_async_apis: Mock,
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-        sample_default_config_dict: dict
+        sample_default_config_dict: dict,
     ) -> None:
         """Test that default title is generated when not provided."""
         # Arrange
@@ -629,26 +608,26 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1"
-                        ])
+                        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 0
         # Should contain a timestamp-based title
         assert "Creating new test run with title" in result.output
         # The title should be a timestamp format like "2025-01-01-10:00:00"
-        output_lines = result.output.split('\n')
+        output_lines = result.output.split("\n")
         title_line = next((line for line in output_lines if "Creating new test run with title" in line), None)
         assert title_line is not None
         # Extract the title part and verify it looks like a timestamp
@@ -663,7 +642,7 @@ class TestRunTestsCommand:
         sample_test_collections: api_models.TestCollections,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
         sample_default_config_dict: dict,
-        mock_json_config_file: Path
+        mock_json_config_file: Path,
     ) -> None:
         """Test that JSON configuration data is properly processed and displayed."""
         # Arrange
@@ -678,20 +657,21 @@ class TestRunTestsCommand:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
         with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
-            with patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run",
-                       return_value="./test_logs/test.log"):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
                 with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
-                    with patch("th_cli.commands.run_tests.convert_nested_to_dict",
-                               return_value=sample_default_config_dict):
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
                         mock_socket_class.return_value = mock_socket
 
                         # Act
-                        result = cli_runner.invoke(run_tests, [
-                            "--tests-list", "TC-ACE-1.1",
-                            "--config", str(mock_json_config_file)
-                        ])
+                        result = cli_runner.invoke(
+                            run_tests, ["--tests-list", "TC-ACE-1.1", "--config", str(mock_json_config_file)]
+                        )
 
         # Assert
         assert result.exit_code == 0
@@ -701,23 +681,20 @@ class TestRunTestsCommand:
         assert "dut_config" in result.output
         assert "network" in result.output
 
-    @pytest.mark.parametrize("invalid_test_id", [
-        "invalid-format",
-        "TC-INVALID",
-        "TCACE11",
-        "TC-ACE-1.1.1.1",
-        "TC-ACE-1.1-custom-extra",
-    ])
-    def test_run_tests_invalid_test_id_formats(
-        self,
-        cli_runner: CliRunner,
-        invalid_test_id: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        "invalid_test_id",
+        [
+            "invalid-format",
+            "TC-INVALID",
+            "TCACE11",
+            "TC-ACE-1.1.1.1",
+            "TC-ACE-1.1-custom-extra",
+        ],
+    )
+    def test_run_tests_invalid_test_id_formats(self, cli_runner: CliRunner, invalid_test_id: str) -> None:
         """Test run tests with various invalid test ID formats."""
         # Act
-        result = cli_runner.invoke(run_tests, [
-            "--tests-list", invalid_test_id
-        ])
+        result = cli_runner.invoke(run_tests, ["--tests-list", invalid_test_id])
 
         # Assert
         assert result.exit_code == 1
@@ -729,9 +706,7 @@ class TestRunTestsCommand:
         with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client):
             with patch("th_cli.commands.run_tests.AsyncApis", side_effect=Exception("API creation failed")):
                 # Act
-                result = cli_runner.invoke(run_tests, [
-                    "--tests-list", "TC-ACE-1.1"
-                ])
+                result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 1
@@ -814,9 +789,12 @@ class TestParseExtraArgs:
         """Test parsing arguments with complex values."""
         # Arrange
         args = [
-            "--string-arg", "PICS_SC_2_2:false",
-            "--json-arg", '{"key":"value"}',
-            "--numeric-arg", "nodeId:305414945",
+            "--string-arg",
+            "PICS_SC_2_2:false",
+            "--json-arg",
+            '{"key":"value"}',
+            "--numeric-arg",
+            "nodeId:305414945",
         ]
 
         # Act
@@ -833,9 +811,12 @@ class TestParseExtraArgs:
         """Test parsing SDK test parameter format with colons."""
         # Arrange
         args = [
-            "--int-arg", "endpoint:2",
-            "--string-arg", "discriminator:1234",
-            "--bool-arg", "someBoolFlag:true",
+            "--int-arg",
+            "endpoint:2",
+            "--string-arg",
+            "discriminator:1234",
+            "--bool-arg",
+            "someBoolFlag:true",
         ]
 
         # Act
@@ -876,20 +857,19 @@ class TestRunTestsWithExtraArgs:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
 
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1",
-                "--", "--int-arg", "endpoint:2"
-            ])
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--", "--int-arg", "endpoint:2"])
 
         # Assert
         assert result.exit_code == 0
@@ -918,23 +898,32 @@ class TestRunTestsWithExtraArgs:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
 
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1",
-                "--",
-                "--int-arg", "endpoint:2",
-                "--bool-arg", "flag:true",
-                "--string-arg", "discriminator:1234"
-            ])
+            result = cli_runner.invoke(
+                run_tests,
+                [
+                    "--tests-list",
+                    "TC-ACE-1.1",
+                    "--",
+                    "--int-arg",
+                    "endpoint:2",
+                    "--bool-arg",
+                    "flag:true",
+                    "--string-arg",
+                    "discriminator:1234",
+                ],
+            )
 
         # Assert
         assert result.exit_code == 0
@@ -964,19 +953,19 @@ class TestRunTestsWithExtraArgs:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
 
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1"
-            ])
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
 
         # Assert
         assert result.exit_code == 0
@@ -1006,21 +995,22 @@ class TestRunTestsWithExtraArgs:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
 
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict):
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1",
-                "--config", str(mock_json_config_file),
-                "--", "--int-arg", "endpoint:2"
-            ])
+            result = cli_runner.invoke(
+                run_tests,
+                ["--tests-list", "TC-ACE-1.1", "--config", str(mock_json_config_file), "--", "--int-arg", "endpoint:2"],
+            )
 
         # Assert
         assert result.exit_code == 0
@@ -1049,12 +1039,14 @@ class TestRunTestsWithExtraArgs:
         cli_api.return_value = sample_test_run_execution
         id_start.return_value = sample_test_run_execution
 
-        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client), \
-             patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis), \
-             patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"), \
-             patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class, \
-             patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict), \
-             patch("th_cli.commands.run_tests.copy.deepcopy") as mock_deepcopy:
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test.log"),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+            patch("th_cli.commands.run_tests.copy.deepcopy") as mock_deepcopy,
+        ):
 
             # Configure deepcopy to return a new dict
             mock_deepcopy.return_value = dict(sample_default_config_dict)
@@ -1064,10 +1056,7 @@ class TestRunTestsWithExtraArgs:
             mock_socket_class.return_value = mock_socket
 
             # Act
-            result = cli_runner.invoke(run_tests, [
-                "--tests-list", "TC-ACE-1.1",
-                "--", "--int-arg", "endpoint:2"
-            ])
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--", "--int-arg", "endpoint:2"])
 
         # Assert
         assert result.exit_code == 0

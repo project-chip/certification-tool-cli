@@ -136,6 +136,7 @@ omit = [
     "*/__pycache__/*",
     "*/api_lib_autogen/*",
     "*/conftest.py",
+    "*/main.py",
 ]
 
 [tool.coverage.report]

@@ -434,9 +434,9 @@ class TestRunExecutionToExport(BaseModel):
     started_at: Annotated[datetime | None, Field(title="Started At")] = None
     completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
     archived_at: Annotated[datetime | None, Field(title="Archived At")] = None
-    test_suite_executions: Annotated[
-        list[TestSuiteExecutionToExport] | None, Field(title="Test Suite Executions")
-    ] = None
+    test_suite_executions: Annotated[list[TestSuiteExecutionToExport] | None, Field(title="Test Suite Executions")] = (
+        None
+    )
     created_at: Annotated[datetime, Field(title="Created At")]
     log: Annotated[list[TestRunLogEntry], Field(title="Log")]
     operator: OperatorToExport | None = None

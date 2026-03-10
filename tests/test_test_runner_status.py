@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,17 +31,11 @@ class TestTestRunnerStatusCommand:
     """Test cases for the test_runner_status command."""
 
     def test_test_runner_status_success_idle(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test successful test runner status retrieval when idle."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.idle,
-            test_run_execution_id=None
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.idle, test_run_execution_id=None)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -65,10 +59,7 @@ class TestTestRunnerStatusCommand:
     ) -> None:
         """Test successful test runner status retrieval when running."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.running,
-            test_run_execution_id=123
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.running, test_run_execution_id=123)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -90,10 +81,7 @@ class TestTestRunnerStatusCommand:
     ) -> None:
         """Test successful test runner status retrieval with JSON output."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.ready,
-            test_run_execution_id=None
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.ready, test_run_execution_id=None)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -114,7 +102,7 @@ class TestTestRunnerStatusCommand:
         # Arrange
         with patch(
             "th_cli.commands.test_runner_status.get_client",
-            side_effect=ConfigurationError("Could not connect to server")
+            side_effect=ConfigurationError("Could not connect to server"),
         ):
             # Act
             result = cli_runner.invoke(test_runner_status)
@@ -124,10 +112,7 @@ class TestTestRunnerStatusCommand:
         assert "Error: Could not connect to server" in result.output
 
     def test_test_runner_status_generic_exception(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test test runner status with generic exception."""
         # Arrange
@@ -167,26 +152,26 @@ class TestTestRunnerStatusCommand:
         assert "--json" in result.output
         assert "Print JSON response for more details" in result.output
 
-    @pytest.mark.parametrize("state,execution_id,expected_state", [
-        (api_models.TestRunnerState.idle, None, "IDLE"),
-        (api_models.TestRunnerState.loading, None, "LOADING"),
-        (api_models.TestRunnerState.ready, None, "READY"),
-        (api_models.TestRunnerState.running, 456, "RUNNING"),
-    ])
+    @pytest.mark.parametrize(
+        "state,execution_id,expected_state",
+        [
+            (api_models.TestRunnerState.idle, None, "IDLE"),
+            (api_models.TestRunnerState.loading, None, "LOADING"),
+            (api_models.TestRunnerState.ready, None, "READY"),
+            (api_models.TestRunnerState.running, 456, "RUNNING"),
+        ],
+    )
     def test_test_runner_status_various_states(
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
         state: api_models.TestRunnerState,
         execution_id: int,
-        expected_state: str
+        expected_state: str,
     ) -> None:
         """Test test runner status with various states."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=state,
-            test_run_execution_id=execution_id
-        )
+        status = api_models.TestRunnerStatus(state=state, test_run_execution_id=execution_id)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -209,10 +194,7 @@ class TestTestRunnerStatusCommand:
     ) -> None:
         """Test that output format is consistent and well-formatted."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.running,
-            test_run_execution_id=789
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.running, test_run_execution_id=789)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -223,7 +205,7 @@ class TestTestRunnerStatusCommand:
         # Assert
         assert result.exit_code == 0
         # Check for proper formatting structure
-        lines = result.output.strip().split('\n')
+        lines = result.output.strip().split("\n")
         # Should have empty line, header, state line, and execution id line
         assert len(lines) >= 3
         assert any("Matter Test Runner Status" in line for line in lines)
@@ -232,17 +214,11 @@ class TestTestRunnerStatusCommand:
 
     @pytest.mark.parametrize("json_flag", [True, False])
     def test_test_runner_status_output_modes(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        json_flag: bool
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, json_flag: bool
     ) -> None:
         """Test test runner status with both table and JSON output modes."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.idle,
-            test_run_execution_id=None
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.idle, test_run_execution_id=None)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -271,10 +247,7 @@ class TestTestRunnerStatusCommand:
     ) -> None:
         """Test that state is properly formatted with colorization."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.running,
-            test_run_execution_id=999
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.running, test_run_execution_id=999)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status
@@ -295,10 +268,7 @@ class TestTestRunnerStatusCommand:
     ) -> None:
         """Test the 'No active test run' message is displayed correctly."""
         # Arrange
-        status = api_models.TestRunnerStatus(
-            state=api_models.TestRunnerState.ready,
-            test_run_execution_id=None
-        )
+        status = api_models.TestRunnerStatus(state=api_models.TestRunnerState.ready, test_run_execution_id=None)
         api = mock_sync_apis.test_run_executions_api.get_test_runner_status_api_v1_test_run_executions_status_get
 
         api.return_value = status

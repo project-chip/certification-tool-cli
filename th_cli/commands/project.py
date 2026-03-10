@@ -31,12 +31,13 @@ from th_cli.colorize import (
     colorize_help,
     colorize_success,
     colorize_warning,
-    italic
+    italic,
 )
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.utils import __print_json
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
+
 
 # Click command group for project management
 @click.group(
@@ -283,11 +284,11 @@ def _list_projects(
 
 
 def _update_project(
-        sync_apis: SyncApis,
-        id: int,
-        name: str | None = None,
-        config_path: str | None = None,
-    ) -> None:
+    sync_apis: SyncApis,
+    id: int,
+    name: str | None = None,
+    config_path: str | None = None,
+) -> None:
     """Update an existing project"""
     try:
         if all(param is None for param in [name, config_path]):

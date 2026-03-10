@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from httpx import Headers
 
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.commands.abort_testing import abort_testing
@@ -69,8 +68,7 @@ class TestAbortTestingCommand:
         """Test abort testing with configuration error."""
         # Arrange
         with patch(
-            "th_cli.commands.abort_testing.get_client",
-            side_effect=ConfigurationError("Could not connect to server")
+            "th_cli.commands.abort_testing.get_client", side_effect=ConfigurationError("Could not connect to server")
         ):
             # Act
             result = cli_runner.invoke(abort_testing)
@@ -100,10 +98,7 @@ class TestAbortTestingCommand:
         mock_api_client.close.assert_called_once()
 
     def test_abort_testing_generic_exception(
-            self,
-            cli_runner: CliRunner,
-            mock_sync_apis: Mock,
-            mock_api_client: Mock
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
     ) -> None:
         """Test abort testing with generic exception."""
         # Arrange
@@ -152,13 +147,16 @@ class TestAbortTestingCommand:
         assert result.exit_code == 0
         assert "Abort the current test run execution" in result.output
 
-    @pytest.mark.parametrize("response_data", [
-        {"detail": "Test execution aborted"},
-        {"detail": "No active test execution"},
-        {"detail": "Test Engine is not active."},
-        {"message": "Operation completed"},
-        {},
-    ])
+    @pytest.mark.parametrize(
+        "response_data",
+        [
+            {"detail": "Test execution aborted"},
+            {"detail": "No active test execution"},
+            {"detail": "Test Engine is not active."},
+            {"message": "Operation completed"},
+            {},
+        ],
+    )
     def test_abort_testing_various_response_formats(
         self,
         cli_runner: CliRunner,
@@ -182,26 +180,25 @@ class TestAbortTestingCommand:
         else:
             assert "Testing aborted" in result.output
 
-    @pytest.mark.parametrize("status_code,content", [
-        (400, "Bad Request"),
-        (401, "Unauthorized"),
-        (403, "Forbidden"),
-        (404, "Not Found"),
-        (500, "Internal Server Error"),
-        (503, "Service Unavailable")
-    ])
+    @pytest.mark.parametrize(
+        "status_code,content",
+        [
+            (400, "Bad Request"),
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+            (404, "Not Found"),
+            (500, "Internal Server Error"),
+            (503, "Service Unavailable"),
+        ],
+    )
     def test_abort_testing_various_api_errors(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        status_code: int,
-        content: str
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, status_code: int, content: str
     ) -> None:
         """Test abort testing with various API error status codes."""
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            content=content.encode('utf-8'),
+            content=content.encode("utf-8"),
         )
         api = mock_sync_apis.test_run_executions_api.abort_testing_api_v1_test_run_executions_abort_testing_post
 

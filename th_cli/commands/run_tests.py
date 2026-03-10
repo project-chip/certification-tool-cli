@@ -37,13 +37,7 @@ from th_cli.colorize import (
 )
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.websocket import TestRunSocket
-from th_cli.utils import (
-    build_test_selection,
-    convert_nested_to_dict,
-    load_json_config,
-    merge_configs,
-    read_pics_config,
-)
+from th_cli.utils import build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 # Constants
@@ -74,8 +68,7 @@ JSON_INDENT = 2
     "-c",
     type=click.Path(file_okay=True, dir_okay=False),
     help=colorize_help(
-        "JSON config file location. If not provided, the project's default "
-        "configuration will be used."
+        "JSON config file location. If not provided, the project's default " "configuration will be used."
     ),
 )
 @click.option(
@@ -165,10 +158,11 @@ async def run_tests(
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
-            click.echo(colorize_key_value(
-                "Extra SDK Test Parameters (This Run Only)",
-                json.dumps(extra_test_params, indent=JSON_INDENT)
-            ))
+            click.echo(
+                colorize_key_value(
+                    "Extra SDK Test Parameters (This Run Only)", json.dumps(extra_test_params, indent=JSON_INDENT)
+                )
+            )
             if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
@@ -255,21 +249,18 @@ def _parse_extra_args(args: list[str]) -> dict[str, str]:
         arg = args[i]
 
         # Skip non-flag arguments or subsequent --
-        if not arg.startswith('-') or arg == "--":
+        if not arg.startswith("-") or arg == "--":
             i += 1
             continue
 
         # Extract parameter name (remove leading dashes)
-        if arg.startswith('--'):
+        if arg.startswith("--"):
             param_name = arg[2:]
         else:
             param_name = arg[1:]
 
         # Check if next argument exists and is a value (not a flag)
-        has_value = (
-            i + 1 < len(args)
-            and not args[i + 1].startswith('-')
-        )
+        has_value = i + 1 < len(args) and not args[i + 1].startswith("-")
 
         if has_value:
             params[param_name] = args[i + 1]
