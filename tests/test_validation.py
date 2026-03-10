@@ -225,14 +225,10 @@ class TestValidateHostname:
         """Valid subdomain is accepted."""
         assert validate_hostname("api.example.com") == "api.example.com"
 
-    def test_hostname_with_port_is_accepted(self):
-        """Hostnames formatted as host:port pass domain-name validation."""
-        # The current regex allows colons indirectly through 'example.com:8080'
-        # pattern — if this fails, the implementation rejects port suffixes.
-        # We validate the actual current behavior by checking that it either
-        # passes or raises a CLIError with the right message.
-        result = validate_hostname("example.com")
-        assert result == "example.com"
+    def test_hostname_with_port_is_rejected(self):
+        """A hostname with a port is not a valid hostname and should be rejected."""
+        with pytest.raises(CLIError, match="Invalid hostname format"):
+            validate_hostname("example.com:8080")
 
     def test_empty_hostname_raises(self):
         """Empty hostname raises CLIError."""
