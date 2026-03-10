@@ -15,7 +15,7 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import Coroutine, IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, Coroutine
 
 from th_cli.api_lib_autogen import models as m
 

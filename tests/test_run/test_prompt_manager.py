@@ -15,8 +15,9 @@
 #
 """Unit tests for prompt_manager module."""
 
-import asyncio
 import json
+import os
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -26,77 +27,78 @@ from th_cli.test_run import prompt_manager
 from th_cli.test_run.socket_schemas import (
     ImageVerificationPromptRequest,
     MessagePromptRequest,
-    OptionsSelectPromptRequest,
+    PromptRequest,
     PushAVStreamVerificationRequest,
-    StreamVerificationPromptRequest,
     TextInputPromptRequest,
     UserResponseStatusEnum,
 )
 
+# ---------------------------------------------------------------------------
+# _get_local_ip
+# ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 class TestGetLocalIp:
-    """Tests for _get_local_ip function."""
-
-    def test_get_local_ip_success(self):
-        """Test successful local IP retrieval."""
-        with patch("socket.socket") as mock_socket:
+    def test_returns_detected_ip(self):
+        with patch("socket.socket") as mock_socket_cls:
             mock_sock = MagicMock()
             mock_sock.getsockname.return_value = ("192.168.1.100", 12345)
-            mock_socket.return_value.__enter__.return_value = mock_sock
+            mock_socket_cls.return_value.__enter__.return_value = mock_sock
 
             result = prompt_manager._get_local_ip()
 
-            assert result == "192.168.1.100"
-            mock_sock.connect.assert_called_once_with(("8.8.8.8", 80))
+        assert result == "192.168.1.100"
+        mock_sock.connect.assert_called_once_with(("8.8.8.8", 80))
 
-    def test_get_local_ip_fallback_on_error(self):
-        """Test fallback to localhost on connection error."""
-        with patch("socket.socket") as mock_socket:
-            mock_socket.return_value.__enter__.side_effect = Exception("Network error")
+    def test_falls_back_to_localhost_on_error(self):
+        with patch("socket.socket") as mock_socket_cls:
+            mock_socket_cls.return_value.__enter__.side_effect = Exception("Network error")
 
             result = prompt_manager._get_local_ip()
 
-            assert result == "localhost"
+        assert result == "localhost"
+
+
+# ---------------------------------------------------------------------------
+# _get_video_handler
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestGetVideoHandler:
-    """Tests for _get_video_handler function."""
-
-    def test_get_video_handler_creates_instance(self):
-        """Test that video handler instance is created on first call."""
-        # Reset global instance
+    def test_creates_instance_on_first_call(self):
         prompt_manager._video_handler_instance = None
 
-        with patch("th_cli.test_run.camera.CameraStreamHandler") as mock_handler:
+        with patch("th_cli.test_run.camera.CameraStreamHandler") as mock_cls:
             mock_instance = MagicMock()
-            mock_handler.return_value = mock_instance
+            mock_cls.return_value = mock_instance
 
             result = prompt_manager._get_video_handler()
 
-            assert result == mock_instance
-            mock_handler.assert_called_once()
+        assert result is mock_instance
+        mock_cls.assert_called_once()
 
-    def test_get_video_handler_reuses_instance(self):
-        """Test that video handler instance is reused on subsequent calls."""
+    def test_reuses_existing_instance(self):
         mock_instance = MagicMock()
         prompt_manager._video_handler_instance = mock_instance
 
-        with patch("th_cli.test_run.camera.CameraStreamHandler") as mock_handler:
+        with patch("th_cli.test_run.camera.CameraStreamHandler") as mock_cls:
             result = prompt_manager._get_video_handler()
 
-            assert result == mock_instance
-            mock_handler.assert_not_called()
+        assert result is mock_instance
+        mock_cls.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _cleanup_video_handler
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestCleanupVideoHandler:
-    """Tests for _cleanup_video_handler function."""
-
     @pytest.mark.asyncio
-    async def test_cleanup_video_handler_success(self):
-        """Test successful cleanup of video handler."""
+    async def test_calls_stop_on_existing_instance(self):
         mock_instance = MagicMock()
         mock_instance.stop_video_capture_and_stream = AsyncMock()
         prompt_manager._video_handler_instance = mock_instance
@@ -106,171 +108,106 @@ class TestCleanupVideoHandler:
         mock_instance.stop_video_capture_and_stream.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_cleanup_video_handler_no_instance(self):
-        """Test cleanup when no instance exists."""
+    async def test_noop_when_no_instance(self):
         prompt_manager._video_handler_instance = None
-
-        # Should not raise an exception
-        await prompt_manager._cleanup_video_handler()
+        await prompt_manager._cleanup_video_handler()  # must not raise
 
     @pytest.mark.asyncio
-    async def test_cleanup_video_handler_error_ignored(self):
-        """Test that cleanup errors are ignored."""
+    async def test_errors_are_silently_ignored(self):
         mock_instance = MagicMock()
-        mock_instance.stop_video_capture_and_stream = AsyncMock(side_effect=Exception("Cleanup error"))
+        mock_instance.stop_video_capture_and_stream = AsyncMock(side_effect=Exception("fail"))
         prompt_manager._video_handler_instance = mock_instance
 
-        # Should not raise an exception
-        await prompt_manager._cleanup_video_handler()
+        await prompt_manager._cleanup_video_handler()  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# handle_prompt — routing
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestHandlePrompt:
-    """Tests for handle_prompt function."""
+class TestHandlePromptRouting:
 
     @pytest.mark.asyncio
-    async def test_handle_prompt_image_verification(self):
-        """Test routing to image verification handler."""
+    async def test_image_verification_routes_to_image_handler(self):
         mock_socket = AsyncMock()
-        mock_request = ImageVerificationPromptRequest(
+        request = ImageVerificationPromptRequest(
             message_id=1,
             prompt="Verify image",
             timeout=30,
             options={"PASS": 1, "FAIL": 2},
             image_hex_str="ffd8ffe0",
         )
-
-        with patch("th_cli.test_run.prompt_manager._handle_image_verification_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
-
+        with patch(
+            "th_cli.test_run.prompt_manager._handle_image_verification_prompt",
+            new_callable=AsyncMock,
+        ) as mock_handler:
             await prompt_manager.handle_prompt(
                 socket=mock_socket,
-                request=mock_request,
+                request=request,
                 message_type=MessageTypeEnum.IMAGE_VERIFICATION_REQUEST,
             )
-
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
-
-    @pytest.mark.asyncio
-    async def test_handle_prompt_stream_verification(self):
-        """Test routing to stream verification handler."""
-        mock_socket = AsyncMock()
-        mock_request = StreamVerificationPromptRequest(
-            message_id=2,
-            prompt="Verify stream",
-            timeout=120,
-            options={"PASS": 1, "FAIL": 2},
-        )
-
-        with patch("th_cli.test_run.prompt_manager.__handle_stream_verification_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
-
-            await prompt_manager.handle_prompt(
-                socket=mock_socket,
-                request=mock_request,
-                message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
-            )
-
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
+        mock_handler.assert_called_once_with(socket=mock_socket, prompt=request)
 
     @pytest.mark.asyncio
-    async def test_handle_prompt_push_av_stream(self):
-        """Test routing to Push AV stream handler."""
+    async def test_push_av_stream_routes_to_push_av_handler(self):
         mock_socket = AsyncMock()
-        mock_request = PushAVStreamVerificationRequest(
+        request = PushAVStreamVerificationRequest(
             message_id=3,
-            prompt="Verify Push AV stream",
+            prompt="Verify Push AV",
             timeout=120,
             options={"PASS": 1, "FAIL": 2},
         )
-
-        with patch("th_cli.test_run.prompt_manager._handle_push_av_stream_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
-
+        with patch(
+            "th_cli.test_run.prompt_manager._handle_push_av_stream_prompt",
+            new_callable=AsyncMock,
+        ) as mock_handler:
             await prompt_manager.handle_prompt(
                 socket=mock_socket,
-                request=mock_request,
+                request=request,
                 message_type=MessageTypeEnum.PUSH_AV_STREAM_VERIFICATION_REQUEST,
             )
-
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
+        mock_handler.assert_called_once_with(socket=mock_socket, prompt=request)
 
     @pytest.mark.asyncio
-    async def test_handle_prompt_message_request(self):
-        """Test routing to message handler."""
+    async def test_message_request_sends_ack_response(self):
         mock_socket = AsyncMock()
-        mock_request = MessagePromptRequest(
-            message_id=4,
-            prompt="Acknowledge this message",
-            timeout=30,
-        )
+        request = MessagePromptRequest(message_id=4, prompt="Acknowledge this", timeout=30)
 
-        with patch("th_cli.test_run.prompt_manager.__handle_message_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
-
+        with patch(
+            "th_cli.test_run.prompt_manager._send_prompt_response",
+            new_callable=AsyncMock,
+        ) as mock_send:
             await prompt_manager.handle_prompt(
                 socket=mock_socket,
-                request=mock_request,
+                request=request,
                 message_type=MessageTypeEnum.MESSAGE_REQUEST,
             )
 
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == "ACK"
+        assert mock_send.call_args[1]["prompt"] is request
 
     @pytest.mark.asyncio
-    async def test_handle_prompt_options_select(self):
-        """Test routing to options prompt handler."""
+    async def test_unknown_request_type_does_not_raise(self):
         mock_socket = AsyncMock()
-        mock_request = OptionsSelectPromptRequest(
-            message_id=5,
-            prompt="Select an option",
-            timeout=30,
-            options={"Option 1": 1, "Option 2": 2},
-        )
+        request = PromptRequest(message_id=99, prompt="?", timeout=10)
 
-        with patch("th_cli.test_run.prompt_manager.__handle_options_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
+        with patch("click.echo"):
+            await prompt_manager.handle_prompt(socket=mock_socket, request=request)
 
-            await prompt_manager.handle_prompt(
-                socket=mock_socket,
-                request=mock_request,
-            )
 
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
-
-    @pytest.mark.asyncio
-    async def test_handle_prompt_text_input(self):
-        """Test routing to text input handler."""
-        mock_socket = AsyncMock()
-        mock_request = TextInputPromptRequest(
-            message_id=6,
-            prompt="Enter text",
-            timeout=30,
-        )
-
-        with patch("th_cli.test_run.prompt_manager.__handle_text_prompt") as mock_handler:
-            mock_handler.return_value = asyncio.Future()
-            mock_handler.return_value.set_result(None)
-
-            await prompt_manager.handle_prompt(
-                socket=mock_socket,
-                request=mock_request,
-            )
-
-            mock_handler.assert_called_once_with(socket=mock_socket, prompt=mock_request)
+# ---------------------------------------------------------------------------
+# _send_prompt_response
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestSendPromptResponse:
-    """Tests for _send_prompt_response function."""
 
     @pytest.mark.asyncio
-    async def test_send_prompt_response_success(self):
-        """Test successful prompt response sending."""
+    async def test_sends_json_with_correct_structure(self):
         mock_socket = AsyncMock()
         mock_prompt = Mock()
         mock_prompt.message_id = 123
@@ -278,22 +215,19 @@ class TestSendPromptResponse:
         await prompt_manager._send_prompt_response(
             socket=mock_socket,
             prompt=mock_prompt,
-            response="test response",
+            response="hello",
             status_code=UserResponseStatusEnum.OKAY,
         )
 
         mock_socket.send.assert_called_once()
-        call_args = mock_socket.send.call_args[0][0]
-
-        payload = json.loads(call_args)
+        payload = json.loads(mock_socket.send.call_args[0][0])
         assert payload["type"] == "prompt_response"
-        assert payload["payload"]["response"] == "test response"
+        assert payload["payload"]["response"] == "hello"
         assert payload["payload"]["status_code"] == UserResponseStatusEnum.OKAY
         assert payload["payload"]["message_id"] == 123
 
     @pytest.mark.asyncio
-    async def test_send_prompt_response_cancelled_status(self):
-        """Test prompt response with CANCELLED status."""
+    async def test_cancelled_status_code_is_preserved(self):
         mock_socket = AsyncMock()
         mock_prompt = Mock()
         mock_prompt.message_id = 456
@@ -301,42 +235,154 @@ class TestSendPromptResponse:
         await prompt_manager._send_prompt_response(
             socket=mock_socket,
             prompt=mock_prompt,
-            response="Stream failed",
+            response="cancelled",
             status_code=UserResponseStatusEnum.CANCELLED,
         )
 
-        mock_socket.send.assert_called_once()
-        call_args = mock_socket.send.call_args[0][0]
-
-        payload = json.loads(call_args)
+        payload = json.loads(mock_socket.send.call_args[0][0])
         assert payload["payload"]["status_code"] == UserResponseStatusEnum.CANCELLED
+
+    @pytest.mark.asyncio
+    async def test_integer_response_value_is_sent(self):
+        mock_socket = AsyncMock()
+        mock_prompt = Mock()
+        mock_prompt.message_id = 1
+
+        await prompt_manager._send_prompt_response(
+            socket=mock_socket,
+            prompt=mock_prompt,
+            response=2,
+        )
+
+        payload = json.loads(mock_socket.send.call_args[0][0])
+        assert payload["payload"]["response"] == 2
+
+
+# ---------------------------------------------------------------------------
+# __valid_text_input — tested via handle_prompt → __handle_text_prompt
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestHandleMessagePrompt:
-    """Tests for __handle_message_prompt function."""
+class TestValidTextInput:
 
     @pytest.mark.asyncio
-    async def test_handle_message_prompt_success(self):
-        """Test successful message prompt handling."""
-        # Test the message handling through the main handler
-        mock_socket = AsyncMock()
-        mock_prompt = MessagePromptRequest(
+    async def test_accepts_input_when_no_regex_pattern(self):
+        prompt = TextInputPromptRequest(
             message_id=1,
-            prompt="Test message",
+            prompt="Enter something",
             timeout=30,
+            regex_pattern=None,
         )
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, return_value="anything"):
+                await prompt_manager.handle_prompt(socket=AsyncMock(), request=prompt)
 
-        with patch("th_cli.test_run.prompt_manager._send_prompt_response") as mock_send:
-            mock_send.return_value = asyncio.Future()
-            mock_send.return_value.set_result(None)
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == "anything"
 
-            # Test through the main handle_prompt function
-            await prompt_manager.handle_prompt(
-                socket=mock_socket,
-                request=mock_prompt,
-                message_type="message_request",
-            )
+    @pytest.mark.asyncio
+    async def test_accepts_input_matching_regex(self):
+        prompt = TextInputPromptRequest(
+            message_id=1,
+            prompt="Enter digits",
+            timeout=30,
+            regex_pattern=r"^\d+$",
+        )
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, return_value="12345"):
+                await prompt_manager.handle_prompt(socket=AsyncMock(), request=prompt)
 
-            # Verify the response was sent (indirectly tests the private function)
-            mock_send.assert_called_once()
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == "12345"
+
+    @pytest.mark.asyncio
+    async def test_retries_until_valid_input(self):
+        prompt = TextInputPromptRequest(
+            message_id=1,
+            prompt="Enter digits",
+            timeout=30,
+            regex_pattern=r"^\d+$",
+        )
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, side_effect=["not-digits", "9999"]):
+                with patch("click.echo"):
+                    await prompt_manager.handle_prompt(socket=AsyncMock(), request=prompt)
+
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == "9999"
+
+    @pytest.mark.asyncio
+    async def test_uses_default_value_when_input_is_empty(self):
+        prompt = TextInputPromptRequest(
+            message_id=1,
+            prompt="Enter value",
+            timeout=30,
+            default_value="mydefault",
+            regex_pattern=None,
+        )
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, return_value=""):
+                with patch("click.echo"):
+                    await prompt_manager.handle_prompt(socket=AsyncMock(), request=prompt)
+
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == "mydefault"
+
+
+# ---------------------------------------------------------------------------
+# __valid_file_upload — tested via handle_file_upload_request
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestValidFileUpload:
+
+    @pytest.mark.asyncio
+    async def test_accepts_txt_file(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch(
+                "th_cli.test_run.prompt_manager.__upload_file_and_send_response",
+                new_callable=AsyncMock,
+            ) as mock_upload:
+                with patch("aioconsole.ainput", new_callable=AsyncMock, return_value=tmp_path):
+                    with patch("click.echo"):
+                        await prompt_manager.handle_file_upload_request(
+                            socket=AsyncMock(),
+                            request=MagicMock(prompt="Upload file", timeout=30),
+                        )
+
+            mock_upload.assert_called_once()
+            assert mock_upload.call_args[1]["file_path"] == tmp_path
+        finally:
+            os.unlink(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_empty_input_skips_upload(self):
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, return_value=""):
+                with patch("click.echo"):
+                    await prompt_manager.handle_file_upload_request(
+                        socket=AsyncMock(),
+                        request=MagicMock(prompt="Upload", timeout=30, message_id=1),
+                    )
+
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == ""
+
+    @pytest.mark.asyncio
+    async def test_invalid_extension_retries_then_skip(self):
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("aioconsole.ainput", new_callable=AsyncMock, side_effect=["/some/file.exe", ""]):
+                with patch("click.echo"):
+                    await prompt_manager.handle_file_upload_request(
+                        socket=AsyncMock(),
+                        request=MagicMock(prompt="Upload", timeout=30, message_id=1),
+                    )
+
+        mock_send.assert_called_once()
+        assert mock_send.call_args[1]["response"] == ""

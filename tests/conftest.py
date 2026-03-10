@@ -26,12 +26,12 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from click.testing import CliRunner
 from faker import Faker
-
 from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.api_client import ApiClient, AsyncApis, SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.colorize import set_colors_enabled
 
 # Initialize faker instance for generating test data
 fake = Faker()
@@ -91,17 +91,10 @@ def mock_json_config_file(temp_dir: Path) -> Path:
             "setup_code": "20212223",
             "discriminator": "3840",
             "chip_use_paa_certs": False,
-            "trace_log": False
+            "trace_log": False,
         },
-        "network": {
-            "wifi": {
-                "ssid": "TestNetwork",
-                "password": "TestPassword123"
-            }
-        },
-        "test_parameters": {
-            "custom_param": "test_value"
-        }
+        "network": {"wifi": {"ssid": "TestNetwork", "password": "TestPassword123"}},
+        "test_parameters": {"custom_param": "test_value"},
     }
     config_file = temp_dir / "test_config.json"
     config_file.write_text(json.dumps(config_data, indent=2))
@@ -148,20 +141,15 @@ def sample_default_config_dict() -> dict:
     """Create a sample default configuration dictionary."""
     return {
         "network": {
-            "wifi": {
-                "ssid": "default_wifi",
-                "password": "default_password"
-            },
-            "thread": {
-                "operational_dataset_hex": "default_hex"
-            }
+            "wifi": {"ssid": "default_wifi", "password": "default_password"},
+            "thread": {"operational_dataset_hex": "default_hex"},
         },
         "dut_config": {
             "pairing_mode": "ble-wifi",
             "setup_code": "20202021",
             "discriminator": "3840",
-            "trace_log": False
-        }
+            "trace_log": False,
+        },
     }
 
 
@@ -211,17 +199,19 @@ def sample_project() -> api_models.Project:
         config={
             "network": {
                 "wifi": {"ssid": "TestWiFi", "password": "testpassword"},
-                "thread": {"operational_dataset_hex": "0e080000000000010000000300001235060004001fffe0020811111111222222220708fd"}
+                "thread": {
+                    "operational_dataset_hex": "0e080000000000010000000300001235060004001fffe0020811111111222222220708fd"  # noqa
+                },
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": "3840",
-                "trace_log": False
-            }
+                "trace_log": False,
+            },
         },
         created_at=fake.date_time(),
-        updated_at=fake.date_time()
+        updated_at=fake.date_time(),
     )
 
 
@@ -235,17 +225,17 @@ def sample_projects() -> list[api_models.Project]:
             config={
                 "network": {
                     "wifi": {"ssid": "test", "password": "test"},
-                    "thread": {"operational_dataset_hex": "test"}
+                    "thread": {"operational_dataset_hex": "test"},
                 },
                 "dut_config": {
                     "pairing_mode": "ble-wifi",
                     "setup_code": "20202021",
                     "discriminator": "3840",
-                    "trace_log": False
-                }
+                    "trace_log": False,
+                },
             },
             created_at=fake.date_time(),
-            updated_at=fake.date_time()
+            updated_at=fake.date_time(),
         )
         for i in range(1, 4)
     ]
@@ -265,7 +255,7 @@ def sample_test_collections() -> api_models.TestCollections:
                             public_id="FirstChipToolSuite",
                             version="1.0",
                             title="First Chip Tool Suite",
-                            description="Test suite for chip tool testing"
+                            description="Test suite for chip tool testing",
                         ),
                         test_cases={
                             "TC-ACE-1.1": api_models.TestCase(
@@ -273,7 +263,7 @@ def sample_test_collections() -> api_models.TestCollections:
                                     public_id="TC-ACE-1.1",
                                     version="1.0",
                                     title="Test Case ACE 1.1",
-                                    description="Access Control Entry test"
+                                    description="Access Control Entry test",
                                 )
                             ),
                             "TC-ACE-1.2": api_models.TestCase(
@@ -281,7 +271,7 @@ def sample_test_collections() -> api_models.TestCollections:
                                     public_id="TC-ACE-1.2",
                                     version="1.0",
                                     title="Test Case ACE 1.2",
-                                    description="Access Control Entry test 2"
+                                    description="Access Control Entry test 2",
                                 )
                             ),
                             "TC-CC-1.1": api_models.TestCase(
@@ -289,12 +279,12 @@ def sample_test_collections() -> api_models.TestCollections:
                                     public_id="TC-CC-1.1",
                                     version="1.0",
                                     title="Test Case CC 1.1",
-                                    description="Color Control test"
+                                    description="Color Control test",
                                 )
-                            )
-                        }
+                            ),
+                        },
                     )
-                }
+                },
             ),
             "SDK Python Tests": api_models.TestCollection(
                 name="SDK Python Tests",
@@ -305,7 +295,7 @@ def sample_test_collections() -> api_models.TestCollections:
                             public_id="Python Testing Suite",
                             version="1.0",
                             title="Python Testing Suite",
-                            description="Python test suite"
+                            description="Python test suite",
                         ),
                         test_cases={
                             "TC_ACE_1_3": api_models.TestCase(
@@ -313,12 +303,12 @@ def sample_test_collections() -> api_models.TestCollections:
                                     public_id="TC_ACE_1_3",
                                     version="1.0",
                                     title="Test Case ACE 1.3",
-                                    description="Access Control Entry test 3"
+                                    description="Access Control Entry test 3",
                                 )
                             )
-                        }
+                        },
                     )
-                }
+                },
             ),
             "Custom SDK Python Tests": api_models.TestCollection(
                 name="Custom SDK Python Tests",
@@ -329,7 +319,7 @@ def sample_test_collections() -> api_models.TestCollections:
                             public_id="Python Testing Suite-custom",
                             version="1.0",
                             title="Python Testing Suite-custom",
-                            description="Python test suite custom"
+                            description="Python test suite custom",
                         ),
                         test_cases={
                             "TC_ACE_1_3-custom": api_models.TestCase(
@@ -337,13 +327,13 @@ def sample_test_collections() -> api_models.TestCollections:
                                     public_id="TC_ACE_1_3-custom",
                                     version="1.0",
                                     title="Test Case ACE 1.3 Custom",
-                                    description="Access Control Entry test 3 custom"
+                                    description="Access Control Entry test 3 custom",
                                 )
                             )
-                        }
+                        },
                     )
-                }
-            )
+                },
+            ),
         }
     )
 
@@ -380,9 +370,9 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
                             title="Test Case ACE 1.1",
                             description="Access Control Entry test",
                             version="1.0",
-                            source_hash="abc123"
+                            source_hash="abc123",
                         ),
-                        test_step_executions=[]
+                        test_step_executions=[],
                     )
                 ],
                 test_suite_metadata=api_models.TestSuiteMetadata(
@@ -391,30 +381,23 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
                     title="First Chip Tool Suite",
                     description="Test suite for chip tool testing",
                     version="1.0",
-                    source_hash="def456"
-                )
+                    source_hash="def456",
+                ),
             )
-        ]
+        ],
     )
 
 
 @pytest.fixture
 def sample_test_runner_status() -> api_models.TestRunnerStatus:
     """Create a sample test runner status for testing."""
-    return api_models.TestRunnerStatus(
-        state=api_models.TestRunnerState.idle,
-        test_run_execution_id=None
-    )
+    return api_models.TestRunnerStatus(state=api_models.TestRunnerState.idle, test_run_execution_id=None)
 
 
 @pytest.fixture
 def mock_unexpected_response() -> UnexpectedResponse:
     """Create a mock UnexpectedResponse exception."""
-    return UnexpectedResponse(
-        status_code=404,
-        content=b"Not Found",
-        headers=Headers()
-    )
+    return UnexpectedResponse(status_code=404, content=b"Not Found", headers=Headers())
 
 
 @pytest.fixture
@@ -424,7 +407,7 @@ def mock_versions_info() -> dict[str, Any]:
         "backend_version": "1.0.0",
         "backend_sha": "abc123def",
         "test_harness_version": "2.0.0",
-        "test_harness_sha": "def456ghi"
+        "test_harness_sha": "def456ghi",
     }
 
 
@@ -434,8 +417,6 @@ def disable_colors():
     # Set environment variable to disable colors
     os.environ["TH_CLI_NO_COLOR"] = "1"
 
-    # Import and set colors disabled programmatically as well
-    from th_cli.colorize import set_colors_enabled
     set_colors_enabled(False)
 
     yield
@@ -460,7 +441,7 @@ class MockResponse:
 
     def dict(self) -> dict[str, Any]:
         """Convert response to dictionary."""
-        if hasattr(self.data, 'dict'):
+        if hasattr(self.data, "dict"):
             return self.data.dict()
         return self.data if isinstance(self.data, dict) else {}
 
@@ -477,21 +458,16 @@ def generate_test_project_data(**overrides) -> dict[str, Any]:
         "name": fake.company(),
         "config": {
             "network": {
-                "wifi": {
-                    "ssid": fake.name(),
-                    "password": fake.password()
-                },
-                "thread": {
-                    "operational_dataset_hex": "test_hex_value"
-                }
+                "wifi": {"ssid": fake.name(), "password": fake.password()},
+                "thread": {"operational_dataset_hex": "test_hex_value"},
             },
             "dut_config": {
                 "pairing_mode": "ble-wifi",
                 "setup_code": "20202021",
                 "discriminator": str(fake.random_int(min=0, max=4095)),
-                "trace_log": False
-            }
-        }
+                "trace_log": False,
+            },
+        },
     }
     data.update(overrides)
     return data

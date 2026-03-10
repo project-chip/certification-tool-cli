@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ class VideoWebSocketManager:
                         # Receive video data from WebSocket
                         data = await asyncio.wait_for(self.video_websocket.recv(), timeout=1.0)
                         logger.debug(
-                            f"Received data: {type(data)}, size: {len(data) if isinstance(data, (bytes, str)) else 'unknown'}"
+                            f"Received data: {type(data)}, size: {len(data) if isinstance(data, (bytes, str)) else 'unknown'}"  # noqa
                         )
 
                         video_data = None

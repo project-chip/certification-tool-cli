@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025 Project CHIP Authors
+# Copyright (c) 2025-2026 Project CHIP Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,11 +19,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.commands.available_tests import available_tests
+from th_cli.commands.available_tests import (
+    _extract_cluster_from_test_id,
+    _extract_test_cases,
+    _generate_compact,
+    _generate_grouped_by_cluster,
+    available_tests,
+)
 from th_cli.exceptions import ConfigurationError
 
 
@@ -105,8 +110,7 @@ class TestAvailableTestsCommand:
         """Test available tests with configuration error."""
         # Arrange
         with patch(
-            "th_cli.commands.available_tests.get_client",
-            side_effect=ConfigurationError("Could not connect to server")
+            "th_cli.commands.available_tests.get_client", side_effect=ConfigurationError("Could not connect to server")
         ):
             # Act
             result = cli_runner.invoke(available_tests)
@@ -193,7 +197,7 @@ class TestAvailableTestsCommand:
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
         sample_test_collections: api_models.TestCollections,
-        json_flag: bool
+        json_flag: bool,
     ) -> None:
         """Test available tests with both JSON and YAML output formats."""
         # Arrange
@@ -231,10 +235,7 @@ class TestAvailableTestsCommand:
                     test_suites={
                         "Suite1": api_models.TestSuite(
                             metadata=api_models.TestMetadata(
-                                public_id="Suite1",
-                                version="2.0",
-                                title="Test Suite 1",
-                                description="First test suite"
+                                public_id="Suite1", version="2.0", title="Test Suite 1", description="First test suite"
                             ),
                             test_cases={
                                 "TC-TEST-1.1": api_models.TestCase(
@@ -242,7 +243,7 @@ class TestAvailableTestsCommand:
                                         public_id="TC-TEST-1.1",
                                         version="2.0",
                                         title="Test Case 1.1",
-                                        description="First test case"
+                                        description="First test case",
                                     )
                                 ),
                                 "TC-TEST-1.2": api_models.TestCase(
@@ -250,21 +251,18 @@ class TestAvailableTestsCommand:
                                         public_id="TC-TEST-1.2",
                                         version="2.0",
                                         title="Test Case 1.2",
-                                        description="Second test case"
+                                        description="Second test case",
                                     )
-                                )
-                            }
+                                ),
+                            },
                         ),
                         "Suite2": api_models.TestSuite(
                             metadata=api_models.TestMetadata(
-                                public_id="Suite2",
-                                version="1.5",
-                                title="Test Suite 2",
-                                description="Second test suite"
+                                public_id="Suite2", version="1.5", title="Test Suite 2", description="Second test suite"
                             ),
-                            test_cases={}
-                        )
-                    }
+                            test_cases={},
+                        ),
+                    },
                 )
             }
         )
@@ -283,26 +281,25 @@ class TestAvailableTestsCommand:
         assert "TC-TEST-1.1:" in result.output
         assert "TC-TEST-1.2:" in result.output
 
-    @pytest.mark.parametrize("status_code,content", [
-        (400, "Bad Request"),
-        (401, "Unauthorized"),
-        (403, "Forbidden"),
-        (404, "Not Found"),
-        (500, "Internal Server Error"),
-        (503, "Service Unavailable")
-    ])
+    @pytest.mark.parametrize(
+        "status_code,content",
+        [
+            (400, "Bad Request"),
+            (401, "Unauthorized"),
+            (403, "Forbidden"),
+            (404, "Not Found"),
+            (500, "Internal Server Error"),
+            (503, "Service Unavailable"),
+        ],
+    )
     def test_available_tests_various_api_errors(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        status_code: int,
-        content: str
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, status_code: int, content: str
     ) -> None:
         """Test available tests with various API error status codes."""
         # Arrange
         api_exception = UnexpectedResponse(
             status_code=status_code,
-            content=content.encode('utf-8'),
+            content=content.encode("utf-8"),
         )
         api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
 
@@ -317,10 +314,7 @@ class TestAvailableTestsCommand:
         assert content in result.output
 
     def test_available_tests_yaml_dump_functionality(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test that YAML output is properly formatted and readable."""
         # Arrange
@@ -340,10 +334,7 @@ class TestAvailableTestsCommand:
         assert '"test_collections":' not in result.output
 
     def test_available_tests_compact(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --compact flag shows test IDs with titles."""
         # Arrange
@@ -364,10 +355,7 @@ class TestAvailableTestsCommand:
         assert "test_collections:" not in result.output
 
     def test_available_tests_group_by_cluster(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --group-by-cluster flag groups tests by cluster."""
         # Arrange
@@ -390,10 +378,7 @@ class TestAvailableTestsCommand:
         assert "  TC-CC-1.1" in result.output
 
     def test_available_tests_cluster_filter(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --cluster filter shows only tests from specified cluster."""
         # Arrange
@@ -414,10 +399,7 @@ class TestAvailableTestsCommand:
         assert "TC-CC-1.1" not in result.output
 
     def test_available_tests_cluster_filter_case_insensitive(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --cluster filter is case insensitive."""
         # Arrange
@@ -436,10 +418,7 @@ class TestAvailableTestsCommand:
         assert "ID: TC-ACE-1.2" in result.output
 
     def test_available_tests_cluster_and_compact_combined(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test combining --cluster and --compact flags."""
         # Arrange
@@ -458,9 +437,6 @@ class TestAvailableTestsCommand:
         assert "TC-ACE-1.1" not in result.output
 
     def test_extract_cluster_from_test_id(self) -> None:
-        """Test cluster extraction logic for various test ID patterns."""
-        from th_cli.commands.available_tests import _extract_cluster_from_test_id
-
         # Test various patterns
         assert _extract_cluster_from_test_id("TC-ACE-1.1") == "ACE"
         assert _extract_cluster_from_test_id("TC-CADMIN-1.2") == "CADMIN"
@@ -483,14 +459,9 @@ class TestAvailableTestsCommand:
         assert _extract_cluster_from_test_id("SomeOtherTest") == "UNKNOWN"
 
     def test_generate_compact(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test _generate_compact function with 4 elements per line."""
-        from th_cli.commands.available_tests import _extract_test_cases, _generate_compact
-
         # Arrange
         api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
@@ -513,14 +484,9 @@ class TestAvailableTestsCommand:
         assert any("TC-ACE-1.1" in line for line in result_lines)
 
     def test_generate_grouped_by_cluster(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test _generate_grouped_by_cluster function with 4 elements per line."""
-        from th_cli.commands.available_tests import _extract_test_cases, _generate_grouped_by_cluster
-
         # Arrange
         api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
         api.return_value = sample_test_collections
@@ -533,7 +499,7 @@ class TestAvailableTestsCommand:
             result_lines = _generate_grouped_by_cluster(test_cases)
 
         # Assert
-        result_text = '\n'.join(result_lines)
+        result_text = "\n".join(result_lines)
         assert "ACE:" in result_text
         assert "CC:" in result_text
         # Check that tests within clusters use uniform spacing format
@@ -544,13 +510,10 @@ class TestAvailableTestsCommand:
                 ace_line_found = True
                 break
         # Should find at least one line with multiple ACE tests
-        assert ace_line_found or len([tc for tc in test_cases if tc['cluster'] == 'ACE']) < 4
+        assert ace_line_found or len([tc for tc in test_cases if tc["cluster"] == "ACE"]) < 4
 
     def test_available_tests_compact_four_per_line(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --compact flag shows 4 elements per line."""
         # Arrange
@@ -569,15 +532,12 @@ class TestAvailableTestsCommand:
         # Check that content contains spacing for multiple elements
         call_content = mock_pager.call_args[0][0]  # First argument (content)
         # Should contain test cases with uniform spacing (using double spaces)
-        lines = call_content.split('\n')
+        lines = call_content.split("\n")
         uniform_spacing_found = any("  " in line and "TC-" in line for line in lines)
-        assert uniform_spacing_found or call_content.count('\n') == 0  # Exception for small datasets
+        assert uniform_spacing_found or call_content.count("\n") == 0  # Exception for small datasets
 
     def test_available_tests_group_by_cluster_four_per_line(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --group-by-cluster flag shows 4 elements per line within clusters."""
         # Arrange
@@ -599,10 +559,7 @@ class TestAvailableTestsCommand:
         assert "CC:" in call_content
 
     def test_available_tests_with_pagination_mock(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test available_tests command uses echo_via_pager."""
         # Arrange
@@ -625,10 +582,7 @@ class TestAvailableTestsCommand:
         assert "TC-CC-1.1" in call_content
 
     def test_available_tests_echo_via_pager_behavior(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test that echo_via_pager is called for all custom formatting options."""
         # Arrange
@@ -648,10 +602,7 @@ class TestAvailableTestsCommand:
                     mock_pager.assert_called_once()
 
     def test_available_tests_cluster_detailed_info(
-        self,
-        cli_runner: CliRunner,
-        mock_sync_apis: Mock,
-        sample_test_collections: api_models.TestCollections
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Test --cluster flag shows detailed information."""
         # Arrange
