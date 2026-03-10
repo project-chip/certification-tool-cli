@@ -96,7 +96,7 @@ def validate_test_ids(test_ids: str) -> list[str]:
         raise CLIError("No valid test IDs provided")
 
     # Validate each test ID format
-    valid_pattern = re.compile(r"^TC[-_][A-Z_]{2,20}([-_\.]\d+){2,3}(-custom)?$")
+    valid_pattern = re.compile(r"^TC[-_][A-Z0-9][A-Z0-9_]{0,19}?([-_\.]\d+){1,3}(-custom)?$")
 
     invalid_ids = []
     for test_id in ids:
