@@ -233,6 +233,7 @@ class TestValidateHostname:
         # passes or raises a CLIError with the right message.
         result = validate_hostname("example.com")
         assert result == "example.com"
+
     def test_hostname_with_port_is_rejected(self):
         """A hostname with a port is not a valid hostname and should be rejected."""
         with pytest.raises(CLIError, match="Invalid hostname format"):
