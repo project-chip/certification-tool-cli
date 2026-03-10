@@ -149,6 +149,46 @@ class TestValidateTestIds:
         result = validate_test_ids("TC-ACE-1.1.2")
         assert result == ["TC-ACE-1.1.2"]
 
+    def test_valid_alphanumeric_category(self):
+        """Test ID with alphanumeric category (e.g. TC-BR2-1.1) is accepted."""
+        result = validate_test_ids("TC-BR2-1.1")
+        assert result == ["TC-BR2-1.1"]
+
+    def test_valid_identify_cluster_single_segment(self):
+        """Identify cluster test IDs with single numeric segment are accepted."""
+        result = validate_test_ids("TC-I-3")
+        assert result == ["TC-I-3"]
+
+    def test_valid_bridge_cluster_single_segment(self):
+        """Bridge cluster test IDs with single numeric segment are accepted."""
+        result = validate_test_ids("TC-BR-2")
+        assert result == ["TC-BR-2"]
+
+    def test_valid_identify_cluster_underscore_format(self):
+        """Identify cluster underscore format TC_I_2_1 is accepted."""
+        result = validate_test_ids("TC_I_2_1")
+        assert result == ["TC_I_2_1"]
+
+    def test_valid_bridge_cluster_underscore_format(self):
+        """Bridge cluster underscore format TC_BR_2 is accepted."""
+        result = validate_test_ids("TC_BR_2")
+        assert result == ["TC_BR_2"]
+
+    def test_valid_category_with_underscore(self):
+        """Category containing underscore (e.g. TC-MCORE_FS-1.1) is accepted."""
+        result = validate_test_ids("TC-MCORE_FS-1.1")
+        assert result == ["TC-MCORE_FS-1.1"]
+
+    def test_valid_category_with_underscore_mixed_separators(self):
+        """Category with underscore using mixed separators is accepted."""
+        result = validate_test_ids("TC-MCORE_FS-1_2")
+        assert result == ["TC-MCORE_FS-1_2"]
+
+    def test_valid_category_with_underscore_underscore_format(self):
+        """Category with underscore in full underscore format is accepted."""
+        result = validate_test_ids("TC_MCORE_FS-1.2")
+        assert result == ["TC_MCORE_FS-1.2"]
+
 
 # ---------------------------------------------------------------------------
 # validate_hostname
@@ -193,6 +233,10 @@ class TestValidateHostname:
         # passes or raises a CLIError with the right message.
         result = validate_hostname("example.com")
         assert result == "example.com"
+    def test_hostname_with_port_is_rejected(self):
+        """A hostname with a port is not a valid hostname and should be rejected."""
+        with pytest.raises(CLIError, match="Invalid hostname format"):
+            validate_hostname("example.com:8080")
 
     def test_empty_hostname_raises(self):
         """Empty hostname raises CLIError."""
