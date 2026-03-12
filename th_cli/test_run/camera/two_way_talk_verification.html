@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Two-Way Talk Verification</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }}
+        .matter-header {{
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .header-title {{ font-size: 18px; font-weight: 600; color: #333; margin: 0; }}
+        .cli-indicator {{
+            background: #2196F3; color: white; padding: 4px 8px;
+            border-radius: 12px; font-size: 11px; font-weight: 500;
+        }}
+        .content {{
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; padding: 24px 20px;
+        }}
+        .card {{
+            background: white; border-radius: 8px; padding: 20px 24px;
+            margin-bottom: 20px; width: 100%; max-width: 680px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }}
+        .card-title {{
+            font-size: 13px; font-weight: 600; color: #555;
+            text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;
+        }}
+        .prompt-text {{ font-size: 16px; color: #333; line-height: 1.5; margin: 0 0 10px 0; }}
+        .waiting-banner {{
+            background: #fff8e1; border-left: 4px solid #FFC107;
+            border-radius: 0 4px 4px 0; padding: 12px 16px;
+            font-size: 14px; color: #795548; line-height: 1.5;
+        }}
+        video {{
+            width: 100%; max-width: 640px; height: 360px;
+            background: #1e1e1e; border-radius: 6px; display: block;
+            margin-bottom: 14px;
+        }}
+        .state-row {{
+            font-size: 13px; color: #666; margin-bottom: 10px;
+        }}
+        .state-row span {{
+            font-weight: 600;
+            padding: 2px 8px; border-radius: 10px; font-size: 12px;
+        }}
+        .state-connected {{ background: #e8f5e9; color: #2e7d32; }}
+        .state-connecting {{ background: #e3f2fd; color: #1565c0; }}
+        .state-failed {{ background: #ffebee; color: #c62828; }}
+        .state-closed {{ background: #f3e5f5; color: #6a1b9a; }}
+        .state-default {{ background: #f5f5f5; color: #555; }}
+        .audio-row {{
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }}
+        .audio-label {{ font-size: 13px; color: #444; min-width: 120px; }}
+        .audio-bar-bg {{
+            flex: 1; height: 10px; background: #e0e0e0;
+            border-radius: 5px; overflow: hidden;
+        }}
+        .audio-bar-fill {{
+            height: 100%; border-radius: 5px;
+            transition: width 0.1s, background-color 0.1s;
+            width: 0%;
+        }}
+        .audio-val {{ font-size: 12px; color: #666; min-width: 36px; text-align: right; }}
+        .radio-options {{ display: flex; flex-direction: column; gap: 10px; }}
+        .radio-row {{
+            background: white; border: 2px solid #e0e0e0; border-radius: 8px;
+            padding: 14px 18px; cursor: pointer; display: flex; align-items: center;
+            gap: 12px; transition: border-color 0.2s, background 0.2s; font-size: 15px;
+        }}
+        .radio-row:hover {{ border-color: #2196F3; background: #f0f7ff; }}
+        .radio-row.selected {{ border-color: #2196F3; background: #e3f2fd; }}
+        .radio-row input[type=radio] {{ accent-color: #2196F3; width: 18px; height: 18px; }}
+        .submit-btn {{
+            display: block; width: 100%; padding: 14px; margin-top: 14px;
+            background: #2196F3; color: white; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+        }}
+        .submit-btn:hover {{ background: #1976D2; }}
+        .submit-btn:disabled {{ background: #90CAF9; cursor: not-allowed; }}
+        #actionCard {{ display: none; }}
+    </style>
+</head>
+<body>
+
+<div class="matter-header">
+    <span class="header-title">🎤 Two-Way Talk Verification</span>
+    <span class="cli-indicator">CLI Mode</span>
+</div>
+
+<div class="content">
+
+    <!-- Video + audio levels (shown once peer connected) -->
+    <div class="card" id="mediaCard" style="display:none;">
+        <p class="card-title">Live Session</p>
+        <video id="remoteVideo" autoplay playsinline muted></video>
+
+        <div class="state-row">
+            Peer Connection State: <span id="peerState" class="state-default">—</span>
+            &nbsp; <button id="unmuteBtn" onclick="unmuteVideo()" style="display:none;padding:4px 10px;font-size:12px;cursor:pointer;">🔊 Unmute</button>
+        </div>
+
+        <div class="audio-row">
+            <span class="audio-label">🔈 Speaker (DUT→you)</span>
+            <div class="audio-bar-bg"><div class="audio-bar-fill" id="remoteBar"></div></div>
+            <span class="audio-val" id="remoteVal">0%</span>
+        </div>
+        <div class="audio-row">
+            <span class="audio-label">🎙️ Mic (you→DUT)</span>
+            <div class="audio-bar-bg"><div class="audio-bar-fill" id="localBar"></div></div>
+            <span class="audio-val" id="localVal">0%</span>
+        </div>
+    </div>
+
+    <!-- Waiting state (shown before peer connects) -->
+    <div class="card" id="waitCard">
+        <div class="waiting-banner">
+            ⏳ Waiting for the test to start the WebRTC session…<br>
+            Keep this page open. Audio and video will appear automatically.
+        </div>
+    </div>
+
+    <!-- PASS/FAIL prompt (shown when test reaches step 8) -->
+    <div class="card" id="actionCard">
+        <p class="card-title">Verification</p>
+        <p class="prompt-text" id="promptText"></p>
+        <div class="radio-options" id="radioOptions">
+        </div>
+        <button class="submit-btn" id="submitBtn" onclick="submitResponse()" disabled>Submit Response</button>
+    </div>
+
+</div>
+
+
+<script>
+    // ── Config ────────────────────────────────────────────────────────────────
+    const WS_URL    = "ws://{th_hostname}/api/v1/ws/webrtc/peer";
+    const TH_LAN_IP = "{th_hostname}";  // real LAN IP injected server-side
+    // Use public STUN only to discover the browser's ephemeral port.
+    // We replace the public srflx IP with TH_LAN_IP before sending to the DUT
+    // so ICE stays on the local network and avoids the OOM-triggering public path.
+    const ICE_SERVERS = [
+        {{ urls: "stun:stun.l.google.com:19302" }},
+    ];
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let ws = null, wsRetry = null;
+    let sessions = {{}};        // sessionId -> RTCPeerConnection
+    let remoteStreams = {{}};    // sessionId -> MediaStream (single stream with all remote tracks)
+    let localStream = null;
+    let audioCtx = null, localAnalyser = null, remoteAnalyser = null, animId = null;
+    let selectedValue = null;
+    let promptReady = {prompt_ready};   // False until server sets prompt; injected server-side
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+    function setPeerState(state) {{
+        const el = document.getElementById("peerState");
+        el.textContent = state.toUpperCase();
+        el.className = {{
+            "connected":    "state-connected",
+            "connecting":   "state-connecting",
+            "failed":       "state-failed",
+            "disconnected": "state-failed",
+            "closed":       "state-closed",
+        }}[state] || "state-default";
+        if (state === "connected") {{
+            document.getElementById("waitCard").style.display  = "none";
+            document.getElementById("mediaCard").style.display = "block";
+            document.getElementById("unmuteBtn").style.display = "inline-block";
+            if (promptReady) document.getElementById("actionCard").style.display = "block";
+            // Resume AudioContext now that we have user-context via WebRTC activity
+            if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+        }}
+    }}
+
+    function unmuteVideo() {{
+        const v = document.getElementById("remoteVideo");
+        v.muted = !v.muted;
+        document.getElementById("unmuteBtn").textContent = v.muted ? "🔊 Unmute" : "🔇 Mute";
+        if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    }}
+
+    function showPrompt(promptText, options) {{
+        promptReady = true;
+        // Populate prompt text
+        document.getElementById("promptText").textContent = promptText || "Verify two-way talk";
+        // Render radio buttons dynamically from server data
+        const container = document.getElementById("radioOptions");
+        container.innerHTML = "";
+        for (const [label, value] of Object.entries(options || {{}})) {{
+            const div = document.createElement("div");
+            div.className = "radio-row";
+            div.dataset.value = value;
+            div.onclick = () => selectOption(value);
+            div.innerHTML = `<input type="radio" name="option" value="${{value}}" id="radio_${{value}}">` +
+                             `<label for="radio_${{value}}">${{label}}</label>`;
+            container.appendChild(div);
+        }}
+        // Show actionCard if WebRTC is already connected
+        if (document.getElementById("mediaCard").style.display === "block") {{
+            document.getElementById("actionCard").style.display = "block";
+        }}
+    }}
+
+    // ── Audio analysers ───────────────────────────────────────────────────────
+    function getAudioCtx() {{ return audioCtx || (audioCtx = new AudioContext()); }}
+
+    function attachAnalyser(stream, type) {{
+        try {{
+            const ctx = getAudioCtx();
+            const a = ctx.createAnalyser();
+            a.fftSize = 256; a.smoothingTimeConstant = 0.8;
+            ctx.createMediaStreamSource(stream).connect(a);
+            if (type === "local")  localAnalyser  = a;
+            else                   remoteAnalyser = a;
+            if (!animId) animateLevels();
+        }} catch(e) {{ console.warn("Analyser error:", e); }}
+    }}
+
+    function rmsLevel(analyser) {{
+        if (!analyser) return 0;
+        const d = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(d);
+        let s = 0;
+        for (const v of d) {{ const x = (v-128)/128; s += x*x; }}
+        return Math.min(100, Math.sqrt(s/d.length)*200);
+    }}
+
+    function levelColor(pct) {{
+        if (pct < 30) return "#4CAF50";
+        if (pct < 70) return "#FFC107";
+        return "#f44336";
+    }}
+
+    function animateLevels() {{
+        const r = Math.round(rmsLevel(remoteAnalyser));
+        const l = Math.round(rmsLevel(localAnalyser));
+        const rb = document.getElementById("remoteBar");
+        const lb = document.getElementById("localBar");
+        rb.style.width = r+"%"; rb.style.backgroundColor = levelColor(r);
+        lb.style.width = l+"%"; lb.style.backgroundColor = levelColor(l);
+        document.getElementById("remoteVal").textContent = r+"%";
+        document.getElementById("localVal").textContent  = l+"%";
+        animId = requestAnimationFrame(animateLevels);
+    }}
+
+    // ── Mic ───────────────────────────────────────────────────────────────────
+    async function ensureMic() {{
+        if (localStream) return localStream;
+        if (!navigator.mediaDevices?.getUserMedia) return null;
+        try {{
+            localStream = await navigator.mediaDevices.getUserMedia({{audio:true, video:false}});
+            attachAnalyser(localStream, "local");
+            return localStream;
+        }} catch(e) {{ console.warn("Mic denied:", e); return null; }}
+    }}
+
+    // ── RTCPeerConnection per session ─────────────────────────────────────────
+    async function getOrCreate(sessionId, msg) {{
+        if (sessions[sessionId]) return sessions[sessionId];
+        if (msg.type !== "CREATE_PEER_CONNECTION") {{
+            sendWS(reply(msg, null, "No peer for session "+sessionId)); return null;
+        }}
+        const mic = await ensureMic();
+        const pc = new RTCPeerConnection({{iceServers: ICE_SERVERS}});
+        sessions[sessionId] = pc;
+
+        pc.addTransceiver("audio", {{direction:"sendrecv"}});
+        pc.addTransceiver("video", {{direction:"recvonly"}});
+
+        if (mic) mic.getTracks().forEach(t => pc.addTrack(t, mic));
+
+        pc.onicecandidate = e => {{
+            if (e.candidate && e.candidate.candidate !== "") {{
+                const cand = e.candidate.candidate;
+                // Skip mDNS .local candidates — DUT container cannot resolve them
+                if (cand.includes(".local")) return;
+
+                let finalCand = cand;
+                // If this is a srflx candidate from public STUN, replace the
+                // public IP with the TH LAN IP so ICE stays on the local network.
+                // Extract the port from the srflx candidate and emit a host candidate
+                // with TH_LAN_IP instead — the DUT and TH are on the same LAN.
+                if (cand.includes("typ srflx") && TH_LAN_IP) {{
+                    const portMatch = cand.match(/^(candidate:\S+)\s+(\d+)\s+(\w+)\s+\d+\s+\S+\s+(\d+)\s+typ srflx/);
+                    if (portMatch) {{
+                        const [, foundation, component, proto, port] = portMatch;
+                        finalCand = `${{foundation}} ${{component}} ${{proto}} 2113937151 ${{TH_LAN_IP}} ${{port}} typ host generation 0`;
+                    }}
+                }}
+
+                sendWS(reply(msg,
+                    {{candidate: finalCand,
+                      sdpMLineIndex: e.candidate.sdpMLineIndex,
+                      sdpMid: e.candidate.sdpMid}},
+                    null, "LOCAL_ICE_CANDIDATES"));
+            }}
+        }};
+
+        pc.onicegatheringstatechange = () => {{
+            if (pc.iceGatheringState === "complete")
+                sendWS(reply(msg, null, null, "GATHERING_STATE_COMPLETE"));
+        }};
+
+        pc.onconnectionstatechange = () => {{
+            const s = pc.connectionState;
+            setPeerState(s);
+            sendWS(reply(msg, s, null, "PEER_CONNECTION_STATE"));
+        }};
+
+        // Pre-create a single MediaStream — add every incoming track to it,
+        // matching Angular's WebRTCService pattern exactly.
+        const remoteStream = new MediaStream();
+        remoteStreams[sessionId] = remoteStream;
+        document.getElementById("remoteVideo").srcObject = remoteStream;
+
+        pc.ontrack = e => {{
+            remoteStream.addTrack(e.track);
+            // Refresh srcObject so the video element picks up the new track
+            document.getElementById("remoteVideo").srcObject = remoteStream;
+
+            if (e.track.kind === "audio") {{
+                // Use a separate single-track stream for the analyser only
+                const audioStream = new MediaStream([e.track]);
+                attachAnalyser(audioStream, "remote");
+            }}
+        }};
+
+        return pc;
+    }}
+
+    // ── WebRTC message dispatch ───────────────────────────────────────────────
+    async function dispatch(msg) {{
+        const {{type, sessionId, data}} = msg;
+        if (!sessionId) {{ sendWS(reply(msg, null, "Missing sessionId")); return; }}
+
+        let pc = sessions[sessionId];
+        if (!pc && type !== "CREATE_PEER_CONNECTION") {{
+            if (type === "CLOSE_PEER_CONNECTION") return;
+            sendWS(reply(msg, null, "No session "+sessionId+" for "+type)); return;
+        }}
+
+        try {{
+            switch(type) {{
+                case "CREATE_PEER_CONNECTION":
+                    pc = await getOrCreate(sessionId, msg);
+                    if (pc) sendWS(reply(msg));
+                    break;
+                case "CREATE_OFFER": {{
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    sendWS(reply(msg, offer.sdp));
+                    break;
+                }}
+                case "CREATE_ANSWER": {{
+                    const ans = await pc.createAnswer();
+                    await pc.setLocalDescription(ans);
+                    sendWS(reply(msg, ans.sdp));
+                    break;
+                }}
+                case "SET_REMOTE_OFFER":
+                    await pc.setRemoteDescription(new RTCSessionDescription({{type:"offer", sdp:data}}));
+                    sendWS(reply(msg));
+                    break;
+                case "SET_REMOTE_ANSWER":
+                    await pc.setRemoteDescription(new RTCSessionDescription({{type:"answer", sdp:data}}));
+                    sendWS(reply(msg));
+                    break;
+                case "SET_REMOTE_ICE_CANDIDATES":
+                    for (const c of data)
+                        await pc.addIceCandidate(new RTCIceCandidate({{
+                            candidate: c.candidate,
+                            sdpMLineIndex: c.sdpMLineIndex ?? 0,
+                            sdpMid: c.sdpMid ?? "0",
+                        }}));
+                    sendWS(reply(msg));
+                    break;
+                case "GET_PEER_CONNECTION_STATE":
+                    sendWS(reply(msg, pc.connectionState));
+                    break;
+                case "GET_LOCAL_DESCRIPTION":
+                    sendWS(reply(msg, pc.localDescription));
+                    break;
+                case "CLOSE_PEER_CONNECTION":
+                    pc.close();
+                    delete sessions[sessionId];
+                    delete remoteStreams[sessionId];
+                    setPeerState("closed");
+                    break;
+                default:
+                    sendWS(reply(msg, null, "Unknown type: "+type));
+            }}
+        }} catch(e) {{
+            sendWS(reply(msg, null, "Error in "+type+": "+e));
+        }}
+    }}
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    function reply(req, data, error, optType) {{
+        return {{type: optType||req.type, sessionId:req.sessionId,
+                 data: data!==undefined ? data : null, error: error||null}};
+    }}
+
+    function sendWS(msg) {{
+        if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    }}
+
+    function connect() {{
+        if (wsRetry) {{ clearTimeout(wsRetry); wsRetry = null; }}
+        ws = new WebSocket(WS_URL);
+        ws.onopen    = () => console.log("[WS] connected");
+        ws.onclose   = () => {{ wsRetry = setTimeout(connect, 2000); }};
+        ws.onerror   = () => {{}};
+        ws.onmessage = async e => {{
+            let msg;
+            try {{ msg = JSON.parse(e.data); }} catch {{ return; }}
+            await dispatch(msg);
+        }};
+    }}
+
+    // ── Prompt PASS/FAIL ──────────────────────────────────────────────────────
+    function selectOption(value) {{
+        selectedValue = value;
+        document.querySelectorAll(".radio-row").forEach(r => {{
+            r.classList.toggle("selected", parseInt(r.dataset.value)===value);
+            r.querySelector("input").checked = (parseInt(r.dataset.value)===value);
+        }});
+        document.getElementById("submitBtn").disabled = false;
+    }}
+
+    function submitResponse() {{
+        if (selectedValue === null) return;
+        fetch("/submit_response", {{
+            method: "POST",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify({{response: selectedValue}})
+        }})
+        .then(r => r.json())
+        .then(() => {{
+            document.getElementById("submitBtn").disabled = true;
+            document.getElementById("submitBtn").textContent = "✅ Response Submitted";
+        }})
+        .catch(e => alert("Failed to submit: "+e));
+    }}
+
+    // ── Poll server for prompt readiness ──────────────────────────────────────
+    function pollPrompt() {{
+        if (promptReady) return;
+        fetch("/prompt_ready")
+            .then(r => r.json())
+            .then(d => {{
+                if (d.ready) showPrompt(d.prompt_text, d.options);
+                else setTimeout(pollPrompt, 1000);
+            }})
+            .catch(() => setTimeout(pollPrompt, 2000));
+    }}
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    window.addEventListener("load", () => {{
+        connect();
+        if (!promptReady) pollPrompt();
+    }});
+</script>
+</body>
+</html>
