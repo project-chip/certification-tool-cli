@@ -54,14 +54,6 @@ from .socket_schemas import (
 
 WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
-webrtc_indicators = [
-    "browserpeerconnection",
-    "webrtc",
-    "browser peer",
-    "ws://backend/api/v1/ws/webrtc",
-    "create_browser_peer",
-]
-
 WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
 
 
@@ -70,7 +62,7 @@ class TestRunSocket:
         self.run = run
         self.project_config_dict = project_config_dict or {}
         self._chip_server_info_displayed = False
-        # Track test step errors for WebRTC detection
+        # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
 
@@ -224,8 +216,7 @@ class TestRunSocket:
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
 
-        # Check if test failed/errored due to WebRTC/browser requirements
-        # Collect errors from both the test case update and tracked step errors
+        # Log any errors when a test case fails
         if update.state.value in ("failed", "error"):
             all_errors = []
 
@@ -245,23 +236,18 @@ class TestRunSocket:
             else:
                 logger.debug(f"No tracked step errors found for test case {case_key}")
 
-            # Fallback: Check if this is a known WebRTC test by public_id
-            is_webrtc_test = public_id in {"TC_WEBRTC_1_6"}
-
+            # Check if a WebRTC test failed because the browser peer connection was unavailable.
+            # TC_WEBRTC_1_6 uses the TH browser tab as a WebRTC client — the browser must be
+            # open with the TH UI for the test to work.
             if all_errors:
                 error_text = " ".join(all_errors).lower()
-                logger.debug(f"Checking error text for WebRTC indicators: {error_text[:200]}")
-                # Check for common WebRTC/browser-related error indicators
-                if any(indicator in error_text for indicator in webrtc_indicators):
-                    is_webrtc_test = True
-
-            # Display warning if this is a WebRTC test
-            if is_webrtc_test:
-                click.echo("")
-                click.echo(colorize_error("⚠️  TWO-WAY TALK TEST NOT SUPPORTED IN CLI"), err=True)
-                click.echo(colorize_error(f"   {title} requires a browser WebRTC implementation."), err=True)
-                click.echo(colorize_error("   This test cannot run from the CLI. Please use the Web UI."), err=True)
-                click.echo("")
+                browser_peer_errors = ["peer not found", "browserpeerconnection", "create_browser_peer"]
+                if any(indicator in error_text for indicator in browser_peer_errors):
+                    click.echo("")
+                    click.echo(colorize_error("⚠️  BROWSER TAB REQUIRED"), err=True)
+                    click.echo(colorize_error(f"   {title} requires the TH browser UI to be open."), err=True)
+                    click.echo(colorize_error("   Open the TH web interface in a browser tab and re-run."), err=True)
+                    click.echo("")
             elif not all_errors:
                 logger.debug(f"Test case {public_id} ({case_key}) failed but has no error messages")
 

@@ -253,7 +253,6 @@ async def _handle_two_way_talk_prompt(socket: WebSocketClientProtocol, prompt: O
     from .camera.two_way_talk_handler import get_active_handler, TwoWayTalkHandler
 
     handler = get_active_handler()
-    click.echo(f"DEBUG TwoWayTalk: handler={handler!r}", err=True)
     if handler is None:
         # Handler reference lost. Do NOT call start_waiting() — it runs fuser -k
         # which would kill this process (which holds port 8999).
