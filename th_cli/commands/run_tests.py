@@ -17,11 +17,13 @@ import asyncio
 import copy
 import datetime
 import json
+import socket as _socket
 from typing import Any
 
 import click
 
 import th_cli.api_lib_autogen.models as m
+import th_cli.test_run.camera.two_way_talk_handler as _twt_mod
 import th_cli.test_run.logging as test_logging
 from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -35,13 +37,18 @@ from th_cli.colorize import (
     italic,
     set_colors_enabled,
 )
+from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 # Constants
 JSON_INDENT = 2
+
+# Test cases that require the two-way talk browser verification server.
+TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
 
 
 @click.command(
@@ -133,6 +140,7 @@ async def run_tests(
         pics_config_folder = str(pics_path)
 
     client = None
+    _webrtc_handler = None
     try:
         client = get_client()
         async_apis = AsyncApis(client)
@@ -186,7 +194,13 @@ async def run_tests(
             pics=pics,
             project_id=project_id,
         )
-        socket = TestRunSocket(new_test_run, test_run_config)
+        if _contains_webrtc_two_way_talk(selected_tests_dict):
+            _webrtc_handler = TwoWayTalkHandler(port=8999)
+            _webrtc_handler.start_waiting()
+            await _print_webrtc_banner_and_wait(th_config.hostname, _webrtc_handler)
+        else:
+            _webrtc_handler = None
+        socket = TestRunSocket(new_test_run, test_run_config, two_way_talk_handler=_webrtc_handler)
         socket_task = asyncio.create_task(socket.connect_websocket())
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
@@ -199,6 +213,8 @@ async def run_tests(
     finally:
         if client:
             await client.aclose()
+        if _webrtc_handler:
+            _webrtc_handler.stop()
 
 
 async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
@@ -228,6 +244,51 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
             click.echo(colorize_key_value("Warning:", msg))
 
     return await projects_api.default_config_api_v1_projects_default_config_get()
+
+
+def _contains_webrtc_two_way_talk(selected_tests: dict[str, Any]) -> bool:
+    """Return True if any two-way talk test is among the selected tests."""
+    return any(_dict_contains_key(selected_tests, tc) for tc in TWO_WAY_TALK_TEST_IDS)
+
+
+def _dict_contains_key(d: Any, target: str) -> bool:
+    """Recursively search a nested dict for a specific key."""
+    if isinstance(d, dict):
+        if target in d:
+            return True
+        return any(_dict_contains_key(v, target) for v in d.values())
+    return False
+
+
+async def _print_webrtc_banner_and_wait(hostname: str, handler: Any) -> None:
+    """Print a prominent banner for two-way talk tests and wait until the browser opens the page."""
+    # Resolve to actual LAN IP if hostname resolves to any loopback address
+    try:
+        resolved = _socket.gethostbyname(hostname)
+    except _socket.gaierror:
+        resolved = hostname
+    if resolved.startswith("127.") or resolved == "::1":
+        hostname = _twt_mod._get_local_ip()
+
+    url = f"http://{hostname}:8999"
+    border = click.style("═" * 57, fg="yellow", bold=True)
+    click.echo(border)
+    click.echo(click.style("  ⚠  WebRTC Two-Way Talk — Action Required  ⚠", fg="yellow", bold=True))
+    click.echo(border)
+    click.echo(click.style("  Open this URL in a browser NOW and keep it open:", fg="bright_white", bold=True))
+    click.echo("  " + click.style(f"{url}", fg="cyan", bold=True, underline=True))
+    click.echo(click.style("  The page will connect to the DUT automatically.", fg="bright_white"))
+    click.echo(click.style("  You will be asked to select PASS or FAIL during the test.", fg="bright_white"))
+    click.echo(border)
+    click.echo("")
+
+    click.echo(click.style("  Waiting for browser to open the page...", fg="yellow"))
+    connected = await asyncio.get_event_loop().run_in_executor(None, handler.wait_for_browser, 120.0)
+    if connected:
+        click.echo(click.style("  ✔ Browser connected — starting test.", fg="green", bold=True))
+    else:
+        click.echo(click.style("  ⚠ Browser not detected — proceeding anyway.", fg="yellow", bold=True))
+    click.echo("")
 
 
 def _parse_extra_args(args: list[str]) -> dict[str, str]:

@@ -209,7 +209,7 @@ class TestLogTestStepUpdate:
 
 
 # ---------------------------------------------------------------------------
-# __log_test_case_update — WebRTC detection and error cleanup
+# __log_test_case_update — error cleanup
 # ---------------------------------------------------------------------------
 
 
@@ -227,51 +227,6 @@ class TestLogTestCaseUpdate:
             errors=errors,
         )
 
-    def test_webrtc_warning_shown_for_webrtc_error_text(self):
-        case = _make_case()
-        suite = _make_suite(cases=[case])
-        s = _make_socket(suites=[suite])
-
-        with patch("click.echo") as mock_echo:
-            self._call(s, self._update(errors=["error: webrtc browser failed"]))
-
-        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-        assert "TWO-WAY TALK" in echoed
-
-    def test_webrtc_warning_shown_for_known_public_id(self):
-        case = _make_case(public_id="TC_WEBRTC_1_6")
-        suite = _make_suite(cases=[case])
-        s = _make_socket(suites=[suite])
-
-        with patch("click.echo") as mock_echo:
-            self._call(s, self._update(errors=None))
-
-        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-        assert "TWO-WAY TALK" in echoed
-
-    def test_webrtc_warning_shown_when_step_errors_contain_indicator(self):
-        case = _make_case()
-        suite = _make_suite(cases=[case])
-        s = _make_socket(suites=[suite])
-        s.test_case_step_errors[(0, 0)] = ["BrowserPeerConnection refused"]
-
-        with patch("click.echo") as mock_echo:
-            self._call(s, self._update(errors=None))
-
-        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-        assert "TWO-WAY TALK" in echoed
-
-    def test_no_webrtc_warning_for_non_webrtc_failure(self):
-        case = _make_case(public_id="TC_CLUSTER_1_1")
-        suite = _make_suite(cases=[case])
-        s = _make_socket(suites=[suite])
-
-        with patch("click.echo") as mock_echo:
-            self._call(s, self._update(errors=["attribute read failed"]))
-
-        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-        assert "TWO-WAY TALK" not in echoed
-
     def test_step_errors_cleaned_up_after_case_update(self):
         case = _make_case()
         suite = _make_suite(cases=[case])
@@ -282,7 +237,18 @@ class TestLogTestCaseUpdate:
 
         assert (0, 0) not in s.test_case_step_errors
 
-    def test_passing_case_does_not_show_webrtc_warning(self):
+    def test_failed_case_echoes_state(self):
+        case = _make_case()
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
+
+        with patch("click.echo") as mock_echo:
+            self._call(s, self._update(state="failed"))
+
+        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
+        assert "failed" in echoed.lower()
+
+    def test_passed_case_echoes_state(self):
         case = _make_case()
         suite = _make_suite(cases=[case])
         s = _make_socket(suites=[suite])
@@ -291,26 +257,29 @@ class TestLogTestCaseUpdate:
             self._call(s, self._update(state="passed"))
 
         echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-        assert "TWO-WAY TALK" not in echoed
+        assert "passed" in echoed.lower()
 
-    def test_all_webrtc_indicators_trigger_warning(self):
-        indicators = [
-            "browserpeerconnection failed",
-            "webrtc setup error",
-            "browser peer not available",
-            "ws://backend/api/v1/ws/webrtc timeout",
-            "create_browser_peer called",
-        ]
-        for indicator in indicators:
-            case = _make_case()
-            suite = _make_suite(cases=[case])
-            s = _make_socket(suites=[suite])
+    def test_browser_peer_warning_shown_for_peer_not_found(self):
+        case = _make_case(public_id="TC_WEBRTC_1_6")
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
 
-            with patch("click.echo") as mock_echo:
-                self._call(s, self._update(errors=[indicator]))
+        with patch("click.echo") as mock_echo:
+            self._call(s, self._update(errors=["Peer not found"]))
 
-            echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
-            assert "TWO-WAY TALK" in echoed, f"Expected WebRTC warning for: {indicator!r}"
+        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
+        assert "BROWSER TAB REQUIRED" in echoed
+
+    def test_browser_peer_warning_not_shown_for_unrelated_failure(self):
+        case = _make_case(public_id="TC_CLUSTER_1_1")
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
+
+        with patch("click.echo") as mock_echo:
+            self._call(s, self._update(errors=["attribute read failed"]))
+
+        echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
+        assert "BROWSER TAB REQUIRED" not in echoed
 
 
 # ---------------------------------------------------------------------------

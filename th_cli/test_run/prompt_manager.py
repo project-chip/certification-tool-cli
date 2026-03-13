@@ -32,6 +32,8 @@ from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .camera.camera_http_server import CameraHTTPServer
+from .camera.image_handler import ImageVerificationHandler
+from .camera.two_way_talk_handler import TwoWayTalkHandler
 from .socket_schemas import (
     ImageVerificationPromptRequest,
     MessagePromptRequest,
@@ -41,6 +43,7 @@ from .socket_schemas import (
     PushAVStreamVerificationRequest,
     StreamVerificationPromptRequest,
     TextInputPromptRequest,
+    TwoWayTalkVerificationRequest,
     UserResponseStatusEnum,
 )
 
@@ -67,7 +70,12 @@ def _get_local_ip() -> str:
         return "localhost"
 
 
-async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest, message_type: str = None) -> None:
+async def handle_prompt(
+    socket: WebSocketClientProtocol,
+    request: PromptRequest,
+    message_type: str = None,
+    two_way_talk_handler=None,
+) -> None:
     """Handle all types of prompts with correct inheritance order."""
     click.echo("=======================================")
 
@@ -75,6 +83,10 @@ async def handle_prompt(socket: WebSocketClientProtocol, request: PromptRequest,
         request, ImageVerificationPromptRequest
     ):
         await _handle_image_verification_prompt(socket=socket, prompt=request)
+    elif message_type == MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST or isinstance(
+        request, TwoWayTalkVerificationRequest
+    ):
+        await _handle_two_way_talk_prompt(socket=socket, prompt=request, handler=two_way_talk_handler)
     elif message_type == MessageTypeEnum.STREAM_VERIFICATION_REQUEST or isinstance(
         request, StreamVerificationPromptRequest
     ):
@@ -199,8 +211,6 @@ async def _handle_image_verification_prompt(
         image_data = bytes.fromhex(image_hex_clean)
 
         # Use existing ImageVerificationHandler
-        from .camera.image_handler import ImageVerificationHandler
-
         image_handler = ImageVerificationHandler()
         image_handler.set_prompt_data(prompt.prompt, prompt.options, image_data)
 
@@ -241,6 +251,39 @@ async def _handle_image_verification_prompt(
 
     except Exception as e:
         click.echo(colorize_error(f"❌ Error handling image verification: {e}"), err=True)
+
+
+async def _handle_two_way_talk_prompt(
+    socket: WebSocketClientProtocol, prompt: OptionsSelectPromptRequest, handler=None
+) -> None:
+    """Handle two-way talk verification via browser page on port 8999."""
+    if handler is None:
+        # Handler not injected. Do NOT call start_waiting() — it runs fuser -k
+        # which would kill this process (which holds port 8999).
+        # Create a fresh server on the same port without freeing it first.
+        click.echo("WARNING: TwoWayTalk handler not available — creating fallback server", err=True)
+        handler = TwoWayTalkHandler(port=8999)
+        try:
+            handler.start_server_only()
+        except OSError as e:
+            click.echo(colorize_error(f"Could not start fallback server: {e}"), err=True)
+
+    handler.show_prompt(prompt_text=prompt.prompt, prompt_options=prompt.options)
+    local_ip = _get_local_ip()
+    try:
+        click.echo("🎤 Two-Way Talk Verification")
+        click.echo(italic(prompt.prompt))
+        click.echo(f"   Open http://{local_ip}:8999 to verify audio/video and select PASS or FAIL.")
+        click.echo("   Waiting for your response in the browser...")
+        user_answer = await handler.wait_for_user_response(float(prompt.timeout))
+        if user_answer is None:
+            click.echo(colorize_error("Two-way talk prompt timed out"), err=True)
+            return
+        selected_option = next((k for k, v in prompt.options.items() if v == user_answer), str(user_answer))
+        click.echo(f"✅ User selected: {selected_option}")
+        await _send_prompt_response(socket=socket, response=user_answer, prompt=prompt)
+    finally:
+        handler.stop()
 
 
 async def _handle_push_av_stream_prompt(
