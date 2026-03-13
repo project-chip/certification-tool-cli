@@ -131,7 +131,7 @@ class TwoWayTalkHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'{"status": "success"}')
 
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"TwoWayTalk response handler error: {e}")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
