@@ -44,6 +44,8 @@ from th_cli.validation import validate_directory_path, validate_file_path, valid
 # Constants
 JSON_INDENT = 2
 
+# Test cases that require the two-way talk browser verification server.
+TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
 
 @click.command(
     no_args_is_help=True,
@@ -241,11 +243,6 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
 
     return await projects_api.default_config_api_v1_projects_default_config_get()
 
-
-# Test cases that require the two-way talk browser verification server.
-TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
-
-
 def _contains_webrtc_two_way_talk(selected_tests: dict[str, Any]) -> bool:
     """Return True if any two-way talk test is among the selected tests."""
     return any(_dict_contains_key(selected_tests, tc) for tc in TWO_WAY_TALK_TEST_IDS)
@@ -261,7 +258,7 @@ def _dict_contains_key(d: Any, target: str) -> bool:
 
 
 async def _print_webrtc_banner_and_wait(hostname: str, handler: Any) -> None:
-    """Print a prominent banner for TC-WEBRTC-1.6 and wait until the browser opens the page."""
+    """Print a prominent banner for two-way talk tests and wait until the browser opens the page."""
     import socket as _socket
 
     import th_cli.test_run.camera.two_way_talk_handler as _twt_mod

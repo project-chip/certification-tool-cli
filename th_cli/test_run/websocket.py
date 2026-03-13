@@ -237,7 +237,7 @@ class TestRunSocket:
                 logger.debug(f"No tracked step errors found for test case {case_key}")
 
             # Check if a WebRTC test failed because the browser peer connection was unavailable.
-            # TC_WEBRTC_1_6 uses the TH browser tab as a WebRTC client — the browser must be
+            # Two-way talk tests uses the TH browser tab as a WebRTC client — the browser must be
             # open with the TH UI for the test to work.
             if all_errors:
                 error_text = " ".join(all_errors).lower()
