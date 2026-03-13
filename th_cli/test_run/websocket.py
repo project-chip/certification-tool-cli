@@ -58,9 +58,15 @@ WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
 
 
 class TestRunSocket:
-    def __init__(self, run: TestRunExecutionWithChildren, project_config_dict: dict | None = None):
+    def __init__(
+        self,
+        run: TestRunExecutionWithChildren,
+        project_config_dict: dict | None = None,
+        two_way_talk_handler=None,
+    ):
         self.run = run
         self.project_config_dict = project_config_dict or {}
+        self.two_way_talk_handler = two_way_talk_handler
         self._chip_server_info_displayed = False
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
@@ -116,7 +122,12 @@ class TestRunSocket:
                 await handle_file_upload_request(socket=socket, request=message.payload)
             else:
                 # Pass both the request and the message type to handle_prompt
-                await handle_prompt(socket=socket, request=message.payload, message_type=message.type)
+                await handle_prompt(
+                    socket=socket,
+                    request=message.payload,
+                    message_type=message.type,
+                    two_way_talk_handler=self.two_way_talk_handler,
+                )
         elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
             self.__handle_log_record(message.payload)
         elif isinstance(message.payload, TimeOutNotification):

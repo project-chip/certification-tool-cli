@@ -47,6 +47,7 @@ JSON_INDENT = 2
 # Test cases that require the two-way talk browser verification server.
 TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
 
+
 @click.command(
     no_args_is_help=True,
     short_help=colorize_help("CLI execution of a test run"),
@@ -198,7 +199,7 @@ async def run_tests(
             await _print_webrtc_banner_and_wait(th_config.hostname, _webrtc_handler)
         else:
             _webrtc_handler = None
-        socket = TestRunSocket(new_test_run, test_run_config)
+        socket = TestRunSocket(new_test_run, test_run_config, two_way_talk_handler=_webrtc_handler)
         socket_task = asyncio.create_task(socket.connect_websocket())
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
@@ -242,6 +243,7 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
             click.echo(colorize_key_value("Warning:", msg))
 
     return await projects_api.default_config_api_v1_projects_default_config_get()
+
 
 def _contains_webrtc_two_way_talk(selected_tests: dict[str, Any]) -> bool:
     """Return True if any two-way talk test is among the selected tests."""

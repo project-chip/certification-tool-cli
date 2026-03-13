@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Unit tests for TwoWayTalkHandler and module-level helpers."""
+"""Unit tests for TwoWayTalkHandler and TwoWayTalkHTTPHandler."""
 
 import asyncio
 import json
@@ -26,13 +26,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 import th_cli.test_run.camera.two_way_talk_handler as _module
-from th_cli.test_run.camera.two_way_talk_handler import (
-    TwoWayTalkHandler,
-    TwoWayTalkHTTPHandler,
-    get_active_handler,
-    set_active_handler,
-    show_prompt_on_active_server,
-)
+from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler, TwoWayTalkHTTPHandler
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -131,14 +125,6 @@ class TestTwoWayTalkHandlerStart:
                     getattr(h, method)()
         return h, mock_srv, mock_thread
 
-    def test_start_waiting_registers_active_handler(self):
-        h, _, _ = self._patched_start("start_waiting")
-        assert get_active_handler() is h
-
-    def test_start_server_only_registers_active_handler(self):
-        h, _, _ = self._patched_start("start_server_only")
-        assert get_active_handler() is h
-
     def test_server_thread_is_started(self):
         _, _, mock_thread = self._patched_start()
         mock_thread.start.assert_called_once()
@@ -153,10 +139,6 @@ class TestTwoWayTalkHandlerStart:
         h, mock_srv, _ = self._patched_start()
         assert mock_srv.response_queue is h._response_queue
         assert mock_srv.browser_ready_event is h._browser_ready_event
-
-    def test_module_level_active_server_set(self):
-        h, mock_srv, _ = self._patched_start()
-        assert _module._active_server is mock_srv
 
     def test_start_waiting_calls_free_port(self):
         h = TwoWayTalkHandler(port=9001)
@@ -298,13 +280,12 @@ class TestTwoWayTalkHandlerWaitForUserResponse:
 
 @pytest.mark.unit
 class TestTwoWayTalkHandlerStop:
-    """Positive + edge: stop shuts down server and clears global state."""
+    """Positive + edge: stop shuts down server and clears server reference."""
 
     def test_stop_calls_server_shutdown(self):
         h = TwoWayTalkHandler(port=0)
         mock_srv = Mock()
         h._server = mock_srv
-        set_active_handler(h)
 
         h.stop()
 
@@ -315,21 +296,6 @@ class TestTwoWayTalkHandlerStop:
         h._server = Mock()
         h.stop()
         assert h._server is None
-
-    def test_stop_clears_active_handler(self):
-        h = TwoWayTalkHandler(port=0)
-        h._server = Mock()
-        set_active_handler(h)
-        h.stop()
-        assert get_active_handler() is None
-
-    def test_stop_clears_module_level_active_server(self):
-        h = TwoWayTalkHandler(port=0)
-        mock_srv = Mock()
-        h._server = mock_srv
-        _module._active_server = mock_srv
-        h.stop()
-        assert _module._active_server is None
 
     def test_stop_is_noop_when_server_is_none(self):
         h = TwoWayTalkHandler(port=0)
@@ -361,41 +327,6 @@ class TestTwoWayTalkHandlerStartAlias:
                 h.start("Verify", {"PASS": 1})
         mock_wait.assert_called_once()
         mock_show.assert_called_once_with("Verify", {"PASS": 1})
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestModuleLevelHelpers:
-    """Positive + negative: get/set active handler and show_prompt_on_active_server."""
-
-    def test_set_and_get_active_handler(self):
-        h = TwoWayTalkHandler(port=0)
-        set_active_handler(h)
-        assert get_active_handler() is h
-        set_active_handler(None)  # cleanup
-
-    def test_set_active_handler_to_none(self):
-        set_active_handler(None)
-        assert get_active_handler() is None
-
-    def test_show_prompt_on_active_server_returns_true_when_server_exists(self):
-        mock_srv = Mock()
-        _module._active_server = mock_srv
-        result = show_prompt_on_active_server("Hello", {"PASS": 1})
-        assert result is True
-        assert mock_srv.prompt_text == "Hello"
-        assert mock_srv.prompt_options == {"PASS": 1}
-        assert mock_srv.prompt_ready is True
-        _module._active_server = None  # cleanup
-
-    def test_show_prompt_on_active_server_returns_false_when_no_server(self):
-        _module._active_server = None
-        result = show_prompt_on_active_server("Hello", {})
-        assert result is False
 
 
 # ---------------------------------------------------------------------------

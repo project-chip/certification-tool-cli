@@ -397,23 +397,27 @@ def _make_two_way_talk_prompt(**kwargs):
 class TestHandleTwoWayTalkPrompt:
     """Tests for _handle_two_way_talk_prompt dispatched via handle_prompt."""
 
-    @pytest.mark.asyncio
-    async def test_uses_active_handler_when_available(self):
-        """When an active handler exists, it should be used directly."""
-        prompt = _make_two_way_talk_prompt()
+    def _make_handler(self, response=1):
         mock_handler = AsyncMock()
-        mock_handler.wait_for_user_response = AsyncMock(return_value=1)
+        mock_handler.wait_for_user_response = AsyncMock(return_value=response)
         mock_handler.show_prompt = Mock()
         mock_handler.stop = Mock()
+        return mock_handler
+
+    @pytest.mark.asyncio
+    async def test_uses_injected_handler(self):
+        """When a handler is injected, it should be used directly."""
+        prompt = _make_two_way_talk_prompt()
+        mock_handler = self._make_handler(response=1)
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock):
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=mock_handler):
-                with patch("click.echo"):
-                    await prompt_manager.handle_prompt(
-                        socket=AsyncMock(),
-                        request=prompt,
-                        message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
-                    )
+            with patch("click.echo"):
+                await prompt_manager.handle_prompt(
+                    socket=AsyncMock(),
+                    request=prompt,
+                    message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+                    two_way_talk_handler=mock_handler,
+                )
 
         mock_handler.show_prompt.assert_called_once_with(prompt_text=prompt.prompt, prompt_options=prompt.options)
 
@@ -421,19 +425,16 @@ class TestHandleTwoWayTalkPrompt:
     async def test_sends_response_for_pass_selection(self):
         """Selected PASS option is forwarded to backend."""
         prompt = _make_two_way_talk_prompt()
-        mock_handler = AsyncMock()
-        mock_handler.wait_for_user_response = AsyncMock(return_value=1)  # PASS = 1
-        mock_handler.show_prompt = Mock()
-        mock_handler.stop = Mock()
+        mock_handler = self._make_handler(response=1)  # PASS = 1
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=mock_handler):
-                with patch("click.echo"):
-                    await prompt_manager.handle_prompt(
-                        socket=AsyncMock(),
-                        request=prompt,
-                        message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
-                    )
+            with patch("click.echo"):
+                await prompt_manager.handle_prompt(
+                    socket=AsyncMock(),
+                    request=prompt,
+                    message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+                    two_way_talk_handler=mock_handler,
+                )
 
         mock_send.assert_called_once()
         assert mock_send.call_args[1]["response"] == 1
@@ -442,19 +443,16 @@ class TestHandleTwoWayTalkPrompt:
     async def test_stop_called_after_response(self):
         """handler.stop() must always be called after wait_for_user_response."""
         prompt = _make_two_way_talk_prompt()
-        mock_handler = AsyncMock()
-        mock_handler.wait_for_user_response = AsyncMock(return_value=2)  # FAIL = 2
-        mock_handler.show_prompt = Mock()
-        mock_handler.stop = Mock()
+        mock_handler = self._make_handler(response=2)  # FAIL = 2
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock):
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=mock_handler):
-                with patch("click.echo"):
-                    await prompt_manager.handle_prompt(
-                        socket=AsyncMock(),
-                        request=prompt,
-                        message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
-                    )
+            with patch("click.echo"):
+                await prompt_manager.handle_prompt(
+                    socket=AsyncMock(),
+                    request=prompt,
+                    message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+                    two_way_talk_handler=mock_handler,
+                )
 
         mock_handler.stop.assert_called_once()
 
@@ -462,26 +460,23 @@ class TestHandleTwoWayTalkPrompt:
     async def test_stop_called_even_on_timeout(self):
         """handler.stop() must be called even when wait_for_user_response returns None."""
         prompt = _make_two_way_talk_prompt()
-        mock_handler = AsyncMock()
-        mock_handler.wait_for_user_response = AsyncMock(return_value=None)
-        mock_handler.show_prompt = Mock()
-        mock_handler.stop = Mock()
+        mock_handler = self._make_handler(response=None)
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=mock_handler):
-                with patch("click.echo"):
-                    await prompt_manager.handle_prompt(
-                        socket=AsyncMock(),
-                        request=prompt,
-                        message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
-                    )
+            with patch("click.echo"):
+                await prompt_manager.handle_prompt(
+                    socket=AsyncMock(),
+                    request=prompt,
+                    message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+                    two_way_talk_handler=mock_handler,
+                )
 
         mock_handler.stop.assert_called_once()
         mock_send.assert_not_called()  # no response sent on timeout
 
     @pytest.mark.asyncio
-    async def test_fallback_handler_created_when_active_handler_is_none(self):
-        """When no active handler, a fallback TwoWayTalkHandler is created with start_server_only."""
+    async def test_fallback_handler_created_when_no_handler_injected(self):
+        """When no handler is injected, a fallback TwoWayTalkHandler is created with start_server_only."""
         prompt = _make_two_way_talk_prompt()
         mock_fallback = AsyncMock()
         mock_fallback.wait_for_user_response = AsyncMock(return_value=1)
@@ -490,16 +485,14 @@ class TestHandleTwoWayTalkPrompt:
         mock_fallback.start_server_only = Mock()
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock):
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=None):
-                with patch(
-                    "th_cli.test_run.camera.two_way_talk_handler.TwoWayTalkHandler", return_value=mock_fallback
-                ) as mock_cls:
-                    with patch("click.echo"):
-                        await prompt_manager.handle_prompt(
-                            socket=AsyncMock(),
-                            request=prompt,
-                            message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
-                        )
+            with patch("th_cli.test_run.prompt_manager.TwoWayTalkHandler", return_value=mock_fallback) as mock_cls:
+                with patch("click.echo"):
+                    await prompt_manager.handle_prompt(
+                        socket=AsyncMock(),
+                        request=prompt,
+                        message_type=MessageTypeEnum.TWO_WAY_TALK_VERIFICATION_REQUEST,
+                        two_way_talk_handler=None,
+                    )
 
         mock_cls.assert_called_once_with(port=8999)
         mock_fallback.start_server_only.assert_called_once()
@@ -508,19 +501,16 @@ class TestHandleTwoWayTalkPrompt:
     async def test_dispatched_via_isinstance_when_no_message_type(self):
         """Dispatch works via isinstance check when message_type is not provided."""
         prompt = _make_two_way_talk_prompt()
-        mock_handler = AsyncMock()
-        mock_handler.wait_for_user_response = AsyncMock(return_value=1)
-        mock_handler.show_prompt = Mock()
-        mock_handler.stop = Mock()
+        mock_handler = self._make_handler(response=1)
 
         with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
-            with patch("th_cli.test_run.camera.two_way_talk_handler.get_active_handler", return_value=mock_handler):
-                with patch("click.echo"):
-                    await prompt_manager.handle_prompt(
-                        socket=AsyncMock(),
-                        request=prompt,
-                        message_type=None,
-                    )
+            with patch("click.echo"):
+                await prompt_manager.handle_prompt(
+                    socket=AsyncMock(),
+                    request=prompt,
+                    message_type=None,
+                    two_way_talk_handler=mock_handler,
+                )
 
         mock_send.assert_called_once()
 
