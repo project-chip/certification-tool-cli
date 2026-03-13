@@ -266,7 +266,7 @@ async def _print_webrtc_banner_and_wait(hostname: str, handler: Any) -> None:
     # Resolve to actual LAN IP if hostname resolves to any loopback address
     try:
         resolved = _socket.gethostbyname(hostname)
-    except Exception:
+    except _socket.gaierror:
         resolved = hostname
     if resolved.startswith("127.") or resolved == "::1":
         hostname = _twt_mod._get_local_ip()
