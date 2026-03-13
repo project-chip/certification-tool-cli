@@ -32,6 +32,7 @@ from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
 from .camera.camera_http_server import CameraHTTPServer
+from .camera.image_handler import ImageVerificationHandler
 from .camera.two_way_talk_handler import TwoWayTalkHandler
 from .socket_schemas import (
     ImageVerificationPromptRequest,
@@ -210,8 +211,6 @@ async def _handle_image_verification_prompt(
         image_data = bytes.fromhex(image_hex_clean)
 
         # Use existing ImageVerificationHandler
-        from .camera.image_handler import ImageVerificationHandler
-
         image_handler = ImageVerificationHandler()
         image_handler.set_prompt_data(prompt.prompt, prompt.options, image_data)
 

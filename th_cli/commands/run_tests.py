@@ -17,11 +17,13 @@ import asyncio
 import copy
 import datetime
 import json
+import socket as _socket
 from typing import Any
 
 import click
 
 import th_cli.api_lib_autogen.models as m
+import th_cli.test_run.camera.two_way_talk_handler as _twt_mod
 import th_cli.test_run.logging as test_logging
 from th_cli.api_lib_autogen.api_client import AsyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -37,6 +39,7 @@ from th_cli.colorize import (
 )
 from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
@@ -192,8 +195,6 @@ async def run_tests(
             project_id=project_id,
         )
         if _contains_webrtc_two_way_talk(selected_tests_dict):
-            from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
-
             _webrtc_handler = TwoWayTalkHandler(port=8999)
             _webrtc_handler.start_waiting()
             await _print_webrtc_banner_and_wait(th_config.hostname, _webrtc_handler)
@@ -261,10 +262,6 @@ def _dict_contains_key(d: Any, target: str) -> bool:
 
 async def _print_webrtc_banner_and_wait(hostname: str, handler: Any) -> None:
     """Print a prominent banner for two-way talk tests and wait until the browser opens the page."""
-    import socket as _socket
-
-    import th_cli.test_run.camera.two_way_talk_handler as _twt_mod
-
     # Resolve to actual LAN IP if hostname resolves to any loopback address
     try:
         resolved = _socket.gethostbyname(hostname)
