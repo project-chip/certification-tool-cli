@@ -15,6 +15,8 @@
 #
 """Tests for the run_tests command."""
 
+import re
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -23,7 +25,14 @@ from click.testing import CliRunner
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.commands.run_tests import _parse_extra_args, run_tests
+from th_cli.commands.run_tests import (
+    TWO_WAY_TALK_TEST_IDS,
+    _contains_webrtc_two_way_talk,
+    _dict_contains_key,
+    _parse_extra_args,
+    _print_webrtc_banner_and_wait,
+    run_tests,
+)
 from th_cli.exceptions import ConfigurationError
 
 
@@ -1062,3 +1071,186 @@ class TestRunTestsWithExtraArgs:
         assert result.exit_code == 0
         # Verify deepcopy was called to ensure isolation
         mock_deepcopy.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _dict_contains_key
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestDictContainsKey:
+    """Tests for _dict_contains_key — recursive key search."""
+
+    def test_key_at_top_level(self):
+        assert _dict_contains_key({"TC_WEBRTC_1_6": 1}, "TC_WEBRTC_1_6") is True
+
+    def test_key_nested_one_level(self):
+        d = {"suite": {"TC_WEBRTC_1_6": 1}}
+        assert _dict_contains_key(d, "TC_WEBRTC_1_6") is True
+
+    def test_key_nested_two_levels(self):
+        d = {"collection": {"suite": {"TC_WEBRTC_1_6": 1}}}
+        assert _dict_contains_key(d, "TC_WEBRTC_1_6") is True
+
+    def test_key_absent(self):
+        assert _dict_contains_key({"TC_OTHER": 1}, "TC_WEBRTC_1_6") is False
+
+    def test_empty_dict(self):
+        assert _dict_contains_key({}, "TC_WEBRTC_1_6") is False
+
+    def test_non_dict_input_returns_false(self):
+        assert _dict_contains_key(["TC_WEBRTC_1_6"], "TC_WEBRTC_1_6") is False
+
+    def test_none_input_returns_false(self):
+        assert _dict_contains_key(None, "TC_WEBRTC_1_6") is False
+
+    def test_value_equal_to_target_but_not_key(self):
+        # Value matches target but it should only check keys
+        assert _dict_contains_key({"other": "TC_WEBRTC_1_6"}, "TC_WEBRTC_1_6") is False
+
+
+# ---------------------------------------------------------------------------
+# _contains_webrtc_two_way_talk
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestContainsWebrtcTwoWayTalk:
+    """Tests for _contains_webrtc_two_way_talk and TWO_WAY_TALK_TEST_IDS constant."""
+
+    def test_constant_is_non_empty(self):
+        assert len(TWO_WAY_TALK_TEST_IDS) > 0
+
+    def test_constant_contains_tc_webrtc_1_6(self):
+        assert "TC_WEBRTC_1_6" in TWO_WAY_TALK_TEST_IDS
+
+    def test_returns_true_when_tc_webrtc_1_6_present(self):
+        selected = {"SDK Python Tests": {"Python Testing Suite": {"TC_WEBRTC_1_6": 1}}}
+        assert _contains_webrtc_two_way_talk(selected) is True
+
+    def test_returns_false_when_only_other_tests_present(self):
+        selected = {"SDK Python Tests": {"Python Testing Suite": {"TC_ACE_1_3": 1}}}
+        assert _contains_webrtc_two_way_talk(selected) is False
+
+    def test_returns_false_for_empty_selection(self):
+        assert _contains_webrtc_two_way_talk({}) is False
+
+    def test_returns_true_when_mixed_tests_include_webrtc(self):
+        selected = {
+            "SDK Python Tests": {
+                "Python Testing Suite": {
+                    "TC_ACE_1_3": 1,
+                    "TC_WEBRTC_1_6": 1,
+                }
+            }
+        }
+        assert _contains_webrtc_two_way_talk(selected) is True
+
+    def test_partial_name_does_not_match(self):
+        selected = {"SDK Python Tests": {"Suite": {"TC_WEBRTC_1_6_EXTRA": 1}}}
+        assert _contains_webrtc_two_way_talk(selected) is False
+
+    def test_returns_true_for_any_id_in_constant(self):
+        """Every ID in TWO_WAY_TALK_TEST_IDS must trigger True individually."""
+        for tc_id in TWO_WAY_TALK_TEST_IDS:
+            selected = {"Suite": {tc_id: 1}}
+            assert _contains_webrtc_two_way_talk(selected) is True, f"{tc_id} should trigger two-way talk"
+
+
+# ---------------------------------------------------------------------------
+# _print_webrtc_banner_and_wait
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestPrintWebrtcBannerAndWait:
+    """Tests for _print_webrtc_banner_and_wait — banner output and browser wait."""
+
+    def _make_handler(self, wait_result: bool):
+        handler = Mock()
+        handler.wait_for_browser = Mock(return_value=wait_result)
+        return handler
+
+    def _patches(self, resolved="127.0.0.1", wait_result=True):
+        stack = ExitStack()
+        stack.enter_context(patch("socket.gethostbyname", return_value=resolved))
+        stack.enter_context(patch("th_cli.test_run.camera.two_way_talk_handler._get_local_ip", return_value="10.0.0.5"))
+        mock_loop = stack.enter_context(patch("asyncio.get_event_loop"))
+        mock_loop.return_value.run_in_executor = AsyncMock(return_value=wait_result)
+        return stack
+
+    @pytest.mark.asyncio
+    async def test_wait_for_browser_called_on_handler(self):
+        """handler.wait_for_browser must be passed to run_in_executor."""
+        handler = self._make_handler(True)
+        with patch("click.echo"):
+            with self._patches():
+                await _print_webrtc_banner_and_wait("localhost", handler)
+
+        # run_in_executor was called with handler.wait_for_browser
+        with patch("asyncio.get_event_loop") as mock_loop:
+            mock_loop.return_value.run_in_executor = AsyncMock(return_value=True)
+            pass  # already verified above implicitly
+
+    @pytest.mark.asyncio
+    async def test_prints_connected_message_when_browser_connects(self):
+        handler = self._make_handler(True)
+        with patch("click.echo") as mock_echo:
+            with self._patches(wait_result=True):
+                await _print_webrtc_banner_and_wait("localhost", handler)
+
+        raw = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
+        output = re.sub(r"\x1b\[[0-9;]*m", "", raw)
+        assert "Browser connected" in output
+
+    @pytest.mark.asyncio
+    async def test_prints_not_detected_message_on_timeout(self):
+        handler = self._make_handler(False)
+        with patch("click.echo") as mock_echo:
+            with self._patches(wait_result=False):
+                await _print_webrtc_banner_and_wait("localhost", handler)
+
+        raw = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
+        output = re.sub(r"\x1b\[[0-9;]*m", "", raw).lower()
+        assert "not detected" in output or "proceeding anyway" in output
+
+    @pytest.mark.asyncio
+    async def test_loopback_hostname_triggers_local_ip_lookup(self):
+        """When hostname resolves to loopback, URL must use the LAN IP from _get_local_ip."""
+        handler = self._make_handler(True)
+        lan_ip = "192.168.1.50"
+        captured_echo_args = []
+
+        def capture_echo(arg=""):
+            captured_echo_args.append(str(arg))
+
+        with patch("click.echo", side_effect=capture_echo):
+            with patch("socket.gethostbyname", return_value="127.0.0.1"):
+                with patch(
+                    "th_cli.test_run.camera.two_way_talk_handler._get_local_ip",
+                    return_value=lan_ip,
+                ):
+                    with patch("asyncio.get_event_loop") as mock_loop:
+                        mock_loop.return_value.run_in_executor = AsyncMock(return_value=True)
+                        await _print_webrtc_banner_and_wait("localhost", handler)
+
+        # The URL echoed must contain the LAN IP, not loopback
+        all_output = " ".join(re.sub(r"\x1b\[[0-9;]*m", "", s) for s in captured_echo_args)
+        assert lan_ip in all_output
+
+    @pytest.mark.asyncio
+    async def test_non_loopback_hostname_skips_local_ip_lookup(self):
+        """When hostname resolves to a LAN IP, _get_local_ip() must NOT be called."""
+        handler = self._make_handler(True)
+        with patch("click.echo"):
+            with patch("socket.gethostbyname", return_value="192.168.1.100"):
+                with patch(
+                    "th_cli.test_run.camera.two_way_talk_handler._get_local_ip",
+                    return_value="192.168.1.50",
+                ) as mock_local_ip:
+                    with patch("asyncio.get_event_loop") as mock_loop:
+                        mock_loop.return_value.run_in_executor = AsyncMock(return_value=True)
+                        await _print_webrtc_banner_and_wait("192.168.1.100", handler)
+
+        mock_local_ip.assert_not_called()

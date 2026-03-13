@@ -250,7 +250,7 @@ async def _handle_image_verification_prompt(
 
 async def _handle_two_way_talk_prompt(socket: WebSocketClientProtocol, prompt: OptionsSelectPromptRequest) -> None:
     """Handle two-way talk verification via browser page on port 8999."""
-    from .camera.two_way_talk_handler import get_active_handler, TwoWayTalkHandler
+    from .camera.two_way_talk_handler import TwoWayTalkHandler, get_active_handler
 
     handler = get_active_handler()
     if handler is None:

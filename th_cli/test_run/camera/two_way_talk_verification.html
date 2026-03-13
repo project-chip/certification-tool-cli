@@ -722,6 +722,8 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     window.addEventListener("load", () => {{
+        // Notify the CLI that the browser has opened the page
+        fetch("/browser_ready", {{ method: "POST" }}).catch(() => {{}});
         connect();
         if (!promptReady) pollPrompt();
     }});

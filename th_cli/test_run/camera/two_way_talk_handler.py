@@ -50,6 +50,8 @@ class TwoWayTalkHTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/submit_response":
             self._handle_response()
+        elif self.path == "/browser_ready":
+            self._handle_browser_ready()
         else:
             self.send_error(404)
 
@@ -74,10 +76,7 @@ class TwoWayTalkHTTPHandler(BaseHTTPRequestHandler):
             )
         except Exception as e:
             logger.error(f"Failed to load two-way talk HTML template: {e}")
-            page = (
-                "<html><body><h1>Two-Way Talk Verification</h1>"
-                f"<p>Template error: {e}</p></body></html>"
-            )
+            page = "<html><body><h1>Two-Way Talk Verification</h1>" f"<p>Template error: {e}</p></body></html>"
 
         encoded = page.encode("utf-8")
         self.send_response(200)
@@ -140,6 +139,17 @@ class TwoWayTalkHTTPHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(f'{{"error": "{e}"}}'.encode())
 
+    def _handle_browser_ready(self):
+        """Called by the browser page on load to signal the user has it open."""
+        browser_event = getattr(self.server, "browser_ready_event", None)
+        if browser_event:
+            browser_event.set()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(b'{"status": "ok"}')
+
     def log_message(self, format, *args):
         pass  # suppress HTTP access logs
 
@@ -190,6 +200,7 @@ class TwoWayTalkHandler:
         self.port = port
         self._server: Optional[ThreadingHTTPServer] = None
         self._response_queue: queue.Queue = queue.Queue()
+        self._browser_ready_event: threading.Event = threading.Event()
 
     @staticmethod
     def _free_port(port: int) -> None:
@@ -215,6 +226,7 @@ class TwoWayTalkHandler:
         self._server.prompt_options = {}
         self._server.prompt_ready = False
         self._server.response_queue = self._response_queue
+        self._server.browser_ready_event = self._browser_ready_event
         self._server.th_hostname = _get_local_ip()
 
         t = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -235,6 +247,11 @@ class TwoWayTalkHandler:
         Use this when the current process may already be listening on the port
         (e.g. fallback path where start_waiting() was not called earlier)."""
         self._start_server()
+
+    def wait_for_browser(self, timeout: float = 120.0) -> bool:
+        """Block until the browser page loads and posts /browser_ready.
+        Returns True if browser connected, False if timed out."""
+        return self._browser_ready_event.wait(timeout=timeout)
 
     def show_prompt(self, prompt_text: str, prompt_options: dict) -> None:
         """Reveal the PASS/FAIL prompt in the browser (called at step 8)."""
