@@ -205,7 +205,7 @@ async def _handle_image_verification_prompt(
         image_handler.set_prompt_data(prompt.prompt, prompt.options, image_data)
 
         # Start HTTP server
-        await image_handler.start_image_server(str(prompt.message_id))
+        await image_handler.start_image_server()
 
         # Show user instructions
         local_ip = _get_local_ip()
