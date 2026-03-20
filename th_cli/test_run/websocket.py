@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import click
+import json
 import websockets
 from loguru import logger
 from pydantic import ValidationError
@@ -41,6 +42,7 @@ from th_cli.shared_constants import MessageTypeEnum
 
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
+    ImageVerificationPromptRequest,
     PromptRequest,
     SocketMessage,
     TestCaseUpdate,
@@ -99,6 +101,15 @@ class TestRunSocket:
                         continue
                     try:
                         message_obj = SocketMessage.parse_raw(message)
+                        # Pydantic v1 union parsing picks the first matching type, so
+                        # ImageVerificationPromptRequest (which has image_hex_str) gets
+                        # parsed as OptionsSelectPromptRequest. Re-parse using the message
+                        # type to get the correct object.
+                        if message_obj.type == MessageTypeEnum.IMAGE_VERIFICATION_REQUEST and not isinstance(
+                            message_obj.payload, ImageVerificationPromptRequest
+                        ):
+                            raw = json.loads(message)
+                            message_obj.payload = ImageVerificationPromptRequest(**raw["payload"])
                         await self.__handle_incoming_socket_message(socket=socket, message=message_obj)
                     except ValidationError as e:
                         click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
