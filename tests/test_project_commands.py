@@ -455,7 +455,7 @@ class TestUpdateProjectCommand:
 
         # Assert
         assert result.exit_code == 0
-        assert "Project Test Project is updated with the new config." in result.output
+        assert "Project 'Test Project' was updated." in result.output
         mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
 
     def test_update_project_config_file_not_found(
