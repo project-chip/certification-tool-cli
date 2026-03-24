@@ -34,6 +34,7 @@ from th_cli.colorize import (
     colorize_header,
     colorize_help,
     colorize_key_value,
+    colorize_warning,
     italic,
     set_colors_enabled,
 )
@@ -175,8 +176,12 @@ async def run_tests(
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
 
-        # Read PICS configuration if provided
-        pics = read_pics_config(pics_config_folder)
+        # Read PICS configuration if provided via CLI, otherwise get from project
+        pics: dict[str, Any] = {"clusters": {}}
+        if pics_config_folder:
+            pics = read_pics_config(pics_config_folder)
+        else:
+            pics = await _get_project_pics(async_apis, project_id)
         click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
 
         # Retrieve available test collections to build test selection
@@ -235,15 +240,45 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
     if project_id is not None:
         try:
             project = await projects_api.read_project_api_v1_projects__id__get(id=project_id)
-            return project.config
+            if project.config:
+                return project.config
         except UnexpectedResponse as e:
             msg = (
                 f"Could not retrieve configuration for project ID '{project_id}': {e}"
                 "Falling back to default configuration."
             )
-            click.echo(colorize_key_value("Warning:", msg))
+            click.echo(colorize_warning(f"Warning: {msg}"))
 
     return await projects_api.default_config_api_v1_projects_default_config_get()
+
+
+async def _get_project_pics(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
+    """Retrieve project PICS for given project ID.
+
+    Args:
+        async_apis: AsyncApis instance for making API calls
+        project_id: Optional project ID to retrieve PICS from
+
+    Returns:
+        Dictionary containing project PICS, or empty PICS dict if no project or PICS found
+
+    Raises:
+        May raise API-related exceptions if project retrieval fails
+    """
+    # Return empty PICS if no project_id is provided
+    if project_id is None:
+        return {"clusters": {}}
+
+    projects_api = async_apis.projects_api
+
+    try:
+        project = await projects_api.read_project_api_v1_projects__id__get(id=project_id)
+        # Convert PICS model to dict if it exists, otherwise return empty PICS
+        if project.pics:
+            return convert_nested_to_dict(project.pics)
+    except UnexpectedResponse as e:
+        click.echo(colorize_warning(f"Warning: Could not retrieve PICS for project ID '{project_id}': {e}"))
+    return {"clusters": {}}
 
 
 def _contains_webrtc_two_way_talk(selected_tests: dict[str, Any]) -> bool:
