@@ -22,7 +22,7 @@ from pydantic import ValidationError
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.api_lib_autogen.models import Project, ProjectCreate, ProjectUpdate
+from th_cli.api_lib_autogen.models import PICS, Project, ProjectCreate, ProjectUpdate
 from th_cli.client import get_client
 from th_cli.colorize import (
     colorize_cmd_help,
@@ -34,7 +34,8 @@ from th_cli.colorize import (
     italic,
 )
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
-from th_cli.utils import __print_json
+from th_cli.utils import __print_json, read_pics_config
+from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
 
@@ -82,10 +83,16 @@ def get_sync_apis(operation: str):
     type=click.Path(file_okay=True, dir_okay=False),
     help=colorize_help("Config JSON file for the project"),
 )
-def create(name: str, config: str | None) -> None:
+@click.option(
+    "--pics-config-folder",
+    "-p",
+    type=click.Path(file_okay=False, dir_okay=True),
+    help=colorize_help("Directory containing PICS XML configuration files"),
+)
+def create(name: str, config: str | None, pics_config_folder: str | None) -> None:
     """Create a new project"""
     with get_sync_apis("create") as sync_apis:
-        _create_project(sync_apis, name, config)
+        _create_project(sync_apis, name, config, pics_config_folder)
 
 
 # Click command to list projects
@@ -159,10 +166,16 @@ def list_projects(
     type=click.Path(file_okay=True, dir_okay=False),
     help=colorize_help("Config JSON file for the project"),
 )
-def update(id: int, config: str | None, name: str | None) -> None:
+@click.option(
+    "--pics-config-folder",
+    "-p",
+    type=click.Path(file_okay=False, dir_okay=True),
+    help=colorize_help("Directory containing PICS XML configuration files"),
+)
+def update(id: int, config: str | None, name: str | None, pics_config_folder: str | None) -> None:
     """Update an existing project"""
     with get_sync_apis("update") as sync_apis:
-        _update_project(sync_apis, id, name, config)
+        _update_project(sync_apis, id, name, config, pics_config_folder)
 
 
 # Click command to delete an existing project
@@ -194,7 +207,7 @@ def delete(id: int, yes: bool) -> None:
         _delete_project(sync_apis, id)
 
 
-def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
+def _create_project(sync_apis: SyncApis, name: str, config: str | None, pics_config_folder: str | None) -> None:
     """Create a new project"""
     # Get default config
     try:
@@ -215,8 +228,17 @@ def _create_project(sync_apis: SyncApis, name: str, config: str | None) -> None:
         except ValidationError as e:
             raise CLIError(f"Invalid configuration: {e}")
 
+    # Process PICS configuration if provided
+    pics = None
+    if pics_config_folder:
+        pics_path = validate_directory_path(pics_config_folder, must_exist=True)
+        pics_dict = read_pics_config(str(pics_path))
+        # Convert dict to PICS model
+        pics = PICS.model_validate(pics_dict)
+        click.echo(colorize_success(f"Loaded PICS configuration from '{pics_config_folder}'"))
+
     # Create project
-    project_create = ProjectCreate(name=name, config=test_environment_config)
+    project_create = ProjectCreate(name=name, config=test_environment_config, pics=pics)
 
     try:
         response = sync_apis.projects_api.create_project_api_v1_projects__post(body=project_create)
@@ -288,28 +310,47 @@ def _update_project(
     id: int,
     name: str | None = None,
     config_path: str | None = None,
+    pics_config_folder: str | None = None,
 ) -> None:
     """Update an existing project"""
     try:
-        if all(param is None for param in [name, config_path]):
+        if all(param is None for param in [name, config_path, pics_config_folder]):
             click.echo(colorize_warning("Nothing to be done. Please provide at least one parameter to update."))
             return
 
         # Get existing project to preserve its name and other fields
         existing_project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
 
-        # Load the new config
-        with open(config_path, "r") as f:
-            config_dict = json.load(f)
+        # Use the new name, if provided
+        project_name = existing_project.name
+        if name:
+            project_name = name
+            click.echo(colorize_success(f"Project will be renamed to '{project_name}'"))
+
+        # Load the new config if provided
+        config_dict = existing_project.config
+        if config_path:
+            with open(config_path, "r") as f:
+                config_dict = json.load(f)
+                click.echo(colorize_success(f"Loaded project configuration from '{config_path}'"))
+
+        # Process PICS configuration if provided
+        pics = existing_project.pics
+        if pics_config_folder:
+            pics_path = validate_directory_path(pics_config_folder, must_exist=True)
+            pics_dict = read_pics_config(str(pics_path))
+            # Convert dict to PICS model
+            pics = PICS.model_validate(pics_dict)
+            click.echo(colorize_success(f"Loaded PICS configuration from '{pics_config_folder}'"))
 
         project_update = ProjectUpdate(
-            name=name if name is not None else existing_project.name,
-            config=config_dict if config_dict is not None else existing_project.config,
-            pics=existing_project.pics,
+            name=project_name,
+            config=config_dict,
+            pics=pics,
         )
 
         response = sync_apis.projects_api.update_project_api_v1_projects__id__put(id=id, body=project_update)
-        click.echo(colorize_success(f"Project {response.name} is updated with the new config."))
+        click.echo(colorize_success(f"Project '{response.name}' was updated."))
     except json.JSONDecodeError as e:
         raise CLIError(f"Failed to parse JSON parameter: {e.msg}")
     except FileNotFoundError as e:

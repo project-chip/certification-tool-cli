@@ -32,6 +32,7 @@ from th_cli.exceptions import CLIError, handle_file_error
 
 # Constants
 DEFAULT_FILE_ENCODING = "utf-8"
+DEFAULT_CLI_PROJECT_NAME = "CLI Project Execution"
 
 
 def __print_json(object: Any) -> None:
