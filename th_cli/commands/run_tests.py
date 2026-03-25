@@ -150,13 +150,11 @@ async def run_tests(
         # Configure new log output for test.
         log_path = test_logging.configure_logger_for_run(title=title)
 
-        # Retrieve CLI default project ID if not provided
-        if project_id is None:
-            project_id = await _get_cli_default_project_id(async_apis)
-        click.echo(colorize_key_value("Using CLI Project", f"ID: {project_id}, Name: '{DEFAULT_CLI_PROJECT_NAME}'"))
+        # Retrieve CLI project
+        cli_project = await _get_cli_project(async_apis, project_id)
 
         # Get project config and convert to dict
-        project_config = await _get_project_config(async_apis, project_id)
+        project_config = await _get_project_config(async_apis, cli_project)
         project_config_dict = convert_nested_to_dict(project_config)
         click.echo(colorize_key_value("Project Config", project_config_dict))
 
@@ -186,7 +184,7 @@ async def run_tests(
         if pics_config_folder:
             pics = read_pics_config(pics_config_folder)
         else:
-            pics = await _get_project_pics(async_apis, project_id)
+            pics = await _get_project_pics(cli_project)
         click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
 
         # Retrieve available test collections to build test selection
@@ -227,38 +225,42 @@ async def run_tests(
             _webrtc_handler.stop()
 
 
-async def _get_cli_default_project_id(async_apis: AsyncApis) -> int | None:
-    """Retrieve the CLI project ID by searching for the project with DEFAULT_CLI_PROJECT_NAME.
-
+async def _get_cli_project(async_apis: AsyncApis, project_id: int | None = None) -> m.Project:
+    """Retrieve the project to use for the CLI test run execution.
     Args:
         async_apis: AsyncApis instance for making API calls
-
+        project_id: Optional project ID to retrieve. If None, retrieves the default CLI project.
     Returns:
-        Project ID if found, otherwise None
-
+        Project object to use for the test run execution
     Raises:
-        May raise API-related exceptions if project retrieval fails
+        CLIError: If the specified project ID does not exist or if the default CLI project cannot be found
     """
     projects_api = async_apis.projects_api
 
+    if project_id is not None:
+        try:
+            return await projects_api.read_project_api_v1_projects__id__get(id=project_id)
+        except UnexpectedResponse as e:
+            raise CLIError(f"Could not retrieve project with ID '{project_id}': {e}")
+
+    # If no project ID provided, search for the default CLI project by name
     try:
-        # Get all projects and search for the CLI project by name
         projects = await projects_api.read_projects_api_v1_projects__get(skip=0, limit=None)
         for project in projects:
             if project.name == DEFAULT_CLI_PROJECT_NAME:
-                return project.id
+                return project
     except UnexpectedResponse as e:
-        click.echo(colorize_warning(f"Warning: Could not retrieve CLI project: {e}"))
+        click.echo(colorize_warning(f"Warning: Could not retrieve CLI default project: {e}"))
 
     return None
 
 
-async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
+async def _get_project_config(async_apis: AsyncApis, cli_project: m.Project | None = None) -> dict[str, Any]:
     """Retrieve project configuration for given project ID or default configuration.
 
     Args:
         async_apis: AsyncApis instance for making API calls
-        project_id: Optional project ID to retrieve configuration from
+        cli_project: Optional CLI project object to retrieve the project configuration
 
     Returns:
         Dictionary containing project configuration
@@ -266,29 +268,26 @@ async def _get_project_config(async_apis: AsyncApis, project_id: int | None = No
     Raises:
         May raise API-related exceptions if default config retrieval fails
     """
+    try:
+        if cli_project is not None and cli_project.config is not None:
+            return cli_project.config
+    except UnexpectedResponse as e:
+        msg = (
+            f"Could not retrieve configuration for project ID '{cli_project.id}': {e}"
+            "Falling back to default configuration."
+        )
+        click.echo(colorize_warning(f"Warning: {msg}"))
+
     projects_api = async_apis.projects_api
-
-    if project_id is not None:
-        try:
-            project = await projects_api.read_project_api_v1_projects__id__get(id=project_id)
-            if project.config:
-                return project.config
-        except UnexpectedResponse as e:
-            msg = (
-                f"Could not retrieve configuration for project ID '{project_id}': {e}"
-                "Falling back to default configuration."
-            )
-            click.echo(colorize_warning(f"Warning: {msg}"))
-
     return await projects_api.default_config_api_v1_projects_default_config_get()
 
 
-async def _get_project_pics(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
+async def _get_project_pics(cli_project: m.Project | None = None) -> dict[str, Any]:
     """Retrieve project PICS for given project ID.
 
     Args:
         async_apis: AsyncApis instance for making API calls
-        project_id: Optional project ID to retrieve PICS from
+        cli_project: Optional CLI project object to retrieve PICS from
 
     Returns:
         Dictionary containing project PICS, or empty PICS dict if no project or PICS found
@@ -296,19 +295,12 @@ async def _get_project_pics(async_apis: AsyncApis, project_id: int | None = None
     Raises:
         May raise API-related exceptions if project retrieval fails
     """
-    # Return empty PICS if no project_id is provided
-    if project_id is None:
-        return {"clusters": {}}
-
-    projects_api = async_apis.projects_api
-
     try:
-        project = await projects_api.read_project_api_v1_projects__id__get(id=project_id)
         # Convert PICS model to dict if it exists, otherwise return empty PICS
-        if project.pics:
-            return convert_nested_to_dict(project.pics)
+        if cli_project is not None and cli_project.pics is not None:
+            return convert_nested_to_dict(cli_project.pics)
     except UnexpectedResponse as e:
-        click.echo(colorize_warning(f"Warning: Could not retrieve PICS for project ID '{project_id}': {e}"))
+        click.echo(colorize_warning(f"Warning: Could not retrieve PICS for project ID '{cli_project.id}': {e}"))
     return {"clusters": {}}
 
 
