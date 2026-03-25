@@ -42,7 +42,7 @@ from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
-from th_cli.utils import build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
+from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 # Constants
@@ -150,6 +150,11 @@ async def run_tests(
         # Configure new log output for test.
         log_path = test_logging.configure_logger_for_run(title=title)
 
+        # Retrieve CLI default project ID if not provided
+        if project_id is None:
+            project_id = await _get_cli_default_project_id(async_apis)
+        click.echo(colorize_key_value("Using CLI Project", f"ID: {project_id}, Name: '{DEFAULT_CLI_PROJECT_NAME}'"))
+
         # Get project config and convert to dict
         project_config = await _get_project_config(async_apis, project_id)
         project_config_dict = convert_nested_to_dict(project_config)
@@ -220,6 +225,32 @@ async def run_tests(
             await client.aclose()
         if _webrtc_handler:
             _webrtc_handler.stop()
+
+
+async def _get_cli_default_project_id(async_apis: AsyncApis) -> int | None:
+    """Retrieve the CLI project ID by searching for the project with DEFAULT_CLI_PROJECT_NAME.
+
+    Args:
+        async_apis: AsyncApis instance for making API calls
+
+    Returns:
+        Project ID if found, otherwise None
+
+    Raises:
+        May raise API-related exceptions if project retrieval fails
+    """
+    projects_api = async_apis.projects_api
+
+    try:
+        # Get all projects and search for the CLI project by name
+        projects = await projects_api.read_projects_api_v1_projects__get(skip=0, limit=None)
+        for project in projects:
+            if project.name == DEFAULT_CLI_PROJECT_NAME:
+                return project.id
+    except UnexpectedResponse as e:
+        click.echo(colorize_warning(f"Warning: Could not retrieve CLI project: {e}"))
+
+    return None
 
 
 async def _get_project_config(async_apis: AsyncApis, project_id: int | None = None) -> dict[str, Any]:
