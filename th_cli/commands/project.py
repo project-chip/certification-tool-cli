@@ -39,7 +39,6 @@ from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
 
-
 # Click command group for project management
 @click.group(
     short_help=colorize_help("Manage projects"),
@@ -229,7 +228,7 @@ def _create_project(sync_apis: SyncApis, name: str, config: str | None, pics_con
             raise CLIError(f"Invalid configuration: {e}")
 
     # Process PICS configuration if provided
-    pics = None
+    pics = PICS(clusters={})
     if pics_config_folder:
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_dict = read_pics_config(str(pics_path))
