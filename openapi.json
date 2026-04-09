@@ -1006,7 +1006,7 @@
                     "test_run_executions"
                 ],
                 "summary": "Create Cli Test Run Execution",
-                "description": "Creates a new test run execution on CLI request.\n   Attention: if both config and execution_config are provided,\n   only config will be persisted, while execution_config will be for\n   this execution only.\n\nArgs:\n    test_run_execution_in: Test run execution data\n    selected_tests: Selected tests to run\n    config: Configuration parameters that update project (optional, persists)\n    execution_config: Execution-specific config override (optional, temporary)\n    pics: PICS configuration (optional)",
+                "description": "Creates a new test run execution on CLI request.\n   Attention: if both config and execution_config are provided,\n   only config will be persisted, while execution_config will be for\n   this execution only. Similarly, if both pics and execution_pics are provided,\n   only pics will be persisted, while execution_pics will be for execution only.\n\nArgs:\n    test_run_execution_in: Test run execution data\n    selected_tests: Selected tests to run\n    config: Configuration parameters that update project (optional, persists)\n    execution_config: Execution-specific config override (optional, temporary)\n    pics: PICS configuration that updates project (optional, persists)\n    execution_pics: Execution-specific PICS override (optional, temporary)",
                 "operationId": "create_cli_test_run_execution_api_v1_test_run_executions_cli_post",
                 "requestBody": {
                     "content": {
@@ -2129,18 +2129,13 @@
                             }
                         }
                     },
-                    "config": {
-                        "title": "Config",
-                        "type": "object"
-                    },
                     "execution_config": {
                         "title": "Execution Config",
                         "type": "object"
                     },
-                    "pics": {
-                        "title": "Pics",
-                        "type": "object",
-                        "default": {}
+                    "execution_pics": {
+                        "title": "Execution Pics",
+                        "type": "object"
                     }
                 }
             },
@@ -2994,6 +2989,10 @@
                         "title": "Execution Config",
                         "type": "object"
                     },
+                    "execution_pics": {
+                        "title": "Execution Pics",
+                        "type": "object"
+                    },
                     "certification_mode": {
                         "title": "Certification Mode",
                         "type": "boolean",
@@ -3058,6 +3057,10 @@
                         "title": "Execution Config",
                         "type": "object"
                     },
+                    "execution_pics": {
+                        "title": "Execution Pics",
+                        "type": "object"
+                    },
                     "certification_mode": {
                         "title": "Certification Mode",
                         "type": "boolean",
@@ -3096,6 +3099,10 @@
                     },
                     "execution_config": {
                         "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "execution_pics": {
+                        "title": "Execution Pics",
                         "type": "object"
                     },
                     "certification_mode": {
@@ -3181,6 +3188,10 @@
                         "title": "Execution Config",
                         "type": "object"
                     },
+                    "execution_pics": {
+                        "title": "Execution Pics",
+                        "type": "object"
+                    },
                     "certification_mode": {
                         "title": "Certification Mode",
                         "type": "boolean",
@@ -3250,6 +3261,10 @@
                     },
                     "execution_config": {
                         "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "execution_pics": {
+                        "title": "Execution Pics",
                         "type": "object"
                     },
                     "certification_mode": {
@@ -3324,6 +3339,10 @@
                     },
                     "execution_config": {
                         "title": "Execution Config",
+                        "type": "object"
+                    },
+                    "execution_pics": {
+                        "title": "Execution Pics",
                         "type": "object"
                     },
                     "certification_mode": {

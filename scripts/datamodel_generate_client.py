@@ -1023,7 +1023,8 @@ def main(input_spec: str, output_dir: str, import_name: str, verbose: bool):
         click.echo(f"  1. Review generated code in {output_path}")
         click.echo("  2. Run: poetry run mypy " + str(output_path))
         click.echo("  3. Run: poetry run black " + str(output_path))
-        click.echo("  4. Run tests to verify everything works")
+        click.echo("  4. Run: poetry run isort " + str(output_path))
+        click.echo("  5. Run tests to verify everything works")
 
     except Exception as e:
         click.echo(f"\n❌ Error: {e}", err=True)

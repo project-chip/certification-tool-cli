@@ -156,7 +156,6 @@ async def run_tests(
         # Get project config and convert to dict
         project_config = await _get_project_config(async_apis, cli_project)
         project_config_dict = convert_nested_to_dict(project_config)
-        click.echo(colorize_key_value("Project Config", project_config_dict))
 
         # Create execution config. If a config file is provided, merge it with the
         # project config. Otherwise, just use a copy of the project config.
@@ -164,28 +163,31 @@ async def run_tests(
         if config:
             config_data = load_json_config(config)
             test_run_config = merge_configs(project_config_dict, config_data)
-            click.echo(colorize_key_value("CLI Test Run Execution Config", test_run_config))
+            click.echo(colorize_key_value("Config Used (Execution Only)", test_run_config))
         else:
             test_run_config = copy.deepcopy(project_config_dict)
+            click.echo(colorize_key_value("Config Used (From Project)", project_config_dict))
+
+        # Read PICS configuration if provided via CLI (execution-only, not persisted)
+        # Otherwise use PICS from project (persistent)
+        execution_pics: dict[str, Any] | None = None
+        if pics_config_folder:
+            execution_pics = read_pics_config(pics_config_folder)
+            click.echo(colorize_key_value("PICS Used (Execution Only)", json.dumps(execution_pics, indent=JSON_INDENT)))
+        else:
+            project_pics = await _get_project_pics(cli_project)
+            click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(project_pics, indent=JSON_INDENT)))
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
             click.echo(
                 colorize_key_value(
-                    "Extra SDK Test Parameters (This Run Only)", json.dumps(extra_test_params, indent=JSON_INDENT)
+                    "Extra SDK Test Parameters (Execution Only)", json.dumps(extra_test_params, indent=JSON_INDENT)
                 )
             )
             if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
-
-        # Read PICS configuration if provided via CLI, otherwise get from project
-        pics: dict[str, Any] = {"clusters": {}}
-        if pics_config_folder:
-            pics = read_pics_config(pics_config_folder)
-        else:
-            pics = await _get_project_pics(cli_project)
-        click.echo(colorize_key_value("PICS Used", json.dumps(pics, indent=JSON_INDENT)))
 
         # Retrieve available test collections to build test selection
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections__get()
@@ -197,9 +199,8 @@ async def run_tests(
             async_apis,
             selected_tests=selected_tests_dict,
             title=title,
-            config=project_config_dict,
             execution_config=test_run_config,
-            pics=pics,
+            execution_pics=execution_pics,
             project_id=project_id,
         )
         if _contains_webrtc_two_way_talk(selected_tests_dict):
@@ -396,9 +397,8 @@ async def _create_new_test_run_cli(
     async_apis: AsyncApis,
     selected_tests: dict[str, Any],
     title: str,
-    config: dict[str, Any] | None = None,
     execution_config: dict[str, Any] | None = None,
-    pics: dict[str, Any] | None = None,
+    execution_pics: dict[str, Any] | None = None,
     project_id: int | None = None,
 ) -> m.TestRunExecutionWithChildren:
     """Create a new test run execution via the CLI.
@@ -407,9 +407,8 @@ async def _create_new_test_run_cli(
         async_apis: AsyncApis instance for making API calls
         selected_tests: Dictionary of selected test cases
         title: Title for the test run
-        config: Optional configuration that updates project (persistent)
         execution_config: Optional execution-specific configuration (temporary)
-        pics: Optional PICS configuration dictionary
+        execution_pics: Optional execution-specific PICS (temporary)
         project_id: Optional project ID
 
     Returns:
@@ -424,9 +423,8 @@ async def _create_new_test_run_cli(
     json_body = m.BodyCreateCliTestRunExecutionApiV1TestRunExecutionsCliPost(
         test_run_execution_in=test_run_in,
         selected_tests=selected_tests,
-        config=config,
         execution_config=execution_config,
-        pics=pics,
+        execution_pics=execution_pics,
         certification_mode=False,
     )
 

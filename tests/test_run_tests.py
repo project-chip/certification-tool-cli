@@ -684,8 +684,7 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 0
-        assert "Project Config" in result.output
-        assert "CLI Test Run Execution Config" in result.output
+        assert "Config Used (Execution Only)" in result.output
         # Should show the configuration data
         assert "dut_config" in result.output
         assert "network" in result.output
@@ -1023,7 +1022,7 @@ class TestRunTestsWithExtraArgs:
 
         # Assert
         assert result.exit_code == 0
-        assert "CLI Test Run Execution Config" in result.output
+        assert "Config Used (Execution Only)" in result.output
         assert "Extra SDK Test Parameters" in result.output
 
     def test_run_tests_verify_deep_copy_isolation(
