@@ -175,8 +175,8 @@ async def run_tests(
             execution_pics = read_pics_config(pics_config_folder)
             click.echo(colorize_key_value("PICS Used (Execution Only)", json.dumps(execution_pics, indent=JSON_INDENT)))
         else:
-            project_pics = await _get_project_pics(cli_project)
-            click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(project_pics, indent=JSON_INDENT)))
+            execution_pics = await _get_project_pics(cli_project)
+            click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(execution_pics, indent=JSON_INDENT)))
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
