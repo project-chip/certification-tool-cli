@@ -80,12 +80,14 @@ class ApiClient:
     @overload
     async def request(
         self, *, type_: Type[T], method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> T: ...
+    ) -> T:
+        ...
 
     @overload
     async def request(
         self, *, type_: None, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> None: ...
+    ) -> None:
+        ...
 
     async def request(
         self, *, type_: Any, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
@@ -97,10 +99,12 @@ class ApiClient:
         return await self.send(request, type_)
 
     @overload
-    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T: ...
+    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T:
+        ...
 
     @overload
-    def request_sync(self, *, type_: None, **kwargs: Any) -> None: ...
+    def request_sync(self, *, type_: None, **kwargs: Any) -> None:
+        ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:
         """
