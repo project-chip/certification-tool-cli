@@ -1566,7 +1566,24 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful Response"
+                        "description": "Successful Response",
+                        "content": {
+                            "application/zip": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "description": "Suggests a filename for the downloaded ZIP file",
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "example": "attachment; filename=\"archive.zip\""
+                            }       
+                        }                 
                     },
                     "422": {
                         "description": "Validation Error",

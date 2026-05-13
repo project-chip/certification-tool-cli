@@ -171,7 +171,7 @@ def list_executions(
             sync_apis = SyncApis(client)
 
             if log:
-                __fetch_test_run_execution_log(sync_apis, id)
+                __fetch_test_run_execution_log(sync_apis, id, None)
             elif id is not None:
                 __test_run_execution_by_id(sync_apis, id, json)
             else:
@@ -337,7 +337,7 @@ def __test_run_execution_batch(
         handle_api_error(e, "get test run executions")
 
 
-def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str) -> None:
+def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
         log_content = test_run_execution_api.download_log_api_v1_test_run_executions__id__log_get(
@@ -346,7 +346,7 @@ def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: st
 
         if log_content:
             if output_file:
-                with open(output_file, "w") as outfile:
+                with open(output_file, "w", encoding="utf-8") as outfile:
                     outfile.write(log_content)
             else:
                 click.echo(log_content)
@@ -357,7 +357,7 @@ def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: st
         handle_api_error(e, "fetch test run execution log")
 
 
-def __fetch_grouped_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str) -> None:
+def __fetch_grouped_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
         log_content = test_run_execution_api.download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(id=id)
@@ -368,11 +368,13 @@ def __fetch_grouped_test_run_execution_log(sync_apis: SyncApis, id: int, output_
                     id=id
                 )
                 if execution_data:
-                    output_file = execution_data.title + ".zip"
+                    import re
+
+                    output_file = re.sub(r"[^\w]", "", execution_data.title) + ".zip"
                 else:
                     output_file = f"test_run_execution_{id}_grouped.zip"
 
-            with open(output_file, "w") as outfile:
+            with open(output_file, "wb") as outfile:
                 outfile.write(log_content)
 
         else:

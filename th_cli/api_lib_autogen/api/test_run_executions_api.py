@@ -277,14 +277,14 @@ class _TestRunExecutionsApi:
 
     def _build_for_download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(
         self, id: int
-    ) -> Coroutine[Any, Any, None]:
+    ) -> Coroutine[Any, Any, bytes]:
         """
         Download Grouped Log
         """
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=None, method="GET", url="/api/v1/test_run_executions/{id}/grouped-log", path_params=path_params
+            type_=bytes, method="GET", url="/api/v1/test_run_executions/{id}/grouped-log", path_params=path_params
         )
 
     def _build_for_upload_file_api_v1_test_run_executions_file_upload__post(
@@ -514,7 +514,7 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
             id=id, json_entries=json_entries, download=download
         )
 
-    async def download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(self, id: int) -> None:
+    async def download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(self, id: int) -> bytes:
         """
         Download Grouped Log
         """
@@ -706,7 +706,7 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         )
         return get_event_loop().run_until_complete(coroutine)
 
-    def download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(self, id: int) -> None:
+    def download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(self, id: int) -> bytes:
         """
         Download Grouped Log
         """
