@@ -27,71 +27,113 @@ from th_cli.utils import __print_json
 table_format_header = "{:<6} {:<55} {}"
 table_format = "{:<6} {} {}"
 
+_list_options = [
+    click.option(
+        "--id",
+        "-i",
+        default=None,
+        required=False,
+        type=int,
+        help=colorize_help("Fetch specific Test Run via ID"),
+    ),
+    click.option(
+        "--skip",
+        "-s",
+        default=None,
+        required=False,
+        type=int,
+        help=colorize_help("The first N Test Runs to skip, ordered by ID"),
+    ),
+    click.option(
+        "--limit",
+        "-l",
+        default=None,
+        required=False,
+        type=int,
+        help=colorize_help("Maximum number of test runs to fetch (default: 100)"),
+    ),
+    click.option(
+        "--sort",
+        default="desc",
+        required=False,
+        type=click.Choice(["asc", "desc"], case_sensitive=False),
+        help=colorize_help(
+            "Sort order for test runs by ID. 'desc' shows highest ID first, 'asc' shows lowest ID first"
+        ),
+    ),
+    click.option(
+        "--project-id",
+        "-p",
+        default=None,
+        required=False,
+        type=int,
+        help=colorize_help("Filter test runs by project ID"),
+    ),
+    click.option(
+        "--log",
+        is_flag=True,
+        default=False,
+        help=colorize_help("Fetch log content for the specified test run execution ID (requires --id)"),
+        deprecated="Use the log command",
+    ),
+    click.option(
+        "--json",
+        is_flag=True,
+        default=False,
+        help=colorize_help("Print JSON response for more details (not applicable with --log)"),
+    ),
+    click.option(
+        "--all",
+        is_flag=True,
+        default=False,
+        help=colorize_help("Fetch all test run executions with screen pagination (cannot be used with --limit)"),
+    ),
+]
 
-@click.command(
+
+def add_options(options):
+    def _add_options(func):
+        for option in reversed(options):  # reversed preserves order
+            func = option(func)
+        return func
+
+    return _add_options
+
+
+@click.group(
     short_help=colorize_help("Manage test run executions"),
     help=colorize_cmd_help(
         "test_run_execution", "List test run execution history or fetch logs for a specific execution"
     ),
+    invoke_without_command=True,
 )
-@click.option(
-    "--id",
-    "-i",
-    default=None,
-    required=False,
-    type=int,
-    help=colorize_help("Fetch specific Test Run via ID"),
-)
-@click.option(
-    "--skip",
-    "-s",
-    default=None,
-    required=False,
-    type=int,
-    help=colorize_help("The first N Test Runs to skip, ordered by ID"),
-)
-@click.option(
-    "--limit",
-    "-l",
-    default=None,
-    required=False,
-    type=int,
-    help=colorize_help("Maximum number of test runs to fetch (default: 100)"),
-)
-@click.option(
-    "--sort",
-    default="desc",
-    required=False,
-    type=click.Choice(["asc", "desc"], case_sensitive=False),
-    help=colorize_help("Sort order for test runs by ID. 'desc' shows highest ID first, 'asc' shows lowest ID first"),
-)
-@click.option(
-    "--project-id",
-    "-p",
-    default=None,
-    required=False,
-    type=int,
-    help=colorize_help("Filter test runs by project ID"),
-)
-@click.option(
-    "--log",
-    is_flag=True,
-    default=False,
-    help=colorize_help("Fetch log content for the specified test run execution ID (requires --id)"),
-)
-@click.option(
-    "--json",
-    is_flag=True,
-    default=False,
-    help=colorize_help("Print JSON response for more details (not applicable with --log)"),
-)
-@click.option(
-    "--all",
-    is_flag=True,
-    default=False,
-    help=colorize_help("Fetch all test run executions with screen pagination (cannot be used with --limit)"),
-)
+@click.pass_context
+# For the sake of backwards-compatibility, these arguments are applied to both the base command
+# as well as the list command
+@add_options(_list_options)
 def test_run_execution(
+    ctx,
+    id: int | None,
+    skip: int | None,
+    limit: int | None,
+    sort: str,
+    project_id: int | None,
+    log: bool,
+    json: bool,
+    all: bool,
+) -> None:
+    """Manage test run executions - list history or fetch logs"""
+    if ctx.invoked_subcommand is None:
+        ctx.forward(list_executions)
+
+
+@test_run_execution.command(
+    name="list",
+    short_help=colorize_help("List test run executions"),
+    help=colorize_cmd_help("list", "List test run execution history"),
+)
+@add_options(_list_options)
+def list_executions(
     id: int | None,
     skip: int | None,
     limit: int | None,
@@ -129,11 +171,49 @@ def test_run_execution(
             sync_apis = SyncApis(client)
 
             if log:
-                __fetch_test_run_execution_log(sync_apis, id)
+                __fetch_test_run_execution_log(sync_apis, id, None)
             elif id is not None:
                 __test_run_execution_by_id(sync_apis, id, json)
             else:
                 __test_run_execution_batch(sync_apis, json, skip, limit, sort, all, project_id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+@test_run_execution.command(
+    short_help=colorize_help("Fetch test run execution logs"),
+    help=colorize_cmd_help("log", "Fetch logs for a specific execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Fetch specific Test Run logs via ID"),
+)
+@click.option(
+    "--output-file",
+    "-o",
+    required=False,
+    type=str,
+    help=colorize_help("Output file. Test run execution title will be used by default"),
+)
+@click.option(
+    "--grouped",
+    is_flag=True,
+    default=False,
+    help=colorize_help("Download a zip archive of the grouped logs"),
+)
+def log(id: int, output_file: str, grouped: bool) -> None:
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+
+            if grouped:
+                __fetch_grouped_test_run_execution_log(sync_apis, id, output_file)
+            else:
+                __fetch_test_run_execution_log(sync_apis, id, output_file)
 
     except CLIError:
         raise  # Re-raise CLI Errors as-is
@@ -257,7 +337,7 @@ def __test_run_execution_batch(
         handle_api_error(e, "get test run executions")
 
 
-def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int) -> None:
+def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
         log_content = test_run_execution_api.download_log_api_v1_test_run_executions__id__log_get(
@@ -265,12 +345,43 @@ def __fetch_test_run_execution_log(sync_apis: SyncApis, id: int) -> None:
         )
 
         if log_content:
-            click.echo(log_content)
+            if output_file:
+                with open(output_file, "w", encoding="utf-8") as outfile:
+                    outfile.write(log_content)
+            else:
+                click.echo(log_content)
         else:
             click.echo("No log content available for this test run execution.")
 
     except UnexpectedResponse as e:
         handle_api_error(e, "fetch test run execution log")
+
+
+def __fetch_grouped_test_run_execution_log(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        log_content = test_run_execution_api.download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(id=id)
+
+        if log_content:
+            if not output_file:
+                execution_data = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions__id__get(
+                    id=id
+                )
+                if execution_data:
+                    import re
+
+                    output_file = re.sub(r"[^\w]", "", execution_data.title) + ".zip"
+                else:
+                    output_file = f"test_run_execution_{id}_grouped.zip"
+
+            with open(output_file, "wb") as outfile:
+                outfile.write(log_content)
+
+        else:
+            click.echo("No log content available for this test run execution.")
+
+    except UnexpectedResponse as e:
+        handle_api_error(e, "fetch grouped test run execution log")
 
 
 def __print_table_test_executions(test_execution: list) -> None:

@@ -151,6 +151,9 @@ class OpenAPIParser:
                 if "application/json" in content:
                     schema = content["application/json"].get("schema", {})
                     return self._get_python_type(schema, resolve_ref=True)
+                if "application/zip" in content:
+                    schema = content["application/zip"].get("schema", {})
+                    return self._get_python_type(schema, resolve_ref=True)
 
         # Check for any 2xx response
         for status, response in responses.items():
@@ -808,6 +811,8 @@ class ApiClient:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
                 adapter = TypeAdapter(type_)
+                if type_ == bytes:
+                    return adapter.validate_python(response.content)
                 return adapter.validate_python(response.json()) if type_ else response.text
             except Exception as e:
                 raise ResponseHandlingException(e)

@@ -118,6 +118,8 @@ class ApiClient:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
                 adapter = TypeAdapter(type_)
+                if type_ == bytes:
+                    return adapter.validate_python(response.content)
                 return adapter.validate_python(response.json()) if type_ else response.text
             except Exception as e:
                 raise ResponseHandlingException(e)
