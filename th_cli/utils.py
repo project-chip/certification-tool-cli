@@ -26,7 +26,7 @@ import tomli
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_dump
+from th_cli.colorize import colorize_dump, colorize_error
 from th_cli.config import find_git_root, get_package_root
 from th_cli.exceptions import CLIError, handle_file_error
 
@@ -38,6 +38,11 @@ DEFAULT_CLI_PROJECT_NAME = "CLI Project Execution"
 def __print_json(object: Any) -> None:
     click.echo(colorize_dump(__json_string(object)))
 
+def __print_config(object: Any) -> None:
+    if isinstance(object, list):
+        click.echo(colorize_error("Error: Please provide a single project to print the configuration."))
+        return
+    click.echo(colorize_dump(json.dumps(object.config, indent=4, default=str)))
 
 def __json_string(object: Any) -> str:
     if object is None:
