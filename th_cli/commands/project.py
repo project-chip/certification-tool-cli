@@ -125,12 +125,14 @@ def create(name: str, config: str | None, pics_config_folder: str | None) -> Non
 )
 @click.option(
     "--json",
+    "-j",
     is_flag=True,
     default=False,
     help=colorize_help("Print JSON response for more details"),
 )
 @click.option(
     "--config",
+    "-c",
     is_flag=True,
     default=False,
     help=colorize_help("Print project configuration in JSON format")
