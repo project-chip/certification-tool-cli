@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
 import os
 
 from loguru import logger
@@ -32,8 +33,12 @@ def configure_logger_for_run(title: str) -> str:
     # Reset (Remove all sinks from logger)
     logger.remove()
 
-    log_path = os.path.join(config.log_config.output_log_path, f"test_run_{title}.log")
+    timestamp = datetime.datetime.now().isoformat(timespec="seconds").replace(":", "-")
+    log_path = os.path.join(
+        config.log_config.output_log_path,
+        f"test_run_{title}_{timestamp}.log",
+    )
 
-    logger.add(log_path, enqueue=True, format=config.log_config.format)
+    logger.add(log_path, enqueue=True, format=config.log_config.format, mode="w")
 
     return log_path
