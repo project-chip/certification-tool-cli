@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Real-Time Log Viewer</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }}
+
+        .matter-header {{
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+
+        .header-start {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+
+        .header-title {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }}
+
+        .header-end {{
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+
+        .cli-indicator {{
+            background: #2196F3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+
+        .version-info {{
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+        }}
+
+        .status-indicator {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+
+        .status-indicator.connected {{
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }}
+
+        .status-indicator.disconnected {{
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+        }}
+
+        .status-dot {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }}
+
+        .status-indicator.connected .status-dot {{
+            background: #4caf50;
+        }}
+
+        .status-indicator.disconnected .status-dot {{
+            background: #f44336;
+        }}
+
+        @keyframes pulse {{
+            0%, 100% {{ opacity: 1; }}
+            50% {{ opacity: 0.5; }}
+        }}
+
+        .main-content {{
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow: hidden;
+        }}
+
+        .p-dialog {{
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            width: 95%;
+            max-width: 1400px;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 120px);
+        }}
+
+        .p-dialog-header {{
+            padding: 16px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+            border-radius: 8px 8px 0 0;
+            flex-shrink: 0;
+        }}
+
+        .p-dialog-title {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }}
+
+        .p-dialog-content {{
+            padding: 20px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .subheader {{
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }}
+
+        .controls {{
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            flex-shrink: 0;
+        }}
+
+        .control-group {{
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+
+        .btn {{
+            background: white;
+            color: #333;
+            border: 1px solid #ccc;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+
+        .btn:hover {{
+            background: #f0f0f0;
+            border-color: #999;
+        }}
+
+        .btn.active {{
+            background: #2196F3;
+            border-color: #2196F3;
+            color: white;
+        }}
+
+        .btn.download {{
+            background: #4caf50;
+            border-color: #4caf50;
+            color: white;
+        }}
+
+        .btn.download:hover {{
+            background: #45a049;
+        }}
+
+        .log-count {{
+            font-size: 12px;
+            color: #666;
+            padding: 0 10px;
+        }}
+
+        .filter-group {{
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }}
+
+        .filter-btn {{
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+
+        .filter-btn.level-info {{
+            background: #e3f2fd;
+            color: #1976d2;
+            border-color: #90caf9;
+        }}
+
+        .filter-btn.level-warning {{
+            background: #fff3e0;
+            color: #f57c00;
+            border-color: #ffb74d;
+        }}
+
+        .filter-btn.level-error {{
+            background: #ffebee;
+            color: #c62828;
+            border-color: #ef5350;
+        }}
+
+        .filter-btn.level-debug {{
+            background: #fafafa;
+            color: #757575;
+            border-color: #e0e0e0;
+        }}
+
+        .filter-btn.level-chiptool {{
+            background: #e0f2f1;
+            color: #00796b;
+            border-color: #4db6ac;
+        }}
+
+        .filter-btn.level-python {{
+            background: #f3e5f5;
+            color: #6a1b9a;
+            border-color: #ba68c8;
+        }}
+
+        .filter-btn.active {{
+            opacity: 1;
+            font-weight: 600;
+            border-width: 2px;
+        }}
+
+        .filter-btn:not(.active) {{
+            opacity: 0.4;
+        }}
+
+        .filter-btn:hover {{
+            opacity: 1;
+        }}
+
+        .log-container {{
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 10px;
+        }}
+
+        .log-entry {{
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-left: 3px solid transparent;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            transition: background 0.1s;
+            background: white;
+            border-radius: 2px;
+        }}
+
+        .log-entry:hover {{
+            background: #f5f5f5;
+        }}
+
+        .log-entry.level-info {{
+            border-left-color: #2196F3;
+        }}
+
+        .log-entry.level-warning {{
+            border-left-color: #ff9800;
+            background: #fff8e1;
+        }}
+
+        .log-entry.level-error {{
+            border-left-color: #f44336;
+            background: #ffebee;
+        }}
+
+        .log-entry.level-debug {{
+            border-left-color: #9e9e9e;
+            background: #fafafa;
+        }}
+
+        .log-entry.level-success {{
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }}
+
+        .log-entry.level-chiptool {{
+            border-left-color: #009688;
+            background: #e0f2f1;
+        }}
+
+        .log-entry.level-python_test {{
+            border-left-color: #9c27b0;
+            background: #f3e5f5;
+        }}
+
+        .log-timestamp {{
+            color: #666;
+            font-weight: 500;
+            margin-right: 10px;
+        }}
+
+        .log-level {{
+            font-weight: 700;
+            margin-right: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            display: inline-block;
+            min-width: 50px;
+            text-align: center;
+        }}
+
+        .log-level.INFO {{
+            background: #2196F3;
+            color: white;
+        }}
+
+        .log-level.WARNING {{
+            background: #ff9800;
+            color: white;
+        }}
+
+        .log-level.ERROR {{
+            background: #f44336;
+            color: white;
+        }}
+
+        .log-level.DEBUG {{
+            background: #9e9e9e;
+            color: white;
+        }}
+
+        .log-level.SUCCESS {{
+            background: #4caf50;
+            color: white;
+        }}
+
+        .log-level.CHIPTOOL {{
+            background: #009688;
+            color: white;
+        }}
+
+        .log-level.PYTHON_TEST {{
+            background: #9c27b0;
+            color: white;
+        }}
+
+        .log-message {{
+            color: #333;
+        }}
+
+        .empty-state {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 14px;
+        }}
+
+        .empty-state-icon {{
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }}
+
+        .log-container::-webkit-scrollbar {{
+            width: 10px;
+        }}
+
+        .log-container::-webkit-scrollbar-track {{
+            background: #f1f1f1;
+        }}
+
+        .log-container::-webkit-scrollbar-thumb {{
+            background: #ccc;
+            border-radius: 5px;
+        }}
+
+        .log-container::-webkit-scrollbar-thumb:hover {{
+            background: #999;
+        }}
+
+        .search-box {{
+            padding: 6px 10px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            color: #333;
+            font-size: 13px;
+            font-family: inherit;
+            width: 200px;
+        }}
+
+        .search-box:focus {{
+            outline: none;
+            border-color: #2196F3;
+        }}
+
+        .highlight {{
+            background: #ffeb3b;
+            color: #000;
+            padding: 0 2px;
+            border-radius: 2px;
+        }}
+
+        .status-info {{
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #2e7d32;
+        }}
+    </style>
+</head>
+<body>
+    <div class="matter-header">
+        <div class="header-start">
+            <div class="header-title">Matter Certification Tool</div>
+        </div>
+        <div class="header-end">
+            <div id="statusIndicator" class="status-indicator disconnected">
+                <span class="status-dot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div class="cli-indicator">CLI</div>
+            <div class="version-info">
+                <div>Log Viewer</div>
+                <div style="font-size: 10px; color: #999;">Real-Time Stream</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="p-dialog" role="dialog">
+            <div class="p-dialog-header">
+                <span class="p-dialog-title">📋 Real-Time Log Viewer - {test_run_title}</span>
+            </div>
+
+            <div class="p-dialog-content">
+                <div class="status-info">
+                    &#128268; Live logs streaming in real-time from test execution
+                </div>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <button id="clearBtn" class="btn" onclick="clearLogs()">Clear</button>
+                        <button id="autoScrollBtn" class="btn active" onclick="toggleAutoScroll()">Auto-scroll</button>
+                        <button id="downloadBtn" class="btn download" onclick="downloadLogs()">Download Logs</button>
+                        <input type="text" id="searchBox" class="search-box" placeholder="Search logs..." oninput="filterLogs()">
+                        <span class="log-count">Logs: <span id="logCount">0</span></span>
+                    </div>
+                    <div class="filter-group">
+                        <button class="filter-btn level-info active" onclick="toggleFilter('INFO')">INFO</button>
+                        <button class="filter-btn level-warning active" onclick="toggleFilter('WARNING')">WARN</button>
+                        <button class="filter-btn level-error active" onclick="toggleFilter('ERROR')">ERROR</button>
+                        <button class="filter-btn level-debug" onclick="toggleFilter('DEBUG')">DEBUG</button>
+                        <button class="filter-btn level-chiptool active" onclick="toggleFilter('CHIPTOOL')">CHIP</button>
+                        <button class="filter-btn level-python active" onclick="toggleFilter('PYTHON_TEST')">PYTHON</button>
+                    </div>
+                </div>
+
+                <div class="log-container" id="logContainer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📡</div>
+                        <div>Waiting for logs...</div>
+                        <div style="font-size: 12px; margin-top: 8px; color: #bbb;">Logs will appear here in real-time as tests execute</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let autoScroll = true;
+        let logCount = 0;
+        let activeFilters = new Set(['INFO', 'WARNING', 'ERROR', 'CHIPTOOL', 'PYTHON_TEST', 'SUCCESS']);
+        let allLogs = [];
+        let logBatchQueue = [];
+        let batchProcessing = false;
+        let lastBatchTime = 0;
+        const BATCH_INTERVAL_MS = 50;
+        const MAX_BATCH_SIZE = 50;
+
+        function connectToLogStream() {{
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            eventSource = new EventSource('/api/logs/stream');
+            
+            eventSource.addEventListener('connected', function(e) {{
+                console.log('Connected to log stream');
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = 'Connected';
+            }});
+            
+            eventSource.addEventListener('log', function(e) {{
+                const logEntry = JSON.parse(e.data);
+                logBatchQueue.push(logEntry);
+                scheduleBatchProcessing();
+            }});
+            
+            eventSource.addEventListener('keepalive', function(e) {{
+                // Silent keepalive
+            }});
+            
+            eventSource.addEventListener('end', function(e) {{
+                console.log('Log stream ended');
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'Stream Ended';
+                eventSource.close();
+                processBatchImmediately();
+            }});
+            
+            eventSource.onerror = function(e) {{
+                console.error('EventSource error:', e);
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'Disconnected';
+                
+                processBatchImmediately();
+                
+                setTimeout(() => {{
+                    if (eventSource.readyState === EventSource.CLOSED) {{
+                        console.log('Attempting to reconnect...');
+                        statusText.textContent = 'Reconnecting...';
+                        connectToLogStream();
+                    }}
+                }}, 3000);
+            }};
+        }}
+
+        function scheduleBatchProcessing() {{
+            if (batchProcessing) return;
+            
+            const now = Date.now();
+            const timeSinceLastBatch = now - lastBatchTime;
+            
+            if (timeSinceLastBatch >= BATCH_INTERVAL_MS || logBatchQueue.length >= MAX_BATCH_SIZE) {{
+                processBatch();
+            }} else {{
+                batchProcessing = true;
+                setTimeout(processBatch, BATCH_INTERVAL_MS - timeSinceLastBatch);
+            }}
+        }}
+
+        function processBatchImmediately() {{
+            if (logBatchQueue.length > 0) {{
+                processBatch();
+            }}
+        }}
+
+        function processBatch() {{
+            if (logBatchQueue.length === 0) {{
+                batchProcessing = false;
+                return;
+            }}
+            
+            const container = document.getElementById('logContainer');
+            const emptyState = container.querySelector('.empty-state');
+            
+            if (emptyState) {{
+                container.innerHTML = '';
+            }}
+            
+            const fragment = document.createDocumentFragment();
+            const batchSize = Math.min(logBatchQueue.length, MAX_BATCH_SIZE);
+            const batch = logBatchQueue.splice(0, batchSize);
+            
+            batch.forEach(entry => {{
+                allLogs.push(entry);
+                logCount++;
+                
+                const logDiv = createLogElement(entry);
+                fragment.appendChild(logDiv);
+            }});
+            
+            container.appendChild(fragment);
+            
+            document.getElementById('logCount').textContent = logCount;
+            
+            if (autoScroll) {{
+                container.scrollTop = container.scrollHeight;
+            }}
+            
+            lastBatchTime = Date.now();
+            batchProcessing = false;
+            
+            if (logBatchQueue.length > 0) {{
+                scheduleBatchProcessing();
+            }}
+        }}
+
+        function createLogElement(entry) {{
+            const logDiv = document.createElement('div');
+            const level = entry.level || 'INFO';
+            logDiv.className = `log-entry level-${{level.toLowerCase()}}`;
+            logDiv.dataset.level = level;
+            logDiv.dataset.message = entry.message || '';
+            
+            const timestamp = entry.timestamp || new Date().toISOString();
+            const timeStr = new Date(timestamp).toLocaleTimeString('en-US', {{ hour12: false }});
+            
+            logDiv.innerHTML = `<span class="log-timestamp">${{timeStr}}</span><span class="log-level ${{level}}">${{level}}</span><span class="log-message">${{escapeHtml(entry.message || '')}}</span>`;
+            
+            if (!activeFilters.has(level)) {{
+                logDiv.style.display = 'none';
+            }}
+            
+            return logDiv;
+        }}
+
+        function addLogEntry(entry) {{
+            logBatchQueue.push(entry);
+            scheduleBatchProcessing();
+        }}
+
+        function clearLogs() {{
+            const container = document.getElementById('logContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>Logs cleared</div>
+                </div>
+            `;
+            allLogs = [];
+            logCount = 0;
+            document.getElementById('logCount').textContent = '0';
+        }}
+
+        function toggleAutoScroll() {{
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('autoScrollBtn');
+            btn.classList.toggle('active', autoScroll);
+            
+            if (autoScroll) {{
+                const container = document.getElementById('logContainer');
+                container.scrollTop = container.scrollHeight;
+            }}
+        }}
+
+        function toggleFilter(level) {{
+            if (activeFilters.has(level)) {{
+                activeFilters.delete(level);
+            }} else {{
+                activeFilters.add(level);
+            }}
+            
+            const btn = event.target;
+            btn.classList.toggle('active');
+            
+            filterLogs();
+        }}
+
+        function filterLogs() {{
+            const searchText = document.getElementById('searchBox').value.toLowerCase();
+            const logEntries = document.querySelectorAll('.log-entry');
+            
+            logEntries.forEach(entry => {{
+                const level = entry.dataset.level;
+                const message = entry.dataset.message.toLowerCase();
+                
+                const levelMatch = activeFilters.has(level);
+                const searchMatch = !searchText || message.includes(searchText);
+                
+                entry.style.display = (levelMatch && searchMatch) ? 'block' : 'none';
+                
+                if (searchText && searchMatch) {{
+                    const messageEl = entry.querySelector('.log-message');
+                    const originalText = entry.dataset.message;
+                    const regex = new RegExp(`(${{escapeRegex(searchText)}})`, 'gi');
+                    messageEl.innerHTML = escapeHtml(originalText).replace(regex, '<span class="highlight">$1</span>');
+                }} else {{
+                    const messageEl = entry.querySelector('.log-message');
+                    messageEl.textContent = entry.dataset.message;
+                }}
+            }});
+        }}
+
+        function downloadLogs() {{
+            // First try server download (if server is still running)
+            fetch('/download_logs')
+                .then(response => {{
+                    if (response.ok) {{
+                        return response.blob();
+                    }}
+                    throw new Error('Server not available');
+                }})
+                .then(blob => {{
+                    // Server download successful
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'test_run_logs.log';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }})
+                .catch(error => {{
+                    // Server not available, use client-side download
+                    console.log('Server unavailable, using client-side download');
+                    downloadLogsClientSide();
+                }});
+        }}
+
+        function downloadLogsClientSide() {{
+            // Build log content from stored logs
+            let logContent = '';
+            allLogs.forEach(entry => {{
+                const timestamp = entry.timestamp || new Date().toISOString();
+                const level = entry.level || 'INFO';
+                const message = entry.message || '';
+                // Replace literal \n strings with actual newlines, then add entry
+                const cleanMessage = message.replace(/\\n/g, '\n');
+                logContent += `${{timestamp}} [${{level}}] ${{cleanMessage}}\n`;
+            }});
+
+            if (logContent === '') {{
+                alert('No logs to download');
+                return;
+            }}
+
+            // Create blob and download
+            const blob = new Blob([logContent], {{ type: 'text/plain;charset=utf-8' }});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate filename with current timestamp
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0,19).replace(/[T:]/g, '-');
+            a.download = `test_run_logs_${{dateStr}}.log`;
+            
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            console.log(`Downloaded ${{allLogs.length}} log entries client-side`);
+        }}
+
+        function escapeHtml(text) {{
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }}
+
+        function escapeRegex(text) {{
+            return text.replace(/[.*+?^${{}}()|[\\]\\\\]/g, '\\\\$&');
+        }}
+
+        document.getElementById('logContainer').addEventListener('scroll', function() {{
+            const container = this;
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+            
+            if (!isNearBottom && autoScroll) {{
+                autoScroll = false;
+                document.getElementById('autoScrollBtn').classList.remove('active');
+            }} else if (isNearBottom && !autoScroll) {{
+                autoScroll = true;
+                document.getElementById('autoScrollBtn').classList.add('active');
+            }}
+        }});
+
+        window.addEventListener('load', function() {{
+            connectToLogStream();
+        }});
+
+        window.addEventListener('beforeunload', function() {{
+            if (eventSource) {{
+                eventSource.close();
+            }}
+        }});
+    </script>
+</body>
+</html>
