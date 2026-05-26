@@ -39,6 +39,11 @@ DEFAULT_CLI_PROJECT_NAME = "CLI Project Execution"
 def __print_json(object: Any) -> None:
     click.echo(colorize_dump(__json_string(object)))
 
+def __print_config(project: Any) -> None:
+    if isinstance(project, list):
+        raise CLIError("Please provide a single project ID (using --id) to print the configuration.")
+    config = project.config if project.config is not None else {}
+    click.echo(colorize_dump(json.dumps(config, indent=4, default=str)))
 
 def __json_string(object: Any) -> str:
     if object is None:
