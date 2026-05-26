@@ -426,7 +426,7 @@ def get_versions() -> dict:
         sync_apis = SyncApis(client)
         version_api = sync_apis.version_api
         versions_info = version_api.get_test_harness_backend_version_api_v1_version_get()
-        return versions_info.model_dump()
+        return versions_info.model_dump(mode='json')
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse:
