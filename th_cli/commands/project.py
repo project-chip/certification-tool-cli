@@ -34,7 +34,7 @@ from th_cli.colorize import (
     italic,
 )
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
-from th_cli.utils import __print_json, read_pics_config
+from th_cli.utils import __print_config, __print_json, read_pics_config
 from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
@@ -125,9 +125,17 @@ def create(name: str, config: str | None, pics_config_folder: str | None) -> Non
 )
 @click.option(
     "--json",
+    "-j",
     is_flag=True,
     default=False,
     help=colorize_help("Print JSON response for more details"),
+)
+@click.option(
+    "--config",
+    "-c",
+    is_flag=True,
+    default=False,
+    help=colorize_help("Print project configuration in JSON format")
 )
 def list_projects(
     id: int | None,
@@ -135,10 +143,11 @@ def list_projects(
     limit: int | None,
     archived: bool,
     json: bool,
+    config: bool,
 ) -> None:
     """List projects"""
     with get_sync_apis("list") as sync_apis:
-        _list_projects(sync_apis, id, archived, skip, limit, json)
+        _list_projects(sync_apis, id, archived, skip, limit, json, config)
 
 
 # Click command to update an existing project
@@ -253,6 +262,7 @@ def _list_projects(
     skip: int | None,
     limit: int | None,
     json: bool,
+    config: bool,
 ) -> None:
     """List projects"""
 
@@ -300,6 +310,8 @@ def _list_projects(
 
     if json:
         __print_json(projects)
+    elif config:
+        __print_config(projects)
     else:
         __print_table(projects)
 
