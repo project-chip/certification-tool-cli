@@ -807,10 +807,10 @@ class ApiClient:
 
     async def send(self, request: Request, type_: Type[T]) -> T | str:
         response = await self.middleware(request, self.send_inner)
-        if response.status_code in [200, 201]:
+        if response.status_code in [200, 201, 204]:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
-                if type_ is None:
+                if type_ is None or response.status_code == 204:
                     return None
                 adapter = TypeAdapter(type_)
                 if type_ == bytes:
