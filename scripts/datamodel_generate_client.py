@@ -443,11 +443,10 @@ if TYPE_CHECKING:
             else:
                 opt_sig.append(f"body: {body_info['type']} | None = None")
         for p in params:
-            type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
             if p["required"]:
-                req_sig.append(f"{p['name']}: {type_hint}")
+                req_sig.append(f"{p['name']}: {p['type']}")
             else:
-                opt_sig.append(f"{p['name']}: {type_hint} = None")
+                opt_sig.append(f"{p['name']}: {p['type']} | None = None")
         sig_params_str = ", ".join(req_sig + opt_sig)
         if sig_params_str:
             sig_params_str = ", " + sig_params_str
@@ -607,11 +606,10 @@ if TYPE_CHECKING:
             call_params.append("body=body")
 
         for p in params:
-            type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
             if p["required"]:
-                req_sig.append(f"{p['name']}: {type_hint}")
+                req_sig.append(f"{p['name']}: {p['type']}")
             else:
-                opt_sig.append(f"{p['name']}: {type_hint} = None")
+                opt_sig.append(f"{p['name']}: {p['type']} | None = None")
             call_params.append(f"{p['name']}={p['name']}")
 
         sig_params_str = ", ".join(req_sig + opt_sig)
@@ -669,11 +667,10 @@ if TYPE_CHECKING:
             call_params.append("body=body")
 
         for p in params:
-            type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
             if p["required"]:
-                req_sig.append(f"{p['name']}: {type_hint}")
+                req_sig.append(f"{p['name']}: {p['type']}")
             else:
-                opt_sig.append(f"{p['name']}: {type_hint} = None")
+                opt_sig.append(f"{p['name']}: {p['type']} | None = None")
             call_params.append(f"{p['name']}={p['name']}")
 
         sig_params_str = ", ".join(req_sig + opt_sig)
