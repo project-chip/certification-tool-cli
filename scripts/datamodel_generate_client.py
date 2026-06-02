@@ -171,7 +171,7 @@ class OpenAPIParser:
             ref = schema["$ref"]
             model_name = ref.split("/")[-1]
             if model_name.startswith("Body_"):
-            # TODO: handle schema names that conflicts with the models names.
+                # TODO: handle schema names that conflict with the models names.
                 model_name = "".join(word.capitalize() for word in model_name.split("_"))
             if resolve_ref:
                 return f"m.{model_name}"
