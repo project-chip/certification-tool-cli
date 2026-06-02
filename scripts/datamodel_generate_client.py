@@ -810,10 +810,12 @@ class ApiClient:
         if response.status_code in [200, 201]:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
+                if type_ is None:
+                    return None
                 adapter = TypeAdapter(type_)
                 if type_ == bytes:
                     return adapter.validate_python(response.content)
-                return adapter.validate_python(response.json()) if type_ else response.text
+                return adapter.validate_python(response.json())
             except Exception as e:
                 raise ResponseHandlingException(e)
         raise UnexpectedResponse.for_response(response)
