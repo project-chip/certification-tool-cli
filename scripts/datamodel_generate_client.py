@@ -1015,9 +1015,9 @@ def main(input_spec: str, output_dir: str, import_name: str, verbose: bool):
     type-safe API client code with no postprocessing required.
 
     Example:
-        python scripts/generate_client_v2.py --input openapi.json
+        python scripts/datamodel_generate_client.py --input openapi.json
 
-        python scripts/generate_client_v2.py --input http://localhost/api/v1/openapi.json
+        python scripts/datamodel_generate_client.py --input http://localhost/api/v1/openapi.json
     """
     try:
         output_path = Path(output_dir)
