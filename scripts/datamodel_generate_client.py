@@ -436,21 +436,19 @@ if TYPE_CHECKING:
         return_type = self.parser.get_response_type(responses)
 
         # Generate method signature
-        sig_params = []
+        req_sig, opt_sig = [], []
         if body_info:
-            type_hint = body_info["type"]
-            if not body_info["required"]:
-                type_hint = f"{type_hint} | None"
-                sig_params.append(f"body: {type_hint} = None")
+            if body_info["required"]:
+                req_sig.append(f"body: {body_info['type']}")
             else:
-                sig_params.append(f"body: {type_hint}")
-        
+                opt_sig.append(f"body: {body_info['type']} | None = None")
         for p in params:
             type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
-            default = " = None" if not p["required"] else ""
-            sig_params.append(f"{p['name']}: {type_hint}{default}")
-
-        sig_params_str = ", ".join(sig_params)
+            if p["required"]:
+                req_sig.append(f"{p['name']}: {type_hint}")
+            else:
+                opt_sig.append(f"{p['name']}: {type_hint} = None")
+        sig_params_str = ", ".join(req_sig + opt_sig)
         if sig_params_str:
             sig_params_str = ", " + sig_params_str
 
@@ -599,24 +597,24 @@ if TYPE_CHECKING:
         return_type = self.parser.get_response_type(responses)
 
         # Generate method signature
-        sig_params = []
+        req_sig, opt_sig = [], []
         call_params = []
         if body_info:
-            type_hint = body_info["type"]
-            if not body_info["required"]:
-                type_hint = f"{type_hint} | None"
-                sig_params.append(f"body: {type_hint} = None")
+            if body_info["required"]:
+                req_sig.append(f"body: {body_info['type']}")
             else:
-                sig_params.append(f"body: {type_hint}")
+                opt_sig.append(f"body: {body_info['type']} | None = None")
             call_params.append("body=body")
 
         for p in params:
             type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
-            default = " = None" if not p["required"] else ""
-            sig_params.append(f"{p['name']}: {type_hint}{default}")
+            if p["required"]:
+                req_sig.append(f"{p['name']}: {type_hint}")
+            else:
+                opt_sig.append(f"{p['name']}: {type_hint} = None")
             call_params.append(f"{p['name']}={p['name']}")
 
-        sig_params_str = ", ".join(sig_params)
+        sig_params_str = ", ".join(req_sig + opt_sig)
         if sig_params_str:
             sig_params_str = ", " + sig_params_str
 
@@ -660,25 +658,25 @@ if TYPE_CHECKING:
         return_type = self.parser.get_response_type(responses)
 
         # Generate method signature
-        sig_params = []
+        req_sig, opt_sig = [], []
         call_params = []
 
         if body_info:
-            type_hint = body_info["type"]
-            if not body_info["required"]:
-                type_hint = f"{type_hint} | None"
-                sig_params.append(f"body: {type_hint} = None")
+            if body_info["required"]:
+                req_sig.append(f"body: {body_info['type']}")
             else:
-                sig_params.append(f"body: {type_hint}")
+                opt_sig.append(f"body: {body_info['type']} | None = None")
             call_params.append("body=body")
-        
+
         for p in params:
             type_hint = f"{p['type']} | None" if not p["required"] else p["type"]
-            default = " = None" if not p["required"] else ""
-            sig_params.append(f"{p['name']}: {type_hint}{default}")
+            if p["required"]:
+                req_sig.append(f"{p['name']}: {type_hint}")
+            else:
+                opt_sig.append(f"{p['name']}: {type_hint} = None")
             call_params.append(f"{p['name']}={p['name']}")
 
-        sig_params_str = ", ".join(sig_params)
+        sig_params_str = ", ".join(req_sig + opt_sig)
         if sig_params_str:
             sig_params_str = ", " + sig_params_str
 
