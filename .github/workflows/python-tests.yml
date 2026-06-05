@@ -36,7 +36,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Run tests
-        run: ./scripts/run_pytest.py
+        run: ./scripts/run_pytest.sh
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
