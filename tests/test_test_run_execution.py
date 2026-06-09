@@ -693,8 +693,12 @@ Escape sequences: \n\t\r"""
 
         # Assert
         assert result.exit_code == 0
+        # Click prepends a DeprecationWarning line for deprecated options; strip it before comparing
+        output_without_warning = "\n".join(
+            line for line in result.output.splitlines() if not line.startswith("DeprecationWarning:")
+        )
         # Should still output the whitespace content as-is
-        assert result.output.strip() == log_content.rstrip()
+        assert output_without_warning.strip() == log_content.rstrip()
 
     def test_test_run_execution_log_generic_exception(
         self,
