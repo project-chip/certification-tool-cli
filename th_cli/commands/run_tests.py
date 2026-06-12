@@ -230,7 +230,8 @@ async def run_tests(
                 }
 
         # Merge extra test parameters if provided (temporary for this execution only)
-        if extra_test_params:            click.echo(
+        if extra_test_params:
+            click.echo(
                 colorize_key_value(
                     "Extra SDK Test Parameters (Execution Only)", json.dumps(extra_test_params, indent=JSON_INDENT)
                 )

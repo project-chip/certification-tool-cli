@@ -167,7 +167,8 @@ def validate_tc_params_file(file_path: str) -> Path:
     return path
 
 
-def validate_hostname(hostname: str) -> str:    """Validate hostname format."""
+def validate_hostname(hostname: str) -> str:
+    """Validate hostname format."""
     if not hostname or len(hostname.strip()) == 0:
         raise CLIError("Hostname cannot be empty")
 
