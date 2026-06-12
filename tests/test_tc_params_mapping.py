@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Unit tests for load_tc_params_mapping (utils) and validate_tc_params_file (validation)."""
+"""Unit tests for load_tc_params_mapping (utils), validate_tc_params_file, and
+parse_and_validate_tc_params_file (validation)."""
 
 import json
 from pathlib import Path
@@ -22,7 +23,7 @@ import pytest
 
 from th_cli.exceptions import CLIError
 from th_cli.utils import load_tc_params_mapping
-from th_cli.validation import validate_tc_params_file
+from th_cli.validation import parse_and_validate_tc_params_file, validate_tc_params_file
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +35,72 @@ def _write_mapping(tmp_path: Path, data: dict, filename: str = "mapping.json") -
     p = tmp_path / filename
     p.write_text(json.dumps(data), encoding="utf-8")
     return p
+
+
+# ---------------------------------------------------------------------------
+# parse_and_validate_tc_params_file  (shared helper)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestParseAndValidateTcParamsFile:
+    """Tests for parse_and_validate_tc_params_file — the shared parsing helper.
+
+    Because both validate_tc_params_file and load_tc_params_mapping delegate
+    to this function, its error paths are exercised transitively by those
+    tests too.  These tests focus on the return value and the fact that the
+    helper is the single source of truth.
+    """
+
+    def test_returns_parsed_dict(self, tmp_path: Path) -> None:
+        """Helper returns the full parsed mapping as a dict."""
+        data = {"TC-ACE-1.1": {"int-arg": "PIXIT.ACE.EP:1"}}
+        p = _write_mapping(tmp_path, data)
+        result = parse_and_validate_tc_params_file(str(p))
+        assert result == data
+
+    def test_empty_mapping_returns_empty_dict(self, tmp_path: Path) -> None:
+        """An empty JSON object {} returns an empty dict without error."""
+        p = _write_mapping(tmp_path, {})
+        assert parse_and_validate_tc_params_file(str(p)) == {}
+
+    def test_file_not_found_raises(self, tmp_path: Path) -> None:
+        """Missing file raises CLIError."""
+        with pytest.raises(CLIError, match="File not found"):
+            parse_and_validate_tc_params_file(str(tmp_path / "missing.json"))
+
+    def test_invalid_json_raises(self, tmp_path: Path) -> None:
+        """Broken JSON raises CLIError with line/column info."""
+        p = tmp_path / "bad.json"
+        p.write_text("{bad", encoding="utf-8")
+        with pytest.raises(CLIError, match="Invalid JSON"):
+            parse_and_validate_tc_params_file(str(p))
+
+    def test_array_root_raises(self, tmp_path: Path) -> None:
+        """A JSON array at root raises CLIError."""
+        p = tmp_path / "arr.json"
+        p.write_text("[]", encoding="utf-8")
+        with pytest.raises(CLIError, match="Expected a JSON object at the top level"):
+            parse_and_validate_tc_params_file(str(p))
+
+    def test_non_dict_entry_value_raises(self, tmp_path: Path) -> None:
+        """A non-dict entry value raises CLIError naming the offending TC ID."""
+        p = _write_mapping(tmp_path, {"TC-ACE-1.1": "string-not-dict"})
+        with pytest.raises(CLIError, match="TC-ACE-1.1"):
+            parse_and_validate_tc_params_file(str(p))
+
+    def test_validate_and_load_share_same_errors(self, tmp_path: Path) -> None:
+        """validate_tc_params_file and load_tc_params_mapping raise the same
+        CLIError message for the same bad file — proving they share the helper."""
+        p = _write_mapping(tmp_path, {"TC-ACE-1.1": 42})
+
+        with pytest.raises(CLIError) as exc_validate:
+            validate_tc_params_file(str(p))
+
+        with pytest.raises(CLIError) as exc_load:
+            load_tc_params_mapping(str(p), ["TC-ACE-1.1"])
+
+        assert str(exc_validate.value) == str(exc_load.value)
 
 
 # ---------------------------------------------------------------------------

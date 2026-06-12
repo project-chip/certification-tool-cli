@@ -29,6 +29,7 @@ from th_cli.client import get_client
 from th_cli.colorize import colorize_dump
 from th_cli.config import find_git_root, get_package_root
 from th_cli.exceptions import CLIError, handle_file_error
+from th_cli.validation import parse_and_validate_tc_params_file
 
 # Constants
 DEFAULT_FILE_ENCODING = "utf-8"
@@ -420,36 +421,15 @@ def load_tc_params_mapping(
     def _normalise(tc_id: str) -> str:
         return tc_id.replace("-", "_").replace(".", "_").upper()
 
-    try:
-        with open(mapping_path, "r", encoding=DEFAULT_FILE_ENCODING) as f:
-            raw = json.load(f)
-    except FileNotFoundError as e:
-        handle_file_error(e, "TC params mapping file")
-    except json.JSONDecodeError as e:
-        raise CLIError(
-            f"Invalid JSON in TC params mapping file '{mapping_path}': "
-            f"{e.msg} (line {e.lineno}, column {e.colno})"
-        )
-    except OSError as e:
-        raise CLIError(f"Failed to read TC params mapping file '{mapping_path}': {e}")
+    # Delegate file I/O and structural validation to the shared helper so the
+    # file is never parsed twice (validate_tc_params_file already calls it
+    # during pre-flight) and validation logic lives in one place.
+    raw = parse_and_validate_tc_params_file(mapping_path)
 
-    if not isinstance(raw, dict):
-        raise CLIError(
-            f"Invalid TC params mapping file '{mapping_path}': "
-            f"Expected a JSON object at the top level, got {type(raw).__name__}"
-        )
-
-    # Validate that all values are dicts (params dicts), and build a
-    # normalised-key → original-value lookup.
-    normalised_mapping: dict[str, dict[str, Any]] = {}
-    for key, value in raw.items():
-        if not isinstance(value, dict):
-            raise CLIError(
-                f"Invalid TC params mapping file '{mapping_path}': "
-                f"Value for TC ID '{key}' must be a JSON object (dict of parameters), "
-                f"got {type(value).__name__}"
-            )
-        normalised_mapping[_normalise(key)] = value
+    # Build a normalised-key → params lookup.
+    normalised_mapping: dict[str, dict[str, Any]] = {
+        _normalise(key): value for key, value in raw.items()
+    }
 
     # Match each requested test ID against the normalised mapping.
     merged_params: dict[str, Any] = {}

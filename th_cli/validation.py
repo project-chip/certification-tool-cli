@@ -113,25 +113,20 @@ def validate_test_ids(test_ids: str) -> list[str]:
     return ids
 
 
-def validate_tc_params_file(file_path: str) -> Path:
-    """Validate that a TC params mapping file exists and has the expected structure.
+def parse_and_validate_tc_params_file(file_path: str) -> dict[str, dict[str, Any]]:
+    """Read, parse, and validate a TC params mapping file, returning its contents.
 
-    Performs two levels of checking:
-
-    1. **File-level**: path exists, is a regular file, and is readable.
-    2. **Format-level**: the file contains valid JSON whose top-level value is
-       a JSON object (dict), and whose values are themselves JSON objects.
-
-    This is a *fast pre-flight* check intended to surface obvious problems
-    before the full run starts.  Deep semantic validation (e.g. checking
-    parameter key names or value formats) is left to
-    ``load_tc_params_mapping`` at load time.
+    This is the single source of truth for mapping-file I/O and structural
+    validation.  Both :func:`validate_tc_params_file` (pre-flight check) and
+    ``load_tc_params_mapping`` (runtime loader) delegate here so the file is
+    never parsed twice and validation logic lives in one place.
 
     Args:
         file_path: Path to the JSON mapping file.
 
     Returns:
-        Resolved ``Path`` object for the validated file.
+        The parsed mapping as a ``dict[str, dict[str, Any]]`` — TC ID keys
+        mapping to their parameter dicts.
 
     Raises:
         CLIError: If the file is missing, not a regular file, contains
@@ -164,7 +159,35 @@ def validate_tc_params_file(file_path: str) -> Path:
             f"Non-dict values found for TC IDs: {', '.join(bad_entries)}"
         )
 
-    return path
+    return data
+
+
+def validate_tc_params_file(file_path: str) -> Path:
+    """Validate that a TC params mapping file exists and has the expected structure.
+
+    Performs two levels of checking:
+
+    1. **File-level**: path exists, is a regular file, and is readable.
+    2. **Format-level**: the file contains valid JSON whose top-level value is
+       a JSON object (dict), and whose values are themselves JSON objects.
+
+    This is a *fast pre-flight* check intended to surface obvious problems
+    before the full run starts.  The actual parsing is delegated to
+    :func:`parse_and_validate_tc_params_file` so the logic is not duplicated
+    with ``load_tc_params_mapping``.
+
+    Args:
+        file_path: Path to the JSON mapping file.
+
+    Returns:
+        Resolved ``Path`` object for the validated file.
+
+    Raises:
+        CLIError: If the file is missing, not a regular file, contains
+            invalid JSON, or does not match the expected top-level structure.
+    """
+    parse_and_validate_tc_params_file(file_path)
+    return Path(file_path).resolve()
 
 
 def validate_hostname(hostname: str) -> str:
