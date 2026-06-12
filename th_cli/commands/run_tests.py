@@ -42,8 +42,8 @@ from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
-from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
-from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
+from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, load_tc_params_mapping, merge_configs, read_pics_config
+from th_cli.validation import validate_directory_path, validate_file_path, validate_tc_params_file, validate_test_ids
 
 # Constants
 JSON_INDENT = 2
@@ -86,6 +86,16 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     help=colorize_help("Directory containing PICS XML configuration files. If not provided, no PICS will be used."),
 )
 @click.option(
+    "--tc-params-file",
+    "-m",
+    type=click.Path(file_okay=True, dir_okay=False),
+    help=colorize_help(
+        "Path to a TC parameters mapping JSON file. "
+        "Maps TC IDs to test_parameters (e.g. int-arg, string-arg, timeout). "
+        "Applied after the project config but before --config overrides and inline -- args."
+    ),
+)
+@click.option(
     "--project-id",
     type=int,
     help=colorize_help(
@@ -110,6 +120,7 @@ async def run_tests(
     tests_list: str,
     config: str | None = None,
     pics_config_folder: str | None = None,
+    tc_params_file: str | None = None,
     project_id: int | None = None,
     no_color: bool = False,
     no_streaming: bool = False,
@@ -122,6 +133,7 @@ async def run_tests(
         tests_list: Comma-separated list of test case identifiers
         config: Optional path to JSON configuration file
         pics_config_folder: Optional path to directory containing PICS XML files
+        tc_params_file: Optional path to TC parameters mapping JSON file
         project_id: Optional project ID for the test run
         no_color: Flag to disable colored output
 
@@ -145,6 +157,10 @@ async def run_tests(
     if pics_config_folder:
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_config_folder = str(pics_path)
+
+    if tc_params_file:
+        tc_params_path = validate_tc_params_file(tc_params_file)
+        tc_params_file = str(tc_params_path)
 
     client = None
     _webrtc_handler = None
@@ -185,9 +201,36 @@ async def run_tests(
             execution_pics = await _get_project_pics(cli_project)
             click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(execution_pics, indent=JSON_INDENT)))
 
+        # Auto-populate test_parameters from a TC params mapping file.
+        # Priority: project config < mapping file < --config override < -- inline args
+        if tc_params_file:
+            mapping_params, missing_ids = load_tc_params_mapping(tc_params_file, validated_test_ids)
+            if missing_ids:
+                click.echo(
+                    colorize_warning(
+                        f"TC params mapping: no entry found for "
+                        f"{', '.join(missing_ids)} — "
+                        "using existing config or defaults for those tests"
+                    )
+                )
+            if mapping_params:
+                click.echo(
+                    colorize_key_value(
+                        "TC Params from Mapping File (Execution Only)",
+                        json.dumps(mapping_params, indent=JSON_INDENT),
+                    )
+                )
+                if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
+                    test_run_config["test_parameters"] = {}
+                # Mapping params are merged first; --config values already in
+                # test_run_config take precedence (they were applied above).
+                test_run_config["test_parameters"] = {
+                    **mapping_params,
+                    **test_run_config["test_parameters"],
+                }
+
         # Merge extra test parameters if provided (temporary for this execution only)
-        if extra_test_params:
-            click.echo(
+        if extra_test_params:            click.echo(
                 colorize_key_value(
                     "Extra SDK Test Parameters (Execution Only)", json.dumps(extra_test_params, indent=JSON_INDENT)
                 )

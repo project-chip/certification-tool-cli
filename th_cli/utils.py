@@ -374,6 +374,97 @@ def read_pics_config(pics_config_folder: str) -> dict:
     return pics
 
 
+def load_tc_params_mapping(
+    mapping_path: str,
+    test_ids: list[str],
+) -> tuple[dict[str, Any], list[str]]:
+    """Load test_parameters for the given TC IDs from a mapping file.
+
+    The mapping file is a JSON object whose keys are TC IDs and whose values
+    are ``test_parameters`` dicts with the same shape accepted by the backend
+    (e.g. ``int-arg``, ``string-arg``, ``timeout``).  Both ``-``, ``_`` and
+    ``.`` separators are normalised, and key comparison is case-insensitive,
+    so any of the following spellings refer to the same test case::
+
+        "TC-ACE-1.1"  "TC_ACE_1_1"  "tc-ace-1.1"
+
+    Example mapping file::
+
+        {
+          "TC-ACE-1.1":     { "int-arg": "PIXIT.ACE.APPENDPOINT:1", "timeout": "300" },
+          "TC-AVSM-2.10":   { "int-arg": "PIXIT.AVSM.ENDPOINT:1 PIXIT.AVSM.STREAMTYPE:1" },
+          "TC-MCORE-FS-1.3": { "string-arg": "PIXIT.MCORE.ENDPOINT:3" }
+        }
+
+    All matched entries are merged into a single flat ``test_parameters`` dict.
+    When two entries share the same parameter key, the last matched entry wins
+    (order is alphabetical by normalised TC ID).
+
+    Args:
+        mapping_path: Path to the JSON mapping file.
+        test_ids: List of TC IDs to look up (as returned by
+            ``validate_test_ids``).
+
+    Returns:
+        A tuple of:
+        - ``merged_params`` – dict ready to be merged into
+          ``test_run_config["test_parameters"]``.
+        - ``missing_ids`` – list of TC IDs from *test_ids* that had no entry
+          in the mapping file (may be empty).
+
+    Raises:
+        CLIError: If the file cannot be read, contains invalid JSON, or is not
+            a JSON object whose values are dicts.
+    """
+
+    def _normalise(tc_id: str) -> str:
+        return tc_id.replace("-", "_").replace(".", "_").upper()
+
+    try:
+        with open(mapping_path, "r", encoding=DEFAULT_FILE_ENCODING) as f:
+            raw = json.load(f)
+    except FileNotFoundError as e:
+        handle_file_error(e, "TC params mapping file")
+    except json.JSONDecodeError as e:
+        raise CLIError(
+            f"Invalid JSON in TC params mapping file '{mapping_path}': "
+            f"{e.msg} (line {e.lineno}, column {e.colno})"
+        )
+    except OSError as e:
+        raise CLIError(f"Failed to read TC params mapping file '{mapping_path}': {e}")
+
+    if not isinstance(raw, dict):
+        raise CLIError(
+            f"Invalid TC params mapping file '{mapping_path}': "
+            f"Expected a JSON object at the top level, got {type(raw).__name__}"
+        )
+
+    # Validate that all values are dicts (params dicts), and build a
+    # normalised-key → original-value lookup.
+    normalised_mapping: dict[str, dict[str, Any]] = {}
+    for key, value in raw.items():
+        if not isinstance(value, dict):
+            raise CLIError(
+                f"Invalid TC params mapping file '{mapping_path}': "
+                f"Value for TC ID '{key}' must be a JSON object (dict of parameters), "
+                f"got {type(value).__name__}"
+            )
+        normalised_mapping[_normalise(key)] = value
+
+    # Match each requested test ID against the normalised mapping.
+    merged_params: dict[str, Any] = {}
+    missing_ids: list[str] = []
+
+    for tc_id in sorted(test_ids):  # sorted for deterministic merge order
+        norm = _normalise(tc_id)
+        if norm in normalised_mapping:
+            merged_params.update(normalised_mapping[norm])
+        else:
+            missing_ids.append(tc_id)
+
+    return merged_params, missing_ids
+
+
 def get_cli_version() -> str:
     """Get CLI version from pyproject.toml"""
     try:

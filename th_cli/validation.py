@@ -15,8 +15,10 @@
 #
 """Input validation utilities for the CLI."""
 
+import json
 import re
 from pathlib import Path
+from typing import Any
 
 from th_cli.exceptions import CLIError
 
@@ -111,8 +113,61 @@ def validate_test_ids(test_ids: str) -> list[str]:
     return ids
 
 
-def validate_hostname(hostname: str) -> str:
-    """Validate hostname format."""
+def validate_tc_params_file(file_path: str) -> Path:
+    """Validate that a TC params mapping file exists and has the expected structure.
+
+    Performs two levels of checking:
+
+    1. **File-level**: path exists, is a regular file, and is readable.
+    2. **Format-level**: the file contains valid JSON whose top-level value is
+       a JSON object (dict), and whose values are themselves JSON objects.
+
+    This is a *fast pre-flight* check intended to surface obvious problems
+    before the full run starts.  Deep semantic validation (e.g. checking
+    parameter key names or value formats) is left to
+    ``load_tc_params_mapping`` at load time.
+
+    Args:
+        file_path: Path to the JSON mapping file.
+
+    Returns:
+        Resolved ``Path`` object for the validated file.
+
+    Raises:
+        CLIError: If the file is missing, not a regular file, contains
+            invalid JSON, or does not match the expected top-level structure.
+    """
+    path = validate_file_path(file_path, must_exist=True)
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data: Any = json.load(f)
+    except json.JSONDecodeError as e:
+        raise CLIError(
+            f"Invalid JSON in TC params mapping file '{file_path}': "
+            f"{e.msg} (line {e.lineno}, column {e.colno})"
+        )
+    except OSError as e:
+        raise CLIError(f"Failed to read TC params mapping file '{file_path}': {e}")
+
+    if not isinstance(data, dict):
+        raise CLIError(
+            f"Invalid TC params mapping file '{file_path}': "
+            f"Expected a JSON object at the top level, got {type(data).__name__}"
+        )
+
+    bad_entries = [k for k, v in data.items() if not isinstance(v, dict)]
+    if bad_entries:
+        raise CLIError(
+            f"Invalid TC params mapping file '{file_path}': "
+            f"Each entry value must be a JSON object (dict of parameters). "
+            f"Non-dict values found for TC IDs: {', '.join(bad_entries)}"
+        )
+
+    return path
+
+
+def validate_hostname(hostname: str) -> str:    """Validate hostname format."""
     if not hostname or len(hostname.strip()) == 0:
         raise CLIError("Hostname cannot be empty")
 
