@@ -93,12 +93,12 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
         "Path to a JSON file that maps TC IDs to their test_parameters "
         "(e.g. int-arg, string-arg, timeout). Entries are matched "
         "case-insensitively with separators - _ . normalised. "
-        "TC IDs not found in the file are silently skipped. "
-        "\n\nNOTE — Configuration precedence (lowest → highest priority):\n"
-        "  1. Project config (persistent, from TH project)\n"
-        "  2. --tc-params-file  ← this option\n"
-        "  3. --config file (execution-only override)\n"
-        "  4. -- inline args  (e.g. -- --int-arg PIXIT.X:1)\n"
+        "TC IDs not found in the file are silently skipped."
+        "\n\n\b\nNOTE — Configuration precedence (lowest → highest priority):\n"
+        "  1. Project config        (persistent, from TH project)\n"
+        "  2. --tc-params-file      ← this option\n"
+        "  3. --config file         (execution-only override)\n"
+        "  4. -- inline args        (e.g. -- --int-arg PIXIT.X:1)\n"
         "\nHigher-priority sources always win on conflicting keys."
     ),
 )
