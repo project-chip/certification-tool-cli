@@ -187,9 +187,11 @@ async def run_tests(
         project_config = await _get_project_config(async_apis, cli_project)
         project_config_dict = convert_nested_to_dict(project_config)
 
-        # Create execution config. If a config file is provided, merge it with the
-        # project config. Otherwise, just use a copy of the project config.
-        # This avoids modifying the original project_config_dict.
+        # Create execution config. If a config file is provided, load it separately
+        # so its test_parameters can be re-applied after the mapping file merge
+        # (keeping the correct priority order: project < mapping file < --config).
+        # Without a config file we just deep-copy the project config.
+        config_data: dict[str, Any] | None = None
         if config:
             config_data = load_json_config(config)
             test_run_config = merge_configs(project_config_dict, config_data)
@@ -209,7 +211,15 @@ async def run_tests(
             click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(execution_pics, indent=JSON_INDENT)))
 
         # Auto-populate test_parameters from a TC params mapping file.
-        # Priority: project config < mapping file < --config override < -- inline args
+        # Priority (low → high): project config < mapping file < --config < -- inline args
+        #
+        # At this point test_run_config already contains the result of
+        # merge_configs(project, --config), so we can't tell which
+        # test_parameters came from the project and which from --config.
+        # To honour the correct priority we:
+        #   1. Start from the project-only test_parameters (lowest priority).
+        #   2. Layer the mapping file on top.
+        #   3. Re-apply --config test_parameters on top of that.
         if tc_params_file:
             mapping_params, missing_ids = load_tc_params_mapping(tc_params_file, validated_test_ids)
             if missing_ids:
@@ -229,12 +239,18 @@ async def run_tests(
                 )
                 if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
                     test_run_config["test_parameters"] = {}
-                # Mapping params are merged first; --config values already in
-                # test_run_config take precedence (they were applied above).
+
+                # Step 1+2: project params then mapping file (mapping wins over project).
+                project_test_params = project_config_dict.get("test_parameters") or {}
                 test_run_config["test_parameters"] = {
+                    **project_test_params,
                     **mapping_params,
-                    **test_run_config["test_parameters"],
                 }
+
+                # Step 3: re-apply --config test_parameters so they win over the mapping.
+                if config_data:
+                    config_test_params = config_data.get("test_parameters") or {}
+                    test_run_config["test_parameters"].update(config_test_params)
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
