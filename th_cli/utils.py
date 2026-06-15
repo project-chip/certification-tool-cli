@@ -29,6 +29,7 @@ from th_cli.client import get_client
 from th_cli.colorize import colorize_dump
 from th_cli.config import find_git_root, get_package_root
 from th_cli.exceptions import CLIError, handle_file_error
+from th_cli.validation import parse_and_validate_tc_params_file
 
 # Constants
 DEFAULT_FILE_ENCODING = "utf-8"
@@ -372,6 +373,76 @@ def read_pics_config(pics_config_folder: str) -> dict:
         raise CLIError(f"Failed to read PICS configuration: {e}")
 
     return pics
+
+
+def load_tc_params_mapping(
+    mapping_path: str,
+    test_ids: list[str],
+) -> tuple[dict[str, Any], list[str]]:
+    """Load test_parameters for the given TC IDs from a mapping file.
+
+    The mapping file is a JSON object whose keys are TC IDs and whose values
+    are ``test_parameters`` dicts with the same shape accepted by the backend
+    (e.g. ``int-arg``, ``string-arg``, ``timeout``).  Both ``-``, ``_`` and
+    ``.`` separators are normalised, and key comparison is case-insensitive,
+    so any of the following spellings refer to the same test case::
+
+        "TC-ACE-1.1"  "TC_ACE_1_1"  "tc-ace-1.1"
+
+    Example mapping file::
+
+        {
+          "TC-ACE-1.1":     { "int-arg": "PIXIT.ACE.APPENDPOINT:1", "timeout": "300" },
+          "TC-AVSM-2.10":   { "int-arg": "PIXIT.AVSM.ENDPOINT:1 PIXIT.AVSM.STREAMTYPE:1" },
+          "TC-MCORE-FS-1.3": { "string-arg": "PIXIT.MCORE.ENDPOINT:3" }
+        }
+
+    All matched entries are merged into a single flat ``test_parameters`` dict.
+    When two entries share the same parameter key, the last matched entry wins
+    (order is alphabetical by normalised TC ID).
+
+    Args:
+        mapping_path: Path to the JSON mapping file.
+        test_ids: List of TC IDs to look up (as returned by
+            ``validate_test_ids``).
+
+    Returns:
+        A tuple of:
+        - ``merged_params`` – dict ready to be merged into
+          ``test_run_config["test_parameters"]``.
+        - ``missing_ids`` – list of TC IDs from *test_ids* that had no entry
+          in the mapping file (may be empty).
+
+    Raises:
+        CLIError: If the file cannot be read, contains invalid JSON, or is not
+            a JSON object whose values are dicts.
+    """
+
+    def _normalise(tc_id: str) -> str:
+        return tc_id.replace("-", "_").replace(".", "_").upper()
+
+    # Delegate file I/O and structural validation to the shared helper so the
+    # file is never parsed twice (validate_tc_params_file already calls it
+    # during pre-flight) and validation logic lives in one place.
+    raw = parse_and_validate_tc_params_file(mapping_path)
+
+    # Build a normalised-key → params lookup.
+    normalised_mapping: dict[str, dict[str, Any]] = {
+        _normalise(key): value for key, value in raw.items()
+    }
+
+    # Match each requested test ID against the normalised mapping.
+    merged_params: dict[str, Any] = {}
+    missing_ids: list[str] = []
+
+    for tc_id in sorted(test_ids):  # sorted for deterministic merge order
+        norm = _normalise(tc_id)
+        if norm in normalised_mapping:
+            merged_params.update(normalised_mapping[norm])
+        else:
+            missing_ids.append(tc_id)
+
+    return merged_params, missing_ids
 
 
 def get_cli_version() -> str:

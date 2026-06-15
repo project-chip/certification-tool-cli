@@ -42,8 +42,8 @@ from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
-from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
-from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
+from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, load_tc_params_mapping, merge_configs, read_pics_config
+from th_cli.validation import validate_directory_path, validate_file_path, validate_tc_params_file, validate_test_ids
 
 # Constants
 JSON_INDENT = 2
@@ -86,6 +86,23 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     help=colorize_help("Directory containing PICS XML configuration files. If not provided, no PICS will be used."),
 )
 @click.option(
+    "--tc-params-file",
+    "-m",
+    type=click.Path(file_okay=True, dir_okay=False),
+    help=colorize_help(
+        "Path to a JSON file that maps TC IDs to their test_parameters "
+        "(e.g. int-arg, string-arg, timeout). Entries are matched "
+        "case-insensitively with separators - _ . normalised. "
+        "TC IDs not found in the file are silently skipped."
+        "\n\n\b\nNOTE — Configuration precedence (lowest → highest priority):\n"
+        "  1. Project config        (persistent, from TH project)\n"
+        "  2. --tc-params-file      ← this option\n"
+        "  3. --config file         (execution-only override)\n"
+        "  4. -- inline args        (e.g. -- --int-arg PIXIT.X:1)\n"
+        "\nHigher-priority sources always win on conflicting keys."
+    ),
+)
+@click.option(
     "--project-id",
     type=int,
     help=colorize_help(
@@ -110,6 +127,7 @@ async def run_tests(
     tests_list: str,
     config: str | None = None,
     pics_config_folder: str | None = None,
+    tc_params_file: str | None = None,
     project_id: int | None = None,
     no_color: bool = False,
     no_streaming: bool = False,
@@ -122,6 +140,7 @@ async def run_tests(
         tests_list: Comma-separated list of test case identifiers
         config: Optional path to JSON configuration file
         pics_config_folder: Optional path to directory containing PICS XML files
+        tc_params_file: Optional path to TC parameters mapping JSON file
         project_id: Optional project ID for the test run
         no_color: Flag to disable colored output
 
@@ -146,6 +165,10 @@ async def run_tests(
         pics_path = validate_directory_path(pics_config_folder, must_exist=True)
         pics_config_folder = str(pics_path)
 
+    if tc_params_file:
+        tc_params_path = validate_tc_params_file(tc_params_file)
+        tc_params_file = str(tc_params_path)
+
     client = None
     _webrtc_handler = None
     try:
@@ -164,9 +187,11 @@ async def run_tests(
         project_config = await _get_project_config(async_apis, cli_project)
         project_config_dict = convert_nested_to_dict(project_config)
 
-        # Create execution config. If a config file is provided, merge it with the
-        # project config. Otherwise, just use a copy of the project config.
-        # This avoids modifying the original project_config_dict.
+        # Create execution config. If a config file is provided, load it separately
+        # so its test_parameters can be re-applied after the mapping file merge
+        # (keeping the correct priority order: project < mapping file < --config).
+        # Without a config file we just deep-copy the project config.
+        config_data: dict[str, Any] | None = None
         if config:
             config_data = load_json_config(config)
             test_run_config = merge_configs(project_config_dict, config_data)
@@ -184,6 +209,48 @@ async def run_tests(
         else:
             execution_pics = await _get_project_pics(cli_project)
             click.echo(colorize_key_value("PICS Used (From Project)", json.dumps(execution_pics, indent=JSON_INDENT)))
+
+        # Auto-populate test_parameters from a TC params mapping file.
+        # Priority (low → high): project config < mapping file < --config < -- inline args
+        #
+        # At this point test_run_config already contains the result of
+        # merge_configs(project, --config), so we can't tell which
+        # test_parameters came from the project and which from --config.
+        # To honour the correct priority we:
+        #   1. Start from the project-only test_parameters (lowest priority).
+        #   2. Layer the mapping file on top.
+        #   3. Re-apply --config test_parameters on top of that.
+        if tc_params_file:
+            mapping_params, missing_ids = load_tc_params_mapping(tc_params_file, validated_test_ids)
+            if missing_ids:
+                click.echo(
+                    colorize_warning(
+                        f"TC params mapping: no entry found for "
+                        f"{', '.join(missing_ids)} — "
+                        "using existing config or defaults for those tests"
+                    )
+                )
+            if mapping_params:
+                click.echo(
+                    colorize_key_value(
+                        "TC Params from Mapping File (Execution Only)",
+                        json.dumps(mapping_params, indent=JSON_INDENT),
+                    )
+                )
+                if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
+                    test_run_config["test_parameters"] = {}
+
+                # Step 1+2: project params then mapping file (mapping wins over project).
+                project_test_params = project_config_dict.get("test_parameters") or {}
+                test_run_config["test_parameters"] = {
+                    **project_test_params,
+                    **mapping_params,
+                }
+
+                # Step 3: re-apply --config test_parameters so they win over the mapping.
+                if config_data:
+                    config_test_params = config_data.get("test_parameters") or {}
+                    test_run_config["test_parameters"].update(config_test_params)
 
         # Merge extra test parameters if provided (temporary for this execution only)
         if extra_test_params:
