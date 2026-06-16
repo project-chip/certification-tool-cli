@@ -135,7 +135,9 @@ class TestGetVideoHandler:
 
     def test_creates_new_instance_when_none(self):
         mock_handler = MagicMock()
-        with patch("th_cli.test_run.prompt_manager.CameraStreamHandler", return_value=mock_handler):
+        # CameraStreamHandler is imported lazily inside _get_video_handler
+        # via `from .camera import CameraStreamHandler`, so patch the source
+        with patch("th_cli.test_run.camera.CameraStreamHandler", return_value=mock_handler):
             result = _get_video_handler()
         assert result is mock_handler
 
@@ -528,3 +530,124 @@ class TestHandleMessagePrompt:
         mock_send.assert_called_once()
         call_kwargs = mock_send.call_args[1]
         assert call_kwargs.get("response") == "ACK"
+
+
+# ---------------------------------------------------------------------------
+# __handle_stream_verification_prompt (lines 133-201)
+# Accessed via handle_prompt routing with STREAM_VERIFICATION_REQUEST type.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestHandleStreamVerificationPrompt:
+    """Cover __handle_stream_verification_prompt body via handle_prompt routing."""
+
+    def _mock_video_handler(self, stream_ready=True, user_answer=1, init_error=None):
+        vh = MagicMock()
+        vh.http_server = MagicMock()
+        vh.http_server.port = 8999
+        vh.set_prompt_data = MagicMock()
+        vh.start_video_capture_and_stream = AsyncMock(return_value=MagicMock())
+        vh.wait_for_stream_ready = AsyncMock(return_value=stream_ready)
+        vh.initialization_error = init_error
+        vh.wait_for_user_response = AsyncMock(return_value=user_answer)
+        vh.stop_video_capture_and_stream = AsyncMock(return_value=None)
+        return vh
+
+    def setup_method(self):
+        pm_module._video_handler_instance = None
+
+    def teardown_method(self):
+        pm_module._video_handler_instance = None
+
+    @pytest.mark.asyncio
+    async def test_sends_response_when_stream_ready_and_user_answers(self):
+        prompt = _make_stream_prompt()
+        mock_socket = AsyncMock()
+        vh = self._mock_video_handler(stream_ready=True, user_answer=1)
+        pm_module._video_handler_instance = vh
+
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager._get_local_ip", return_value="10.0.0.1"):
+                with patch("th_cli.test_run.prompt_manager.click.echo"):
+                    await handle_prompt(
+                        socket=mock_socket,
+                        request=prompt,
+                        message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+                    )
+
+        mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_sends_cancelled_when_stream_not_ready(self):
+        prompt = _make_stream_prompt()
+        mock_socket = AsyncMock()
+        vh = self._mock_video_handler(stream_ready=False, init_error="FFmpeg not found")
+        pm_module._video_handler_instance = vh
+
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager._get_local_ip", return_value="10.0.0.1"):
+                with patch("th_cli.test_run.prompt_manager.click.echo"):
+                    await handle_prompt(
+                        socket=mock_socket,
+                        request=prompt,
+                        message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+                    )
+
+        mock_send.assert_called_once()
+        call_kwargs = mock_send.call_args[1]
+        from th_cli.test_run.socket_schemas import UserResponseStatusEnum
+        assert call_kwargs.get("status_code") == UserResponseStatusEnum.CANCELLED
+
+    @pytest.mark.asyncio
+    async def test_sends_cancelled_when_stream_not_ready_no_init_error(self):
+        prompt = _make_stream_prompt()
+        mock_socket = AsyncMock()
+        vh = self._mock_video_handler(stream_ready=False, init_error=None)
+        pm_module._video_handler_instance = vh
+
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager._get_local_ip", return_value="10.0.0.1"):
+                with patch("th_cli.test_run.prompt_manager.click.echo"):
+                    await handle_prompt(
+                        socket=mock_socket,
+                        request=prompt,
+                        message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+                    )
+
+        mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_send_when_user_answer_is_none(self):
+        prompt = _make_stream_prompt()
+        mock_socket = AsyncMock()
+        vh = self._mock_video_handler(stream_ready=True, user_answer=None)
+        pm_module._video_handler_instance = vh
+
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager._get_local_ip", return_value="10.0.0.1"):
+                with patch("th_cli.test_run.prompt_manager.click.echo"):
+                    await handle_prompt(
+                        socket=mock_socket,
+                        request=prompt,
+                        message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+                    )
+
+        mock_send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_missing_options_returns_early(self):
+        """Covers line 136 — options missing/empty."""
+        prompt_no_opts = MagicMock(spec=StreamVerificationPromptRequest)
+        prompt_no_opts.options = {}
+        mock_socket = AsyncMock()
+
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager.click.echo"):
+                await handle_prompt(
+                    socket=mock_socket,
+                    request=prompt_no_opts,
+                    message_type=MessageTypeEnum.STREAM_VERIFICATION_REQUEST,
+                )
+
+        mock_send.assert_not_called()

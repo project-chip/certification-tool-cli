@@ -268,6 +268,21 @@ class TestStreamLogs:
         # Should have sent 200 headers but not crashed
         assert h._response_code == 200
 
+    def test_debug_log_at_100_entries(self):
+        """Covers line 134: `if sent_count % 100 == 0` debug message."""
+        q = queue.Queue()
+        # Put 100 log entries then sentinel
+        for i in range(100):
+            q.put({"message": f"msg{i}", "level": "INFO", "timestamp": "t"})
+        q.put(None)
+
+        h = _make_handler(server_attrs={"log_queue": q})
+        with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+            h.stream_logs()
+
+        # 100 entries should have triggered the debug log
+        mock_logger.debug.assert_called()
+
 
 # ---------------------------------------------------------------------------
 # serve_log_viewer()
