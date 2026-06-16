@@ -122,8 +122,7 @@ class TestLoadJsonConfigAdditional:
         with pytest.raises(CLIError):
             load_json_config(str(bad))
 
-    def test_returns_none_on_file_not_found(self, tmp_path):
-        # handle_file_error raises CLIError, not returns None — this path raises
+    def test_raises_cli_error_on_file_not_found(self, tmp_path):
         with pytest.raises(CLIError):
             load_json_config(str(tmp_path / "nonexistent.json"))
 
@@ -212,10 +211,9 @@ class TestGetCliVersion:
     def test_returns_unknown_on_ioerror(self, tmp_path):
         with patch("th_cli.utils.get_package_root", return_value=tmp_path):
             with patch("builtins.open", side_effect=IOError("read error")):
-                # Need pyproject.toml to exist so it tries to open it
+                # Need pyproject.toml to exist so the code attempts to open it
                 (tmp_path / "pyproject.toml").write_bytes(b"")
                 result = get_cli_version()
-        # IOError is caught → "unknown"
         assert result == "unknown"
 
 
