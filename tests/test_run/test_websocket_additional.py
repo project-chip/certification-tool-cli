@@ -34,8 +34,6 @@ from th_cli.api_lib_autogen.models import (
 )
 from th_cli.shared_constants import MessageTypeEnum, TestStateEnum as SharedTestStateEnum
 from th_cli.test_run.socket_schemas import (
-    OptionsSelectPromptRequest,
-    PromptResponse,
     TestCaseUpdate,
     TestLogRecord,
     TestRunUpdate,

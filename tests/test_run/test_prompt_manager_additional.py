@@ -219,23 +219,28 @@ class TestHandlePromptRouting:
         m.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_routes_stream_verification_by_type(self):
-        prompt = _make_options_prompt()
-        with patch("th_cli.test_run.prompt_manager.__handle_stream_verification_prompt", new_callable=AsyncMock, create=True):
-            with patch("th_cli.test_run.prompt_manager._VideoStreamVerification__handle_stream_verification_prompt", new_callable=AsyncMock, create=True):
+    async def test_routes_stream_verification_by_instance(self):
+        """StreamVerificationPromptRequest routes to __handle_stream_verification_prompt.
+        The handler is a module-level private function; patch _get_video_handler so it
+        returns a mock that completes the flow without real I/O."""
+        stream_prompt = _make_stream_prompt()
+        mock_socket = AsyncMock()
+        with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+            with patch("th_cli.test_run.prompt_manager._get_local_ip", return_value="10.0.0.1"):
                 with patch("th_cli.test_run.prompt_manager.click.echo"):
-                    # Use instance routing
-                    stream_prompt = _make_stream_prompt()
-                    with patch("th_cli.test_run.prompt_manager._VideoStreamVerification__handle_stream_verification_prompt", new_callable=AsyncMock, create=True) as m:
-                        # The actual private function name inside module
-                        with patch("th_cli.test_run.prompt_manager." + "_VideoStreamHandler__handle_stream_verification_prompt", new_callable=AsyncMock, create=True):
-                            pass
-            # Just verify it doesn't crash when routing by instance
-            with patch("th_cli.test_run.prompt_manager.click.echo"):
-                try:
-                    await handle_prompt(socket=AsyncMock(), request=stream_prompt)
-                except Exception:
-                    pass  # Errors in sub-handlers are OK for routing test
+                    vh = MagicMock()
+                    vh.http_server = MagicMock()
+                    vh.http_server.port = 8999
+                    vh.set_prompt_data = MagicMock()
+                    vh.start_video_capture_and_stream = AsyncMock()
+                    vh.wait_for_stream_ready = AsyncMock(return_value=True)
+                    vh.wait_for_user_response = AsyncMock(return_value=1)
+                    vh.stop_video_capture_and_stream = AsyncMock()
+                    pm_module._video_handler_instance = vh
+                    await handle_prompt(socket=mock_socket, request=stream_prompt)
+                    pm_module._video_handler_instance = None
+
+        mock_send.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_routes_push_av_by_type(self):
@@ -259,7 +264,6 @@ class TestHandlePromptRouting:
                     socket=mock_socket, request=prompt,
                     message_type=MessageTypeEnum.MESSAGE_REQUEST,
                 )
-        # Should not raise
 
     @pytest.mark.asyncio
     async def test_routes_message_prompt_by_instance(self):
@@ -452,39 +456,46 @@ class TestHandlePushAvStreamPrompt:
 # ---------------------------------------------------------------------------
 # __upload_file_and_send_response (module-private)
 # ---------------------------------------------------------------------------
+# __upload_file_and_send_response is a module-level double-underscore function.
+# Module-level dunder-prefix names are NOT name-mangled (only class-level names
+# are mangled), so it appears in pm_module.__dict__ under a CPython-internal
+# obfuscated key.  We discover it by scanning for any callable that contains
+# "upload_file" in its name.
+# ---------------------------------------------------------------------------
+
+
+def _find_upload_fn():
+    """Return the module-private __upload_file_and_send_response function."""
+    for name, obj in pm_module.__dict__.items():
+        if "upload_file" in name and callable(obj):
+            return obj
+    return None
 
 
 @pytest.mark.unit
 class TestUploadFileAndSendResponse:
     @pytest.mark.asyncio
     async def test_sends_empty_response_when_file_not_found(self):
+        fn = _find_upload_fn()
+        if fn is None:
+            pytest.skip("__upload_file_and_send_response not accessible")
+
         prompt = _make_message_prompt()
         mock_socket = AsyncMock()
 
         with patch("th_cli.test_run.prompt_manager.os.path.isfile", return_value=False):
             with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
                 with patch("th_cli.test_run.prompt_manager.click.echo"):
-                    await pm_module.__dict__["_PromptManager__upload_file_and_send_response"] if False else None
-                    # Call directly via module private name
-                    await pm_module._TestHandleFileUpload__upload_file_and_send_response if False else None
-                    # Access via actual mangled name
-                    fn = getattr(pm_module, "_PromptManager__upload_file_and_send_response", None) or \
-                         getattr(pm_module, "__upload_file_and_send_response", None)
-                    if fn is None:
-                        # Module-level __ functions are not name-mangled; access via globals
-                        import types
-                        for name, obj in pm_module.__dict__.items():
-                            if "upload_file" in name and callable(obj):
-                                fn = obj
-                                break
-                    if fn:
-                        await fn(socket=mock_socket, file_path="/nonexistent.txt", prompt=prompt)
+                    await fn(socket=mock_socket, file_path="/nonexistent.txt", prompt=prompt)
 
-        if mock_send.call_count > 0:
-            assert mock_send.called
+        mock_send.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_sends_empty_response_when_file_too_large(self, tmp_path):
+        fn = _find_upload_fn()
+        if fn is None:
+            pytest.skip("__upload_file_and_send_response not accessible")
+
         big_file = tmp_path / "big.txt"
         big_file.write_bytes(b"x")
         prompt = _make_message_prompt()
@@ -494,21 +505,13 @@ class TestUploadFileAndSendResponse:
             with patch("th_cli.test_run.prompt_manager.os.path.getsize", return_value=200 * 1024 * 1024):
                 with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
                     with patch("th_cli.test_run.prompt_manager.click.echo"):
-                        fn = None
-                        for name, obj in pm_module.__dict__.items():
-                            if "upload_file" in name and callable(obj):
-                                fn = obj
-                                break
-                        if fn:
-                            await fn(socket=mock_socket, file_path=str(big_file), prompt=prompt)
+                        await fn(socket=mock_socket, file_path=str(big_file), prompt=prompt)
 
-        # Verify it handled the too-large case
-        if mock_send.call_count > 0:
-            assert mock_send.called
+        mock_send.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
-# __handle_message_prompt (covers lines 387-390)
+# __handle_message_prompt
 # ---------------------------------------------------------------------------
 
 
@@ -533,7 +536,7 @@ class TestHandleMessagePrompt:
 
 
 # ---------------------------------------------------------------------------
-# __handle_stream_verification_prompt (lines 133-201)
+# __handle_stream_verification_prompt
 # Accessed via handle_prompt routing with STREAM_VERIFICATION_REQUEST type.
 # ---------------------------------------------------------------------------
 
