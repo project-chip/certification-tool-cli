@@ -215,7 +215,8 @@ class TestHandleFileError:
         e = self._make_fnf("/config.json")
         with pytest.raises(CLIError) as exc_info:
             handle_file_error(e, file_type="config file")
-        assert "Config file" in exc_info.value.format_message()
+        # file_type.title() → "Config File"
+        assert "Config File" in exc_info.value.format_message()
 
     def test_default_file_type_is_file(self):
         e = self._make_fnf("/some/path")
