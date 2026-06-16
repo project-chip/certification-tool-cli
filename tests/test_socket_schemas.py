@@ -38,6 +38,8 @@ from th_cli.test_run.socket_schemas import (
     TwoWayTalkVerificationRequest,
     UserResponseStatusEnum,
 )
+# socket_schemas uses shared_constants.TestStateEnum (uppercase str enum: PASSED, FAILED …)
+# and shared_constants.MessageTypeEnum
 from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
 
 
@@ -73,17 +75,17 @@ class TestUserResponseStatusEnum:
 @pytest.mark.unit
 class TestTestRunUpdate:
     def test_valid_construction(self):
-        obj = TestRunUpdate(state=TestStateEnum.passed, test_run_execution_id=1)
-        assert obj.state == TestStateEnum.passed
+        obj = TestRunUpdate(state=TestStateEnum.PASSED, test_run_execution_id=1)
+        assert obj.state == TestStateEnum.PASSED
         assert obj.test_run_execution_id == 1
 
     def test_optional_errors_none_by_default(self):
-        obj = TestRunUpdate(state=TestStateEnum.failed, test_run_execution_id=2)
+        obj = TestRunUpdate(state=TestStateEnum.FAILED, test_run_execution_id=2)
         assert obj.errors is None
 
     def test_with_errors_and_failures(self):
         obj = TestRunUpdate(
-            state=TestStateEnum.error,
+            state=TestStateEnum.ERROR,
             test_run_execution_id=3,
             errors=["err1"],
             failures=["fail1"],
@@ -100,12 +102,12 @@ class TestTestRunUpdate:
 @pytest.mark.unit
 class TestTestSuiteUpdate:
     def test_valid_construction(self):
-        obj = TestSuiteUpdate(state=TestStateEnum.executing, test_suite_execution_index=0)
+        obj = TestSuiteUpdate(state=TestStateEnum.EXECUTING, test_suite_execution_index=0)
         assert obj.test_suite_execution_index == 0
 
     def test_missing_required_field_raises(self):
         with pytest.raises(ValidationError):
-            TestSuiteUpdate(state=TestStateEnum.passed)
+            TestSuiteUpdate(state=TestStateEnum.PASSED)
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +119,7 @@ class TestTestSuiteUpdate:
 class TestTestCaseUpdate:
     def test_valid_construction(self):
         obj = TestCaseUpdate(
-            state=TestStateEnum.passed,
+            state=TestStateEnum.PASSED,
             test_suite_execution_index=1,
             test_case_execution_index=2,
         )
@@ -134,7 +136,7 @@ class TestTestCaseUpdate:
 class TestTestStepUpdate:
     def test_valid_construction(self):
         obj = TestStepUpdate(
-            state=TestStateEnum.pending,
+            state=TestStateEnum.PENDING,
             test_suite_execution_index=0,
             test_case_execution_index=1,
             test_step_execution_index=2,
@@ -143,7 +145,7 @@ class TestTestStepUpdate:
 
     def test_inherits_from_test_case_update(self):
         obj = TestStepUpdate(
-            state=TestStateEnum.passed,
+            state=TestStateEnum.PASSED,
             test_suite_execution_index=0,
             test_case_execution_index=0,
             test_step_execution_index=0,
@@ -159,18 +161,18 @@ class TestTestStepUpdate:
 @pytest.mark.unit
 class TestTestUpdate:
     def test_with_run_update_body(self):
-        body = TestRunUpdate(state=TestStateEnum.passed, test_run_execution_id=1)
+        body = TestRunUpdate(state=TestStateEnum.PASSED, test_run_execution_id=1)
         obj = TestUpdate(test_type="test_run", body=body)
         assert obj.test_type == "test_run"
 
     def test_with_suite_update_body(self):
-        body = TestSuiteUpdate(state=TestStateEnum.executing, test_suite_execution_index=0)
+        body = TestSuiteUpdate(state=TestStateEnum.EXECUTING, test_suite_execution_index=0)
         obj = TestUpdate(test_type="test_suite", body=body)
         assert obj.test_type == "test_suite"
 
     def test_with_step_update_body(self):
         body = TestStepUpdate(
-            state=TestStateEnum.passed,
+            state=TestStateEnum.PASSED,
             test_suite_execution_index=0,
             test_case_execution_index=0,
             test_step_execution_index=1,
@@ -425,7 +427,7 @@ class TestSocketMessage:
         assert isinstance(msg.payload, list)
 
     def test_with_test_update_payload(self):
-        body = TestRunUpdate(state=TestStateEnum.passed, test_run_execution_id=1)
+        body = TestRunUpdate(state=TestStateEnum.PASSED, test_run_execution_id=1)
         update = TestUpdate(test_type="test_run", body=body)
         msg = SocketMessage(type=MessageTypeEnum.TEST_UPDATE, payload=update)
         assert isinstance(msg.payload, TestUpdate)

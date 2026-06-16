@@ -143,10 +143,7 @@ class TestConfigurationError:
 @pytest.mark.unit
 class TestHandleApiError:
     def _make_unexpected_response(self, status_code, content):
-        err = UnexpectedResponse.__new__(UnexpectedResponse)
-        err.status_code = status_code
-        err.content = content
-        return err
+        return UnexpectedResponse(status_code=status_code, content=content)
 
     def test_raises_api_error(self):
         e = self._make_unexpected_response(500, b"server error")

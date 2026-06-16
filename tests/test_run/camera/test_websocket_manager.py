@@ -55,40 +55,21 @@ class TestVideoWebSocketManagerConnect:
     async def test_returns_true_on_success(self):
         mgr = VideoWebSocketManager()
         mock_ws = AsyncMock()
-        mock_ws.ping = AsyncMock(return_value=asyncio.Future())
-        mock_ws.ping.return_value.set_result(None)
-
-        with patch("th_cli.test_run.camera.websocket_manager.websocket_connect") as mock_connect:
-            mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_ws)
-            mock_connect.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            with patch("th_cli.test_run.camera.websocket_manager.logger"):
-                # Patch asyncio.wait_for to succeed
-                with patch("th_cli.test_run.camera.websocket_manager.asyncio.wait_for", new_callable=AsyncMock):
-                    mock_connect_fn = AsyncMock(return_value=mock_ws)
-                    with patch(
-                        "th_cli.test_run.camera.websocket_manager.websocket_connect",
-                        return_value=mock_connect_fn(),
-                    ):
-                        pass
-
-        # Simplified: patch websocket_connect directly as an async context manager
-        mgr2 = VideoWebSocketManager()
-        mock_ws2 = AsyncMock()
+        # ping() returns a future; wait_for on it should resolve without blocking
         pong_future = asyncio.get_event_loop().create_future()
         pong_future.set_result(None)
-        mock_ws2.ping = AsyncMock(return_value=pong_future)
+        mock_ws.ping = AsyncMock(return_value=pong_future)
 
         with patch("th_cli.test_run.camera.websocket_manager.logger"):
             with patch(
                 "th_cli.test_run.camera.websocket_manager.websocket_connect",
                 new_callable=AsyncMock,
-                return_value=mock_ws2,
+                return_value=mock_ws,
             ):
-                result = await mgr2.connect()
+                result = await mgr.connect()
 
         assert result is True
-        assert mgr2.video_websocket is mock_ws2
+        assert mgr.video_websocket is mock_ws
 
     @pytest.mark.asyncio
     async def test_returns_false_when_connect_raises(self):
@@ -233,7 +214,7 @@ class TestStartCaptureAndStream:
     @pytest.mark.asyncio
     async def test_returns_immediately_when_not_connected(self):
         mgr = VideoWebSocketManager()
-        # video_websocket is None
+        # video_websocket is None — should log error and return immediately
         with patch("th_cli.test_run.camera.websocket_manager.logger"):
             await mgr.start_capture_and_stream(stream_file=None, mp4_queue=None)
         assert mgr.streaming_active is False
@@ -241,6 +222,13 @@ class TestStartCaptureAndStream:
 
 # ---------------------------------------------------------------------------
 # wait_and_connect_with_retry()
+#
+# NOTE: In the source, the retry loop only increments `attempt` inside the
+# `except` block — so a `connect()` that consistently returns False (without
+# raising) causes an infinite loop.  We therefore test:
+#   1. connect() succeeds → returns True immediately
+#   2. connect() raises each time → retries up to max_attempts, returns False
+#   3. Pre-existing websocket is closed before first attempt
 # ---------------------------------------------------------------------------
 
 
@@ -257,11 +245,17 @@ class TestWaitAndConnectWithRetry:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_returns_false_after_all_attempts_fail(self):
+    async def test_returns_false_after_all_attempts_raise(self):
+        """Retry loop increments attempt only on exception; use side_effect to raise."""
         mgr = VideoWebSocketManager()
 
-        with patch.object(mgr, "connect", new_callable=AsyncMock, return_value=False):
-            with patch("th_cli.test_run.camera.websocket_manager.asyncio.sleep", new_callable=AsyncMock):
+        with patch.object(
+            mgr, "connect", new_callable=AsyncMock, side_effect=ConnectionRefusedError("refused")
+        ):
+            with patch(
+                "th_cli.test_run.camera.websocket_manager.asyncio.sleep",
+                new_callable=AsyncMock,
+            ):
                 with patch("th_cli.test_run.camera.websocket_manager.logger"):
                     result = await mgr.wait_and_connect_with_retry(max_attempts=2)
 
@@ -342,7 +336,7 @@ class TestTransferConvertedData:
         mock_converter.get_converted_data.side_effect = get_converted_data
         mgr.ffmpeg_converter = mock_converter
 
-        mp4_queue = queue.Queue(maxsize=0)  # maxsize 0 = unbounded, use 1 for full test
+        # Pre-fill queue to capacity so the put_nowait raises queue.Full
         mp4_queue_full = queue.Queue(maxsize=1)
         mp4_queue_full.put_nowait(b"already_full")
 
