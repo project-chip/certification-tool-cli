@@ -728,3 +728,112 @@ class TestImportProjectCommand:
 
         assert result.exit_code == 0
         assert "--file" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestProjectLogsCommand:
+    """Test cases for the project logs command."""
+
+    def test_logs_flat_success_default_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful flat log download with auto-generated filename."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"log content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1"])
+
+        assert result.exit_code == 0
+        assert "saved to" in result.output
+        assert "flat" in result.output
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.assert_called_once_with(
+            id=1, grouped=False
+        )
+
+    def test_logs_grouped_success_default_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful grouped log download with auto-generated filename."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1", "--grouped"])
+
+        assert result.exit_code == 0
+        assert "grouped" in result.output
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.assert_called_once_with(
+            id=1, grouped=True
+        )
+
+    def test_logs_custom_output_file(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test log download to a specified output file."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        output_path = str(temp_dir / "my_logs.zip")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "1", "--output-file", output_path])
+
+        assert result.exit_code == 0
+        assert f"saved to '{output_path}'" in result.output
+        assert Path(output_path).read_bytes() == b"zip content"
+
+    def test_logs_file_content_is_written(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test that the downloaded bytes are written correctly to disk."""
+        expected_bytes = b"PK\x03\x04fakezipdata"
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = expected_bytes
+        output_path = str(temp_dir / "output.zip")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            cli_runner.invoke(project, ["logs", "--id", "42", "--output-file", output_path])
+
+        assert Path(output_path).read_bytes() == expected_bytes
+
+    def test_logs_api_error(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """Test log download with API error."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(status_code=404, content=b"Not Found")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "404" in result.output
+
+    def test_logs_help_message(self, cli_runner: CliRunner) -> None:
+        """Test the help message for the logs command."""
+        result = cli_runner.invoke(project, ["logs", "--help"])
+
+        assert result.exit_code == 0
+        assert "--id" in result.output
+        assert "--grouped" in result.output
+        assert "--output-file" in result.output

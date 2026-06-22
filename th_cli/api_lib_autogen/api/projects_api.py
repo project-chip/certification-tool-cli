@@ -177,7 +177,7 @@ class _ProjectsApi:
             path_params=path_params,
         )
 
-    def _build_for_export_project_config_api_v1_projects__id__export_get(
+        def _build_for_export_project_config_api_v1_projects__id__export_get(
         self, id: int
     ) -> Coroutine[Any, Any, m.ProjectCreate]:
         """
@@ -187,6 +187,25 @@ class _ProjectsApi:
 
         return self.api_client.request(
             type_=m.ProjectCreate, method="GET", url="/api/v1/projects/{id}/export", path_params=path_params
+        )
+
+    def _build_for_download_project_logs_api_v1_projects__id__logs_get(
+        self, id: int, grouped: bool = False
+    ) -> Coroutine[Any, Any, bytes]:
+        """
+        Download Project Logs
+        """
+        path_params = {"id": str(id)}
+        query_params: dict[str, Any] = {}
+        if grouped:
+            query_params["grouped"] = "true"
+
+        return self.api_client.request(
+            type_=bytes,
+            method="GET",
+            url="/api/v1/projects/{id}/logs",
+            path_params=path_params,
+            params=query_params,
         )
 
     def _build_for_importproject_config_api_v1_projects_import_post(
@@ -303,6 +322,16 @@ class AsyncProjectsApi(_ProjectsApi):
         """
         return await self._build_for_importproject_config_api_v1_projects_import_post(body=body)
 
+    async def download_project_logs_api_v1_projects__id__logs_get(
+        self, id: int, grouped: bool = False
+    ) -> bytes:
+        """
+        Download Project Logs
+        """
+        return await self._build_for_download_project_logs_api_v1_projects__id__logs_get(
+            id=id, grouped=grouped
+        )
+
 
 class SyncProjectsApi(_ProjectsApi):
     def read_projects_api_v1_projects__get(
@@ -406,4 +435,15 @@ class SyncProjectsApi(_ProjectsApi):
         Importproject Config
         """
         coroutine = self._build_for_importproject_config_api_v1_projects_import_post(body=body)
+        return get_event_loop().run_until_complete(coroutine)
+
+    def download_project_logs_api_v1_projects__id__logs_get(
+        self, id: int, grouped: bool = False
+    ) -> bytes:
+        """
+        Download Project Logs
+        """
+        coroutine = self._build_for_download_project_logs_api_v1_projects__id__logs_get(
+            id=id, grouped=grouped
+        )
         return get_event_loop().run_until_complete(coroutine)
