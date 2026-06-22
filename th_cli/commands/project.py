@@ -438,14 +438,12 @@ def _export_project(sync_apis: SyncApis, id: int, output_file: str | None) -> No
     except UnexpectedResponse as e:
         handle_api_error(e, f"export project ID '{id}'")
 
-    export_data = project_create.model_dump()
-
     if not output_file:
         safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (project_create.name or f"project-{id}"))
         output_file = f"{safe_name}-project-config.json"
 
     try:
-        Path(output_file).write_text(json.dumps(export_data, indent=2))
+        Path(output_file).write_text(project_create.model_dump_json(indent=2))
         click.echo(colorize_success(f"Project {id} exported to '{output_file}'"))
     except OSError as e:
         raise CLIError(f"Failed to write export file '{output_file}': {e}")
@@ -455,8 +453,10 @@ def _import_project(sync_apis: SyncApis, file: str) -> None:
     """Import a project config from a JSON file"""
     try:
         file_bytes = Path(file).read_bytes()
+    except FileNotFoundError as e:
+        handle_file_error(e, "import file")
     except OSError as e:
-        handle_file_error(FileNotFoundError(e), "import file")
+        raise CLIError(f"Failed to read import file '{file}': {e}")
 
     body = BodyImportprojectConfigApiV1ProjectsImportPost(import_file=file_bytes)
 
