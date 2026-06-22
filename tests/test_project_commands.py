@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Tests for the project commands (create, delete, list, update)."""
+"""Tests for the project commands (create, delete, list, update, export, import)."""
 
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
