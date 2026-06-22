@@ -177,7 +177,7 @@ class _ProjectsApi:
             path_params=path_params,
         )
 
-        def _build_for_export_project_config_api_v1_projects__id__export_get(
+    def _build_for_export_project_config_api_v1_projects__id__export_get(
         self, id: int
     ) -> Coroutine[Any, Any, m.ProjectCreate]:
         """
