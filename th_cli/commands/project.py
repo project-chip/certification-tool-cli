@@ -15,6 +15,7 @@
 #
 import json
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import click
@@ -22,7 +23,7 @@ from pydantic import ValidationError
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.api_lib_autogen.models import PICS, Project, ProjectCreate, ProjectUpdate
+from th_cli.api_lib_autogen.models import PICS, BodyImportprojectConfigApiV1ProjectsImportPost, Project, ProjectCreate, ProjectUpdate
 from th_cli.client import get_client
 from th_cli.colorize import (
     colorize_cmd_help,
@@ -206,6 +207,49 @@ def delete(id: int, yes: bool) -> None:
         _delete_project(sync_apis, id)
 
 
+# Click command to export a project config
+@project.command(
+    "export",
+    short_help=colorize_help("Export a project config to a JSON file"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID to export"),
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(file_okay=True, dir_okay=False),
+    required=False,
+    help=colorize_help("Output JSON file path (defaults to <project-name>-project-config.json)"),
+)
+def export(id: int, output_file: str | None) -> None:
+    """Export a project config to a JSON file"""
+    with get_sync_apis("export") as sync_apis:
+        _export_project(sync_apis, id, output_file)
+
+
+# Click command to import a project config from a JSON file
+@project.command(
+    "import",
+    short_help=colorize_help("Import a project config from a JSON file"),
+)
+@click.option(
+    "--file",
+    "-f",
+    type=click.Path(file_okay=True, dir_okay=False, exists=True),
+    required=True,
+    help=colorize_help("JSON file previously exported with 'project export'"),
+)
+def import_project(file: str) -> None:
+    """Import a project config from a JSON file"""
+    with get_sync_apis("import") as sync_apis:
+        _import_project(sync_apis, file)
+
+
 def _create_project(sync_apis: SyncApis, name: str, config: str | None, pics_config_folder: str | None) -> None:
     """Create a new project"""
     # Get default config
@@ -371,3 +415,41 @@ def _delete_project(sync_apis: SyncApis, id: int) -> None:
         click.echo(colorize_success(f"Project {id} was deleted."))
     except UnexpectedResponse as e:
         handle_api_error(e, f"delete project ID '{id}'")
+
+
+def _export_project(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
+    """Export a project config to a JSON file"""
+    try:
+        project_create: ProjectCreate = sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get(
+            id=id
+        )
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"export project ID '{id}'")
+
+    if not output_file:
+        safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (project_create.name or f"project-{id}"))
+        output_file = f"{safe_name}-project-config.json"
+
+    try:
+        Path(output_file).write_text(project_create.model_dump_json(indent=2))
+        click.echo(colorize_success(f"Project {id} exported to '{output_file}'"))
+    except OSError as e:
+        raise CLIError(f"Failed to write export file '{output_file}': {e}")
+
+
+def _import_project(sync_apis: SyncApis, file: str) -> None:
+    """Import a project config from a JSON file"""
+    try:
+        file_bytes = Path(file).read_bytes()
+    except FileNotFoundError as e:
+        handle_file_error(e, "import file")
+    except OSError as e:
+        raise CLIError(f"Failed to read import file '{file}': {e}")
+
+    body = BodyImportprojectConfigApiV1ProjectsImportPost(import_file=file_bytes)
+
+    try:
+        response: Project = sync_apis.projects_api.importproject_config_api_v1_projects_import_post(body=body)
+        click.echo(colorize_success(f"Project '{response.name}' imported with ID {response.id}"))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"import project from '{file}'")
