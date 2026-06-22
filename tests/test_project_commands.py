@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Tests for the project commands (create, delete, list, update)."""
+"""Tests for the project commands (create, delete, list, update, export, import)."""
 
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -519,3 +520,211 @@ class TestUpdateProjectCommand:
         assert "update" in result.output
         assert "--id" in result.output
         assert "--config" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestExportProjectCommand:
+    """Test cases for the project export command."""
+
+    def test_export_project_success_default_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful project export with auto-generated filename."""
+        # Arrange
+        project_create = api_models.ProjectCreate(
+            name="Test Project",
+            config=sample_project.config,
+            pics=api_models.PICS(clusters={}),
+        )
+        mock_sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get.return_value = (
+            project_create
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                # Act
+                result = cli_runner.invoke(project, ["export", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "exported to" in result.output
+        mock_sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get.assert_called_once_with(id=1)
+
+    def test_export_project_success_custom_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful project export to a specified output file."""
+        # Arrange
+        project_create = api_models.ProjectCreate(
+            name="Test Project",
+            config=sample_project.config,
+            pics=api_models.PICS(clusters={}),
+        )
+        mock_sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get.return_value = (
+            project_create
+        )
+        output_path = str(temp_dir / "my_export.json")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(project, ["export", "--id", "1", "--output-file", output_path])
+
+        # Assert
+        assert result.exit_code == 0
+        assert f"exported to '{output_path}'" in result.output
+        assert Path(output_path).exists()
+        saved = json.loads(Path(output_path).read_text())
+        assert saved["name"] == "Test Project"
+
+    def test_export_project_file_content_is_valid_json(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test that the exported file contains valid JSON matching the project config."""
+        # Arrange
+        project_create = api_models.ProjectCreate(
+            name="My Device",
+            config=sample_project.config,
+            pics=api_models.PICS(clusters={}),
+        )
+        mock_sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get.return_value = (
+            project_create
+        )
+        output_path = str(temp_dir / "export.json")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["export", "--id", "42", "--output-file", output_path])
+
+        assert result.exit_code == 0
+        data = json.loads(Path(output_path).read_text())
+        assert data["name"] == "My Device"
+        assert "config" in data
+
+    def test_export_project_api_error(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """Test project export with API error."""
+        # Arrange
+        mock_sync_apis.projects_api.export_project_config_api_v1_projects__id__export_get.side_effect = (
+            UnexpectedResponse(status_code=404, content=b"Not Found")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["export", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "Error: Failed to export project ID '99' (Status: 404) - Not Found" in result.output
+
+    def test_export_project_help_message(self, cli_runner: CliRunner) -> None:
+        """Test the help message for the export command."""
+        result = cli_runner.invoke(project, ["export", "--help"])
+
+        assert result.exit_code == 0
+        assert "--id" in result.output
+        assert "--output-file" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestImportProjectCommand:
+    """Test cases for the project import command."""
+
+    def test_import_project_success(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful project import from a JSON file."""
+        # Arrange
+        import_file = temp_dir / "import.json"
+        import_file.write_text(
+            json.dumps({"name": "Imported Project", "config": sample_project.config, "pics": {"clusters": {}}})
+        )
+        mock_sync_apis.projects_api.importproject_config_api_v1_projects_import_post.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["import", "--file", str(import_file)])
+
+        # Assert
+        assert result.exit_code == 0
+        assert f"Project '{sample_project.name}' imported with ID {sample_project.id}" in result.output
+        mock_sync_apis.projects_api.importproject_config_api_v1_projects_import_post.assert_called_once()
+
+    def test_import_project_file_not_found(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """Test project import with a non-existent file (Click validates exists=True)."""
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["import", "--file", "nonexistent.json"])
+
+        assert result.exit_code == 2
+        assert "does not exist" in result.output
+
+    def test_import_project_api_error(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test project import with API error."""
+        # Arrange
+        import_file = temp_dir / "import.json"
+        import_file.write_text(
+            json.dumps({"name": "Imported Project", "config": sample_project.config, "pics": {"clusters": {}}})
+        )
+        mock_sync_apis.projects_api.importproject_config_api_v1_projects_import_post.side_effect = (
+            UnexpectedResponse(status_code=422, content=b"Unprocessable Entity")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["import", "--file", str(import_file)])
+
+        assert result.exit_code == 1
+        assert "422" in result.output
+
+    def test_import_project_passes_file_bytes_to_api(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test that the import command sends the file bytes to the API correctly."""
+        # Arrange
+        payload = {"name": "Byte Check Project", "config": sample_project.config, "pics": {"clusters": {}}}
+        import_file = temp_dir / "import.json"
+        import_file.write_text(json.dumps(payload))
+        mock_sync_apis.projects_api.importproject_config_api_v1_projects_import_post.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            cli_runner.invoke(project, ["import", "--file", str(import_file)])
+
+        call_args = mock_sync_apis.projects_api.importproject_config_api_v1_projects_import_post.call_args
+        body = call_args.kwargs["body"]
+        assert body.import_file == import_file.read_bytes()
+
+    def test_import_project_help_message(self, cli_runner: CliRunner) -> None:
+        """Test the help message for the import command."""
+        result = cli_runner.invoke(project, ["import", "--help"])
+
+        assert result.exit_code == 0
+        assert "--file" in result.output

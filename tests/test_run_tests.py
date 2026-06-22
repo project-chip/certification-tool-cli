@@ -593,7 +593,7 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 0
-        mock_configure_logger.assert_called_once_with(title="Custom Logger Test")
+        mock_configure_logger.assert_called_once_with(title="Custom Logger Test", enable_log_streaming=True)
         assert "Log output in: /path/to/test_logs/custom_run.log" in result.output
 
     def test_run_tests_default_title_generation(
