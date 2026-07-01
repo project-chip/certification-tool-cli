@@ -829,6 +829,26 @@ class TestProjectLogsCommand:
         assert result.exit_code == 1
         assert "404" in result.output
 
+    def test_logs_falls_back_to_default_filename_when_project_name_lookup_fails(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """Logs are still written even if fetching the project name fails."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.side_effect = RuntimeError(
+            "network glitch"
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "7"])
+
+        assert result.exit_code == 0
+        assert "saved to 'project-7-logs.zip'" in result.output
+        assert Path("project-7-logs.zip").read_bytes() == b"zip content"
+
     def test_logs_help_message(self, cli_runner: CliRunner) -> None:
         """Test the help message for the logs command."""
         result = cli_runner.invoke(project, ["logs", "--help"])

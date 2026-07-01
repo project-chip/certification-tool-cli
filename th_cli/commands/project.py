@@ -519,7 +519,11 @@ def _download_project_logs(
             safe_name = "".join(
                 c if c.isalnum() or c in "-_" else "_" for c in (project.name or f"project-{id}")
             )
-        except UnexpectedResponse:
+        except Exception:
+            # The logs have already been downloaded successfully at this point;
+            # any failure fetching the project name (network glitch, unexpected
+            # response shape, etc.) should just fall back to a safe default
+            # filename instead of discarding the downloaded bytes.
             safe_name = f"project-{id}"
         output_file = f"{safe_name}-logs.zip"
 
