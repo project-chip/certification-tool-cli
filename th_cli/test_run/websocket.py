@@ -39,6 +39,7 @@ from th_cli.colorize import (
 from th_cli.config import config
 from th_cli.shared_constants import MessageTypeEnum
 
+from .logging import get_log_stream_handler
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
     PromptRequest,
@@ -163,6 +164,13 @@ class TestRunSocket:
             await self.__display_manual_pairing_code()
             self._chip_server_info_displayed = True
 
+        handler = get_log_stream_handler()
+        if handler:
+            if update.state.value == "executing":
+                handler.init_tree(self.run)
+            else:
+                handler.update_tree_node(state=update.state.value)
+
         test_run_text = colorize_hierarchy_prefix("Test Run", HierarchyEnum.TEST_RUN.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"{test_run_text} {colored_state}")
@@ -219,6 +227,13 @@ class TestRunSocket:
         colored_state = colorize_state(update.state.value)
         click.echo(f"  - {colored_title} {colored_state}")
 
+        handler = get_log_stream_handler()
+        if handler:
+            handler.update_tree_node(
+                state=update.state.value,
+                suite_idx=update.test_suite_execution_index,
+            )
+
     def __log_test_case_update(self, update: TestCaseUpdate) -> None:
         case = self.__case(index=update.test_case_execution_index, suite_index=update.test_suite_execution_index)
         title = case.test_case_metadata.title
@@ -266,6 +281,14 @@ class TestRunSocket:
             if case_key in self.test_case_step_errors:
                 del self.test_case_step_errors[case_key]
 
+        handler = get_log_stream_handler()
+        if handler:
+            handler.update_tree_node(
+                state=update.state.value,
+                suite_idx=update.test_suite_execution_index,
+                case_idx=update.test_case_execution_index,
+            )
+
     def __log_test_step_update(self, update: TestStepUpdate) -> None:
         step = self.__step(
             index=update.test_step_execution_index,
@@ -283,6 +306,15 @@ class TestRunSocket:
             case_key = (update.test_suite_execution_index, update.test_case_execution_index)
             self.test_case_step_errors.setdefault(case_key, []).extend(update.errors)
             logger.debug(f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}")
+
+        handler = get_log_stream_handler()
+        if handler:
+            handler.update_tree_node(
+                state=update.state.value,
+                suite_idx=update.test_suite_execution_index,
+                case_idx=update.test_case_execution_index,
+                step_idx=update.test_step_execution_index,
+            )
 
     def __handle_log_record(self, records: list[TestLogRecord]) -> None:
         for record in records:

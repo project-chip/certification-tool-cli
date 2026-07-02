@@ -104,10 +104,17 @@ def stop_log_streaming():
 
 def get_log_stream_url() -> Optional[str]:
     """Get the URL for the log viewer if streaming is enabled.
-    
+
     Returns:
         URL string or None if streaming is not enabled
     """
     if _log_stream_handler and _log_stream_handler.is_running:
         return _log_stream_handler._get_log_viewer_url()
+    return None
+
+
+def get_log_stream_handler() -> Optional["LogStreamHandler"]:
+    """Return the active LogStreamHandler, or None if streaming is disabled."""
+    if _log_stream_handler and _log_stream_handler.is_running:
+        return _log_stream_handler
     return None

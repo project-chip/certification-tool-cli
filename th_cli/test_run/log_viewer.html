@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>Real-Time Log Viewer</title>
     <style>
+        *, *::before, *::after {{ box-sizing: border-box; }}
+
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f5f5;
@@ -11,216 +13,298 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }}
 
+        /* ── Top header ─────────────────────────────────────────────── */
         .matter-header {{
             background: white;
             border-bottom: 1px solid #e0e0e0;
-            padding: 12px 20px;
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            z-index: 10;
         }}
 
-        .header-start {{
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
-
-        .header-title {{
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }}
-
-        .header-end {{
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
+        .header-start {{ display: flex; align-items: center; gap: 15px; }}
+        .header-title {{ font-size: 17px; font-weight: 600; color: #333; margin: 0; }}
+        .header-end   {{ display: flex; align-items: center; gap: 12px; }}
 
         .cli-indicator {{
             background: #2196F3;
             color: white;
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 500;
         }}
 
-        .version-info {{
-            font-size: 12px;
-            color: #666;
-            text-align: right;
-        }}
+        .version-info {{ font-size: 12px; color: #666; text-align: right; }}
 
         .status-indicator {{
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 4px 10px;
+            gap: 7px;
+            padding: 3px 10px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 500;
         }}
-
-        .status-indicator.connected {{
-            background: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #4caf50;
-        }}
-
-        .status-indicator.disconnected {{
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #f44336;
-        }}
+        .status-indicator.connected    {{ background: #e8f5e9; color: #2e7d32; border: 1px solid #4caf50; }}
+        .status-indicator.disconnected {{ background: #ffebee; color: #c62828; border: 1px solid #f44336; }}
 
         .status-dot {{
-            width: 8px;
-            height: 8px;
+            width: 7px; height: 7px;
             border-radius: 50%;
             animation: pulse 2s infinite;
         }}
+        .status-indicator.connected .status-dot    {{ background: #4caf50; }}
+        .status-indicator.disconnected .status-dot {{ background: #f44336; }}
 
-        .status-indicator.connected .status-dot {{
-            background: #4caf50;
+        @keyframes pulse {{ 0%,100% {{ opacity:1; }} 50% {{ opacity:0.4; }} }}
+
+        /* ── Refresh notification banner ────────────────────────────── */
+        .refresh-banner {{
+            background: #e3f2fd;
+            border-bottom: 1px solid #90caf9;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: #0d47a1;
+            flex-shrink: 0;
         }}
-
-        .status-indicator.disconnected .status-dot {{
-            background: #f44336;
+        .refresh-banner.hidden {{ display: none; }}
+        .refresh-banner .banner-icon {{ font-size: 16px; }}
+        .refresh-banner .banner-msg  {{ flex: 1; }}
+        .refresh-banner .btn-reload {{
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
         }}
-
-        @keyframes pulse {{
-            0%, 100% {{ opacity: 1; }}
-            50% {{ opacity: 0.5; }}
+        .refresh-banner .btn-reload:hover {{ background: #1565c0; }}
+        .refresh-banner .btn-dismiss {{
+            background: transparent;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
         }}
+        .refresh-banner .btn-dismiss:hover {{ background: #bbdefb; }}
 
+        /* ── Main area (tree + content) ─────────────────────────────── */
         .main-content {{
             flex: 1;
-            padding: 20px;
             display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            padding: 12px;
+            gap: 12px;
+        }}
+
+        /* ── Tree panel ─────────────────────────────────────────────── */
+        .tree-panel {{
+            width: 280px;
+            min-width: 220px;
+            max-width: 340px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }}
+
+        .tree-panel-header {{
+            padding: 10px 14px;
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }}
+
+        .tree-empty {{
+            flex: 1;
+            display: flex;
+            align-items: center;
             justify-content: center;
+            padding: 20px;
+            color: #bbb;
+            font-size: 12px;
+            text-align: center;
+        }}
+
+        .tree-content {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 0;
+        }}
+
+        /* ── Tree nodes ─────────────────────────────────────────────── */
+        .tree-node {{
+            display: flex;
             align-items: flex-start;
+            gap: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 1px 4px;
+            transition: background 0.15s;
+            font-size: 12px;
+            line-height: 1.4;
+        }}
+        .tree-node:hover {{ background: #f0f4ff; }}
+
+        .tree-node.level-run   {{ padding-left: 8px;  font-weight: 600; font-size: 12px; }}
+        .tree-node.level-suite {{ padding-left: 16px; font-weight: 600; }}
+        .tree-node.level-case  {{ padding-left: 28px; font-weight: 500; color: #444; }}
+        .tree-node.level-step  {{ padding-left: 40px; color: #555; cursor: pointer; }}
+        .tree-node.level-step:hover {{ background: #e8f0fe; }}
+
+        .tree-toggle {{
+            flex-shrink: 0;
+            width: 14px;
+            font-size: 10px;
+            color: #999;
+            margin-top: 1px;
+            user-select: none;
+            transition: transform 0.15s;
+        }}
+        .tree-toggle.expanded {{ transform: rotate(90deg); }}
+
+        .tree-state-icon {{
+            flex-shrink: 0;
+            width: 16px;
+            text-align: center;
+            font-size: 11px;
+            margin-top: 1px;
+        }}
+
+        .tree-label {{
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+
+        .tree-public-id {{
+            font-size: 10px;
+            color: #888;
+            flex-shrink: 0;
+        }}
+
+        /* State colours for tree icons */
+        .s-pending       {{ color: #bdbdbd; }}
+        .s-executing     {{ color: #1976d2; animation: pulse 1.2s infinite; }}
+        .s-passed        {{ color: #388e3c; }}
+        .s-failed        {{ color: #d32f2f; }}
+        .s-error         {{ color: #d32f2f; }}
+        .s-skipped       {{ color: #9e9e9e; }}
+        .s-not_applicable{{ color: #9e9e9e; }}
+        .s-cancelled     {{ color: #9e9e9e; }}
+
+        /* Node background highlight for executing */
+        .tree-node.executing {{ background: #e3f2fd; }}
+
+        /* Children container */
+        .tree-children {{ overflow: hidden; }}
+        .tree-children.collapsed {{ display: none; }}
+
+        /* ── Content / log panel ────────────────────────────────────── */
+        .content-panel {{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             overflow: hidden;
         }}
 
-        .p-dialog {{
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            width: 95%;
-            max-width: 1400px;
-            margin: 20px;
-            display: flex;
-            flex-direction: column;
-            max-height: calc(100vh - 120px);
-        }}
-
         .p-dialog-header {{
-            padding: 16px 20px;
+            padding: 14px 18px;
             border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             background: #fafafa;
             border-radius: 8px 8px 0 0;
             flex-shrink: 0;
         }}
 
-        .p-dialog-title {{
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-        }}
+        .p-dialog-title {{ font-size: 16px; font-weight: 600; color: #333; }}
 
         .p-dialog-content {{
-            padding: 20px;
+            padding: 14px;
             flex: 1;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            gap: 10px;
         }}
 
-        .subheader {{
-            font-size: 16px;
-            color: #555;
-            margin-bottom: 15px;
-            font-weight: 500;
+        .status-info {{
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #2e7d32;
+            flex-shrink: 0;
         }}
 
+        /* ── Controls bar ───────────────────────────────────────────── */
         .controls {{
             background: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 15px;
+            padding: 10px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             flex-shrink: 0;
         }}
 
-        .control-group {{
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }}
+        .control-group {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
 
         .btn {{
             background: white;
             color: #333;
             border: 1px solid #ccc;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 500;
         }}
+        .btn:hover  {{ background: #f0f0f0; border-color: #999; }}
+        .btn.active {{ background: #2196F3; border-color: #2196F3; color: white; }}
+        .btn.download {{ background: #4caf50; border-color: #4caf50; color: white; }}
+        .btn.download:hover {{ background: #45a049; }}
 
-        .btn:hover {{
-            background: #f0f0f0;
-            border-color: #999;
-        }}
+        .log-count {{ font-size: 12px; color: #666; padding: 0 6px; }}
 
-        .btn.active {{
-            background: #2196F3;
-            border-color: #2196F3;
-            color: white;
-        }}
-
-        .btn.download {{
-            background: #4caf50;
-            border-color: #4caf50;
-            color: white;
-        }}
-
-        .btn.download:hover {{
-            background: #45a049;
-        }}
-
-        .log-count {{
-            font-size: 12px;
-            color: #666;
-            padding: 0 10px;
-        }}
-
-        .filter-group {{
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }}
+        .filter-group {{ display: flex; gap: 5px; flex-wrap: wrap; }}
 
         .filter-btn {{
-            padding: 4px 10px;
+            padding: 3px 9px;
             font-size: 11px;
             border-radius: 4px;
             border: 1px solid #ddd;
@@ -229,171 +313,96 @@
             font-weight: 500;
         }}
 
-        .filter-btn.level-info {{
-            background: #e3f2fd;
-            color: #1976d2;
-            border-color: #90caf9;
-        }}
+        .filter-btn.level-info     {{ background: #e3f2fd; color: #1976d2; border-color: #90caf9; }}
+        .filter-btn.level-warning  {{ background: #fff3e0; color: #f57c00; border-color: #ffb74d; }}
+        .filter-btn.level-error    {{ background: #ffebee; color: #c62828; border-color: #ef5350; }}
+        .filter-btn.level-debug    {{ background: #fafafa; color: #757575; border-color: #e0e0e0; }}
+        .filter-btn.level-chiptool {{ background: #e0f2f1; color: #00796b; border-color: #4db6ac; }}
+        .filter-btn.level-python   {{ background: #f3e5f5; color: #6a1b9a; border-color: #ba68c8; }}
 
-        .filter-btn.level-warning {{
-            background: #fff3e0;
-            color: #f57c00;
-            border-color: #ffb74d;
-        }}
+        .filter-btn.active     {{ opacity: 1; font-weight: 600; border-width: 2px; }}
+        .filter-btn:not(.active) {{ opacity: 0.4; }}
+        .filter-btn:hover      {{ opacity: 1; }}
 
-        .filter-btn.level-error {{
-            background: #ffebee;
-            color: #c62828;
-            border-color: #ef5350;
+        .search-box {{
+            padding: 5px 10px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            color: #333;
+            font-size: 12px;
+            font-family: inherit;
+            width: 180px;
         }}
+        .search-box:focus {{ outline: none; border-color: #2196F3; }}
 
-        .filter-btn.level-debug {{
-            background: #fafafa;
-            color: #757575;
-            border-color: #e0e0e0;
-        }}
-
-        .filter-btn.level-chiptool {{
-            background: #e0f2f1;
-            color: #00796b;
-            border-color: #4db6ac;
-        }}
-
-        .filter-btn.level-python {{
-            background: #f3e5f5;
-            color: #6a1b9a;
-            border-color: #ba68c8;
-        }}
-
-        .filter-btn.active {{
-            opacity: 1;
-            font-weight: 600;
-            border-width: 2px;
-        }}
-
-        .filter-btn:not(.active) {{
-            opacity: 0.4;
-        }}
-
-        .filter-btn:hover {{
-            opacity: 1;
-        }}
-
+        /* ── Log container ──────────────────────────────────────────── */
         .log-container {{
             flex: 1;
             overflow-y: auto;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.5;
             background: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
-            padding: 10px;
+            padding: 8px;
         }}
 
         .log-entry {{
-            padding: 4px 8px;
-            margin: 2px 0;
+            padding: 3px 7px;
+            margin: 1px 0;
             border-left: 3px solid transparent;
             word-wrap: break-word;
             white-space: pre-wrap;
-            transition: background 0.1s;
             background: white;
             border-radius: 2px;
         }}
+        .log-entry:hover {{ background: #f5f5f5; }}
 
-        .log-entry:hover {{
-            background: #f5f5f5;
-        }}
+        .log-entry.level-info       {{ border-left-color: #2196F3; }}
+        .log-entry.level-warning    {{ border-left-color: #ff9800; background: #fff8e1; }}
+        .log-entry.level-error      {{ border-left-color: #f44336; background: #ffebee; }}
+        .log-entry.level-debug      {{ border-left-color: #9e9e9e; background: #fafafa; }}
+        .log-entry.level-success    {{ border-left-color: #4caf50; background: #e8f5e9; }}
+        .log-entry.level-chiptool   {{ border-left-color: #009688; background: #e0f2f1; }}
+        .log-entry.level-python_test{{ border-left-color: #9c27b0; background: #f3e5f5; }}
 
-        .log-entry.level-info {{
-            border-left-color: #2196F3;
-        }}
-
-        .log-entry.level-warning {{
-            border-left-color: #ff9800;
-            background: #fff8e1;
-        }}
-
-        .log-entry.level-error {{
-            border-left-color: #f44336;
-            background: #ffebee;
-        }}
-
-        .log-entry.level-debug {{
-            border-left-color: #9e9e9e;
-            background: #fafafa;
-        }}
-
-        .log-entry.level-success {{
-            border-left-color: #4caf50;
-            background: #e8f5e9;
-        }}
-
-        .log-entry.level-chiptool {{
-            border-left-color: #009688;
-            background: #e0f2f1;
-        }}
-
-        .log-entry.level-python_test {{
-            border-left-color: #9c27b0;
-            background: #f3e5f5;
-        }}
-
-        .log-timestamp {{
-            color: #666;
-            font-weight: 500;
-            margin-right: 10px;
-        }}
-
+        .log-timestamp {{ color: #666; font-weight: 500; margin-right: 8px; }}
         .log-level {{
             font-weight: 700;
-            margin-right: 10px;
-            padding: 2px 6px;
+            margin-right: 8px;
+            padding: 1px 5px;
             border-radius: 3px;
             font-size: 10px;
             display: inline-block;
-            min-width: 50px;
+            min-width: 48px;
             text-align: center;
         }}
+        .log-level.INFO       {{ background: #2196F3; color: white; }}
+        .log-level.WARNING    {{ background: #ff9800; color: white; }}
+        .log-level.ERROR      {{ background: #f44336; color: white; }}
+        .log-level.DEBUG      {{ background: #9e9e9e; color: white; }}
+        .log-level.SUCCESS    {{ background: #4caf50; color: white; }}
+        .log-level.CHIPTOOL   {{ background: #009688; color: white; }}
+        .log-level.PYTHON_TEST{{ background: #9c27b0; color: white; }}
 
-        .log-level.INFO {{
-            background: #2196F3;
-            color: white;
+        .log-message {{ color: #333; }}
+
+        .highlight {{ background: #ffeb3b; color: #000; padding: 0 2px; border-radius: 2px; }}
+
+        /* Step scroll-target: a faint horizontal rule rendered in the log pane when a
+           step's DOM-index anchor is resolved. No server-side markers needed. */
+        .step-jump-target {{
+            outline: 2px solid #7c4dff;
+            outline-offset: -1px;
+            border-radius: 2px;
         }}
 
-        .log-level.WARNING {{
-            background: #ff9800;
-            color: white;
-        }}
-
-        .log-level.ERROR {{
-            background: #f44336;
-            color: white;
-        }}
-
-        .log-level.DEBUG {{
-            background: #9e9e9e;
-            color: white;
-        }}
-
-        .log-level.SUCCESS {{
-            background: #4caf50;
-            color: white;
-        }}
-
-        .log-level.CHIPTOOL {{
-            background: #009688;
-            color: white;
-        }}
-
-        .log-level.PYTHON_TEST {{
-            background: #9c27b0;
-            color: white;
-        }}
-
-        .log-message {{
-            color: #333;
+        /* Log entry that anchors a step ("Executing Test Step: …") — subtle indicator */
+        .step-anchor-entry {{
+            border-left-color: #7c4dff !important;
+            font-weight: 500;
         }}
 
         .empty-state {{
@@ -403,425 +412,635 @@
             justify-content: center;
             height: 100%;
             color: #999;
-            font-size: 14px;
-        }}
-
-        .empty-state-icon {{
-            font-size: 48px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }}
-
-        .log-container::-webkit-scrollbar {{
-            width: 10px;
-        }}
-
-        .log-container::-webkit-scrollbar-track {{
-            background: #f1f1f1;
-        }}
-
-        .log-container::-webkit-scrollbar-thumb {{
-            background: #ccc;
-            border-radius: 5px;
-        }}
-
-        .log-container::-webkit-scrollbar-thumb:hover {{
-            background: #999;
-        }}
-
-        .search-box {{
-            padding: 6px 10px;
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            color: #333;
             font-size: 13px;
-            font-family: inherit;
-            width: 200px;
         }}
+        .empty-state-icon {{ font-size: 40px; margin-bottom: 12px; opacity: 0.5; }}
 
-        .search-box:focus {{
-            outline: none;
-            border-color: #2196F3;
-        }}
-
-        .highlight {{
-            background: #ffeb3b;
-            color: #000;
-            padding: 0 2px;
-            border-radius: 2px;
-        }}
-
-        .status-info {{
-            background: #e8f5e9;
-            border: 1px solid #4caf50;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            color: #2e7d32;
-        }}
+        /* ── Scrollbars ─────────────────────────────────────────────── */
+        .log-container::-webkit-scrollbar,
+        .tree-content::-webkit-scrollbar {{ width: 8px; }}
+        .log-container::-webkit-scrollbar-track,
+        .tree-content::-webkit-scrollbar-track  {{ background: #f1f1f1; }}
+        .log-container::-webkit-scrollbar-thumb,
+        .tree-content::-webkit-scrollbar-thumb  {{ background: #ccc; border-radius: 4px; }}
+        .log-container::-webkit-scrollbar-thumb:hover,
+        .tree-content::-webkit-scrollbar-thumb:hover {{ background: #999; }}
     </style>
 </head>
 <body>
-    <div class="matter-header">
-        <div class="header-start">
-            <div class="header-title">Matter Certification Tool</div>
+
+<!-- ── Top header ─────────────────────────────────────────────────── -->
+<div class="matter-header">
+    <div class="header-start">
+        <div class="header-title">Matter Certification Tool</div>
+    </div>
+    <div class="header-end">
+        <div id="statusIndicator" class="status-indicator disconnected">
+            <span class="status-dot"></span>
+            <span id="statusText">Connecting...</span>
         </div>
-        <div class="header-end">
-            <div id="statusIndicator" class="status-indicator disconnected">
-                <span class="status-dot"></span>
-                <span id="statusText">Connecting...</span>
-            </div>
-            <div class="cli-indicator">CLI</div>
-            <div class="version-info">
-                <div>Log Viewer</div>
-                <div style="font-size: 10px; color: #999;">Real-Time Stream</div>
-            </div>
+        <div class="cli-indicator">CLI</div>
+        <div class="version-info">
+            <div>Log Viewer</div>
+            <div style="font-size:10px;color:#999;">Real-Time Stream</div>
         </div>
     </div>
+</div>
 
-    <div class="main-content">
-        <div class="p-dialog" role="dialog">
-            <div class="p-dialog-header">
-                <span class="p-dialog-title">📋 Real-Time Log Viewer - {test_run_title}</span>
-            </div>
+<!-- ── Refresh notification banner ─────────────────────────────────── -->
+<div id="refreshBanner" class="refresh-banner hidden">
+    <span class="banner-icon">&#8505;</span>
+    <span class="banner-msg">
+        New execution detected: <strong id="newRunTitle"></strong>
+    </span>
+    <button class="btn-reload" onclick="window.location.reload()">Reload page</button>
+    <button class="btn-dismiss" onclick="dismissBanner()">Dismiss</button>
+</div>
 
-            <div class="p-dialog-content">
-                <div class="status-info">
-                    &#128268; Live logs streaming in real-time from test execution
-                </div>
+<!-- ── Main area ───────────────────────────────────────────────────── -->
+<div class="main-content">
 
-                <div class="controls">
-                    <div class="control-group">
-                        <button id="clearBtn" class="btn" onclick="clearLogs()">Clear</button>
-                        <button id="autoScrollBtn" class="btn active" onclick="toggleAutoScroll()">Auto-scroll</button>
-                        <button id="downloadBtn" class="btn download" onclick="downloadLogs()">Download Logs</button>
-                        <input type="text" id="searchBox" class="search-box" placeholder="Search logs..." oninput="filterLogs()">
-                        <span class="log-count">Logs: <span id="logCount">0</span></span>
-                    </div>
-                    <div class="filter-group">
-                        <button class="filter-btn level-info active" onclick="toggleFilter('INFO')">INFO</button>
-                        <button class="filter-btn level-warning active" onclick="toggleFilter('WARNING')">WARN</button>
-                        <button class="filter-btn level-error active" onclick="toggleFilter('ERROR')">ERROR</button>
-                        <button class="filter-btn level-debug" onclick="toggleFilter('DEBUG')">DEBUG</button>
-                        <button class="filter-btn level-chiptool active" onclick="toggleFilter('CHIPTOOL')">CHIP</button>
-                        <button class="filter-btn level-python active" onclick="toggleFilter('PYTHON_TEST')">PYTHON</button>
-                    </div>
-                </div>
-
-                <div class="log-container" id="logContainer">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📡</div>
-                        <div>Waiting for logs...</div>
-                        <div style="font-size: 12px; margin-top: 8px; color: #bbb;">Logs will appear here in real-time as tests execute</div>
-                    </div>
-                </div>
+    <!-- Tree sidebar -->
+    <div class="tree-panel">
+        <div class="tree-panel-header">&#128462; Execution Tree</div>
+        <div class="tree-empty" id="treeEmpty">
+            <div>
+                <div style="font-size:28px;margin-bottom:8px;">&#9203;</div>
+                <div>Waiting for<br>execution to start&hellip;</div>
             </div>
         </div>
+        <div id="treeContent" class="tree-content" style="display:none;"></div>
     </div>
 
-    <script>
-        let eventSource = null;
-        let autoScroll = true;
-        let logCount = 0;
-        let activeFilters = new Set(['INFO', 'WARNING', 'ERROR', 'CHIPTOOL', 'PYTHON_TEST', 'SUCCESS']);
-        let allLogs = [];
-        let logBatchQueue = [];
-        let batchProcessing = false;
-        let lastBatchTime = 0;
-        const BATCH_INTERVAL_MS = 50;
-        const MAX_BATCH_SIZE = 50;
+    <!-- Log content panel -->
+    <div class="content-panel">
+        <div class="p-dialog-header">
+            <span class="p-dialog-title">&#128203; Real-Time Log Viewer &mdash; {test_run_title}</span>
+        </div>
 
-        function connectToLogStream() {{
-            const statusIndicator = document.getElementById('statusIndicator');
-            const statusText = document.getElementById('statusText');
-            
-            eventSource = new EventSource('/api/logs/stream');
-            
-            eventSource.addEventListener('connected', function(e) {{
-                console.log('Connected to log stream');
-                statusIndicator.className = 'status-indicator connected';
-                statusText.textContent = 'Connected';
-            }});
-            
-            eventSource.addEventListener('log', function(e) {{
-                const logEntry = JSON.parse(e.data);
-                logBatchQueue.push(logEntry);
-                scheduleBatchProcessing();
-            }});
-            
-            eventSource.addEventListener('keepalive', function(e) {{
-                // Silent keepalive
-            }});
-            
-            eventSource.addEventListener('end', function(e) {{
-                console.log('Log stream ended');
-                statusIndicator.className = 'status-indicator disconnected';
-                statusText.textContent = 'Stream Ended';
-                eventSource.close();
-                processBatchImmediately();
-            }});
-            
-            eventSource.onerror = function(e) {{
-                console.error('EventSource error:', e);
-                statusIndicator.className = 'status-indicator disconnected';
-                statusText.textContent = 'Disconnected';
-                
-                processBatchImmediately();
-                
-                setTimeout(() => {{
-                    if (eventSource.readyState === EventSource.CLOSED) {{
-                        console.log('Attempting to reconnect...');
-                        statusText.textContent = 'Reconnecting...';
-                        connectToLogStream();
-                    }}
-                }}, 3000);
-            }};
-        }}
+        <div class="p-dialog-content">
+            <div class="status-info">
+                &#128268; Live logs streaming in real-time from test execution
+            </div>
 
-        function scheduleBatchProcessing() {{
-            if (batchProcessing) return;
-            
-            const now = Date.now();
-            const timeSinceLastBatch = now - lastBatchTime;
-            
-            if (timeSinceLastBatch >= BATCH_INTERVAL_MS || logBatchQueue.length >= MAX_BATCH_SIZE) {{
-                processBatch();
-            }} else {{
-                batchProcessing = true;
-                setTimeout(processBatch, BATCH_INTERVAL_MS - timeSinceLastBatch);
-            }}
-        }}
+            <div class="controls">
+                <div class="control-group">
+                    <button id="clearBtn"      class="btn"          onclick="clearLogs()">Clear</button>
+                    <button id="autoScrollBtn" class="btn active"   onclick="toggleAutoScroll()">Auto-scroll</button>
+                    <button id="downloadBtn"   class="btn download" onclick="downloadLogs()">Download Logs</button>
+                    <input  type="text" id="searchBox" class="search-box"
+                            placeholder="Search logs&hellip;" oninput="filterLogs()">
+                    <span class="log-count">Logs: <span id="logCount">0</span></span>
+                </div>
+                <div class="filter-group">
+                    <button class="filter-btn level-info     active" onclick="toggleFilter('INFO')">INFO</button>
+                    <button class="filter-btn level-warning  active" onclick="toggleFilter('WARNING')">WARN</button>
+                    <button class="filter-btn level-error    active" onclick="toggleFilter('ERROR')">ERROR</button>
+                    <button class="filter-btn level-debug"           onclick="toggleFilter('DEBUG')">DEBUG</button>
+                    <button class="filter-btn level-chiptool active" onclick="toggleFilter('CHIPTOOL')">CHIP</button>
+                    <button class="filter-btn level-python   active" onclick="toggleFilter('PYTHON_TEST')">PYTHON</button>
+                </div>
+            </div>
 
-        function processBatchImmediately() {{
-            if (logBatchQueue.length > 0) {{
-                processBatch();
-            }}
-        }}
-
-        function processBatch() {{
-            if (logBatchQueue.length === 0) {{
-                batchProcessing = false;
-                return;
-            }}
-            
-            const container = document.getElementById('logContainer');
-            const emptyState = container.querySelector('.empty-state');
-            
-            if (emptyState) {{
-                container.innerHTML = '';
-            }}
-            
-            const fragment = document.createDocumentFragment();
-            const batchSize = Math.min(logBatchQueue.length, MAX_BATCH_SIZE);
-            const batch = logBatchQueue.splice(0, batchSize);
-            
-            batch.forEach(entry => {{
-                allLogs.push(entry);
-                logCount++;
-                
-                const logDiv = createLogElement(entry);
-                fragment.appendChild(logDiv);
-            }});
-            
-            container.appendChild(fragment);
-            
-            document.getElementById('logCount').textContent = logCount;
-            
-            if (autoScroll) {{
-                container.scrollTop = container.scrollHeight;
-            }}
-            
-            lastBatchTime = Date.now();
-            batchProcessing = false;
-            
-            if (logBatchQueue.length > 0) {{
-                scheduleBatchProcessing();
-            }}
-        }}
-
-        function createLogElement(entry) {{
-            const logDiv = document.createElement('div');
-            const level = entry.level || 'INFO';
-            logDiv.className = `log-entry level-${{level.toLowerCase()}}`;
-            logDiv.dataset.level = level;
-            logDiv.dataset.message = entry.message || '';
-            
-            const timestamp = entry.timestamp || new Date().toISOString();
-            const timeStr = new Date(timestamp).toLocaleTimeString('en-US', {{ hour12: false }});
-            
-            logDiv.innerHTML = `<span class="log-timestamp">${{timeStr}}</span><span class="log-level ${{level}}">${{level}}</span><span class="log-message">${{escapeHtml(entry.message || '')}}</span>`;
-            
-            if (!activeFilters.has(level)) {{
-                logDiv.style.display = 'none';
-            }}
-            
-            return logDiv;
-        }}
-
-        function addLogEntry(entry) {{
-            logBatchQueue.push(entry);
-            scheduleBatchProcessing();
-        }}
-
-        function clearLogs() {{
-            const container = document.getElementById('logContainer');
-            container.innerHTML = `
+            <div class="log-container" id="logContainer">
                 <div class="empty-state">
-                    <div class="empty-state-icon">📋</div>
-                    <div>Logs cleared</div>
+                    <div class="empty-state-icon">&#128225;</div>
+                    <div>Waiting for logs&hellip;</div>
+                    <div style="font-size:11px;margin-top:6px;color:#bbb;">
+                        Logs will appear here in real-time as tests execute
+                    </div>
                 </div>
-            `;
-            allLogs = [];
-            logCount = 0;
-            document.getElementById('logCount').textContent = '0';
-        }}
+            </div>
+        </div>
+    </div><!-- .content-panel -->
 
-        function toggleAutoScroll() {{
-            autoScroll = !autoScroll;
-            const btn = document.getElementById('autoScrollBtn');
-            btn.classList.toggle('active', autoScroll);
-            
-            if (autoScroll) {{
-                const container = document.getElementById('logContainer');
-                container.scrollTop = container.scrollHeight;
+</div><!-- .main-content -->
+
+<script>
+    // ── State ────────────────────────────────────────────────────────
+    let eventSource      = null;
+    let autoScroll       = true;
+    let logCount         = 0;
+    let activeFilters    = new Set(['INFO', 'WARNING', 'ERROR', 'CHIPTOOL', 'PYTHON_TEST', 'SUCCESS']);
+    let allLogs          = [];
+    let logBatchQueue    = [];
+    let batchProcessing  = false;
+    let lastBatchTime    = 0;
+    let wasDisconnected  = false;
+    let currentRunTitle  = '{test_run_title}';  // initial title injected by server
+
+    // Maps stepId → log-entry index at the moment the step became 'executing'.
+    // Used by scrollToStep() to jump without server-side stream markers.
+    const stepLogIndex = {{}};
+
+    // Maps step title → ordered list of stepIds built from the tree snapshot.
+    // Used to resolve "Executing Test Step: <title>" log entries to their DOM anchor.
+    let stepTitleToIds = {{}};
+
+    const BATCH_INTERVAL_MS = 50;
+    const MAX_BATCH_SIZE    = 50;
+
+    // ── SSE connection ───────────────────────────────────────────────
+    function connectToLogStream() {{
+        const indicator = document.getElementById('statusIndicator');
+        const statusTxt = document.getElementById('statusText');
+
+        eventSource = new EventSource('/api/logs/stream');
+
+        eventSource.addEventListener('connected', function(e) {{
+            indicator.className = 'status-indicator connected';
+            statusTxt.textContent = 'Connected';
+
+            if (wasDisconnected) {{
+                // Check whether a new execution has started.
+                fetch('/api/status')
+                    .then(r => r.json())
+                    .then(s => {{
+                        if (s.run_title && s.run_title !== currentRunTitle) {{
+                            showRefreshBanner(s.run_title);
+                        }}
+                    }})
+                    .catch(() => {{}});
             }}
-        }}
+            wasDisconnected = false;
+        }});
 
-        function toggleFilter(level) {{
-            if (activeFilters.has(level)) {{
-                activeFilters.delete(level);
-            }} else {{
-                activeFilters.add(level);
+        eventSource.addEventListener('log', function(e) {{
+            logBatchQueue.push(JSON.parse(e.data));
+            scheduleBatchProcessing();
+        }});
+
+        eventSource.addEventListener('tree_init', function(e) {{
+            renderTree(JSON.parse(e.data));
+        }});
+
+        eventSource.addEventListener('tree_update', function(e) {{
+            const update = JSON.parse(e.data);
+            // Record the current log-entry count when a step starts executing.
+            // scrollToStep() uses this index to find the approximate position in the
+            // DOM without needing server-injected markers in the log stream.
+            if (update.node_type === 'step' && update.state === 'executing') {{
+                const stepId = `step-${{update.suite_idx}}-${{update.case_idx}}-${{update.step_idx}}`;
+                stepLogIndex[stepId] = logCount;
             }}
-            
-            const btn = event.target;
-            btn.classList.toggle('active');
-            
-            filterLogs();
-        }}
+            applyTreeUpdate(update);
+        }});
 
-        function filterLogs() {{
-            const searchText = document.getElementById('searchBox').value.toLowerCase();
-            const logEntries = document.querySelectorAll('.log-entry');
-            
-            logEntries.forEach(entry => {{
-                const level = entry.dataset.level;
-                const message = entry.dataset.message.toLowerCase();
-                
-                const levelMatch = activeFilters.has(level);
-                const searchMatch = !searchText || message.includes(searchText);
-                
-                entry.style.display = (levelMatch && searchMatch) ? 'block' : 'none';
-                
-                if (searchText && searchMatch) {{
-                    const messageEl = entry.querySelector('.log-message');
-                    const originalText = entry.dataset.message;
-                    const regex = new RegExp(`(${{escapeRegex(searchText)}})`, 'gi');
-                    messageEl.innerHTML = escapeHtml(originalText).replace(regex, '<span class="highlight">$1</span>');
-                }} else {{
-                    const messageEl = entry.querySelector('.log-message');
-                    messageEl.textContent = entry.dataset.message;
+        eventSource.addEventListener('step_marker', function(e) {{
+            // Legacy event — no-op; step markers are no longer emitted by the server.
+        }});
+
+        eventSource.addEventListener('keepalive', function(e) {{
+            // silent
+        }});
+
+        eventSource.addEventListener('end', function(e) {{
+            indicator.className = 'status-indicator disconnected';
+            statusTxt.textContent = 'Stream Ended';
+            eventSource.close();
+            processBatchImmediately();
+        }});
+
+        eventSource.onerror = function(e) {{
+            indicator.className = 'status-indicator disconnected';
+            statusTxt.textContent = 'Disconnected';
+            wasDisconnected = true;
+            processBatchImmediately();
+
+            setTimeout(() => {{
+                if (eventSource.readyState === EventSource.CLOSED) {{
+                    statusTxt.textContent = 'Reconnecting…';
+                    connectToLogStream();
                 }}
-            }});
-        }}
+            }}, 3000);
+        }};
+    }}
 
-        function downloadLogs() {{
-            // First try server download (if server is still running)
-            fetch('/download_logs')
-                .then(response => {{
-                    if (response.ok) {{
-                        return response.blob();
-                    }}
-                    throw new Error('Server not available');
-                }})
-                .then(blob => {{
-                    // Server download successful
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'test_run_logs.log';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }})
-                .catch(error => {{
-                    // Server not available, use client-side download
-                    console.log('Server unavailable, using client-side download');
-                    downloadLogsClientSide();
+    // ── Refresh banner ───────────────────────────────────────────────
+    function showRefreshBanner(newTitle) {{
+        document.getElementById('newRunTitle').textContent = newTitle;
+        document.getElementById('refreshBanner').classList.remove('hidden');
+    }}
+
+    function dismissBanner() {{
+        document.getElementById('refreshBanner').classList.add('hidden');
+    }}
+
+    // ── Tree rendering ───────────────────────────────────────────────
+    const STATE_ICONS = {{
+        pending:        {{ icon: '○', cls: 's-pending'        }},  // ○
+        executing:      {{ icon: '▶', cls: 's-executing'      }},  // ▶
+        passed:         {{ icon: '✓', cls: 's-passed'         }},  // ✓
+        failed:         {{ icon: '✗', cls: 's-failed'         }},  // ✗
+        error:          {{ icon: '⚠', cls: 's-error'          }},  // ⚠
+        skipped:        {{ icon: '⊘', cls: 's-skipped'        }},  // ⊘
+        not_applicable: {{ icon: '—', cls: 's-not_applicable' }},  // —
+        cancelled:      {{ icon: '×', cls: 's-cancelled'      }},  // ×
+    }};
+
+    function stateInfo(state) {{
+        return STATE_ICONS[state] || STATE_ICONS['pending'];
+    }}
+
+    function renderTree(tree) {{
+        document.getElementById('treeEmpty').style.display   = 'none';
+        const content = document.getElementById('treeContent');
+        content.style.display = 'block';
+        content.innerHTML = '';
+
+        // Build title → [stepId, …] lookup so createLogElement() can anchor
+        // "Executing Test Step: <title>" log lines to the correct tree node.
+        stepTitleToIds = {{}};
+        (tree.suites || []).forEach((suite, si) => {{
+            (suite.cases || []).forEach((cas, ci) => {{
+                (cas.steps || []).forEach((step, ki) => {{
+                    const id = `step-${{si}}-${{ci}}-${{ki}}`;
+                    if (!stepTitleToIds[step.title]) stepTitleToIds[step.title] = [];
+                    stepTitleToIds[step.title].push(id);
                 }});
-        }}
+            }});
+        }});
 
-        function downloadLogsClientSide() {{
-            // Build log content from stored logs
-            let logContent = '';
-            allLogs.forEach(entry => {{
-                const timestamp = entry.timestamp || new Date().toISOString();
-                const level = entry.level || 'INFO';
-                const message = entry.message || '';
-                // Replace literal \n strings with actual newlines, then add entry
-                const cleanMessage = message.replace(/\\n/g, '\n');
-                logContent += `${{timestamp}} [${{level}}] ${{cleanMessage}}\n`;
+        // Run node
+        const runEl = makeNode('run', 'tree-run', null, null, null, tree.title, '', tree.state, false);
+        content.appendChild(runEl);
+
+        // Suites
+        const suitesEl = document.createElement('div');
+        suitesEl.className = 'tree-children';
+        suitesEl.id = 'children-run';
+
+        (tree.suites || []).forEach((suite, si) => {{
+            const suiteEl = makeNode('suite', `tree-suite-${{si}}`, si, null, null, suite.title, '', suite.state, true);
+            suitesEl.appendChild(suiteEl);
+
+            const casesEl = document.createElement('div');
+            casesEl.className = 'tree-children';
+            casesEl.id = `children-suite-${{si}}`;
+
+            (suite.cases || []).forEach((cas, ci) => {{
+                const caseEl = makeNode('case', `tree-case-${{si}}-${{ci}}`, si, ci, null,
+                                        cas.title, cas.public_id, cas.state, true);
+                casesEl.appendChild(caseEl);
+
+                const stepsEl = document.createElement('div');
+                stepsEl.className = 'tree-children';
+                stepsEl.id = `children-case-${{si}}-${{ci}}`;
+
+                (cas.steps || []).forEach((step, ki) => {{
+                    const stepEl = makeNode('step', `tree-step-${{si}}-${{ci}}-${{ki}}`, si, ci, ki,
+                                           step.title, '', step.state, false);
+                    stepsEl.appendChild(stepEl);
+                }});
+
+                casesEl.appendChild(stepsEl);
             }});
 
-            if (logContent === '') {{
-                alert('No logs to download');
-                return;
-            }}
-
-            // Create blob and download
-            const blob = new Blob([logContent], {{ type: 'text/plain;charset=utf-8' }});
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
-            // Generate filename with current timestamp
-            const now = new Date();
-            const dateStr = now.toISOString().slice(0,19).replace(/[T:]/g, '-');
-            a.download = `test_run_logs_${{dateStr}}.log`;
-            
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            console.log(`Downloaded ${{allLogs.length}} log entries client-side`);
-        }}
-
-        function escapeHtml(text) {{
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }}
-
-        function escapeRegex(text) {{
-            return text.replace(/[.*+?^${{}}()|[\\]\\\\]/g, '\\\\$&');
-        }}
-
-        document.getElementById('logContainer').addEventListener('scroll', function() {{
-            const container = this;
-            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-            
-            if (!isNearBottom && autoScroll) {{
-                autoScroll = false;
-                document.getElementById('autoScrollBtn').classList.remove('active');
-            }} else if (isNearBottom && !autoScroll) {{
-                autoScroll = true;
-                document.getElementById('autoScrollBtn').classList.add('active');
-            }}
+            suitesEl.appendChild(casesEl);
         }});
 
-        window.addEventListener('load', function() {{
-            connectToLogStream();
+        content.appendChild(suitesEl);
+
+        // Auto-expand the first suite and its cases if there is only one suite.
+        if ((tree.suites || []).length === 1) {{
+            const firstSuiteChildren = document.getElementById('children-suite-0');
+            if (firstSuiteChildren) {{
+                firstSuiteChildren.classList.remove('collapsed');
+                const toggleEl = document.querySelector('#tree-suite-0 .tree-toggle');
+                if (toggleEl) toggleEl.classList.add('expanded');
+            }}
+            if ((tree.suites[0].cases || []).length === 1) {{
+                const firstCaseChildren = document.getElementById('children-case-0-0');
+                if (firstCaseChildren) {{
+                    firstCaseChildren.classList.remove('collapsed');
+                    const toggleEl = document.querySelector('#tree-case-0-0 .tree-toggle');
+                    if (toggleEl) toggleEl.classList.add('expanded');
+                }}
+            }}
+        }}
+    }}
+
+    function makeNode(level, id, si, ci, ki, label, publicId, state, hasChildren) {{
+        const info = stateInfo(state);
+        const div  = document.createElement('div');
+        div.className = `tree-node level-${{level}}${{state === 'executing' ? ' executing' : ''}}`;
+        div.id = id;
+
+        // Toggle arrow (for collapsible nodes)
+        const toggle = document.createElement('span');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = hasChildren ? '▶' : '';  // ▶
+        if (!hasChildren) toggle.style.visibility = 'hidden';
+
+        // State icon
+        const icon = document.createElement('span');
+        icon.className = `tree-state-icon ${{info.cls}}`;
+        icon.textContent = info.icon;
+
+        // Label
+        const labelEl = document.createElement('span');
+        labelEl.className = 'tree-label';
+        labelEl.title = label;
+        labelEl.textContent = label;
+
+        div.appendChild(toggle);
+        div.appendChild(icon);
+        div.appendChild(labelEl);
+
+        if (publicId) {{
+            const pid = document.createElement('span');
+            pid.className = 'tree-public-id';
+            pid.textContent = publicId;
+            div.appendChild(pid);
+        }}
+
+        // Click behaviour
+        if (level === 'step' && si !== null && ci !== null && ki !== null) {{
+            div.addEventListener('click', () => scrollToStep(`step-${{si}}-${{ci}}-${{ki}}`));
+        }} else if (hasChildren) {{
+            div.addEventListener('click', () => toggleChildren(div, id, level, si, ci));
+        }}
+
+        return div;
+    }}
+
+    function toggleChildren(nodeEl, id, level, si, ci) {{
+        let childrenId;
+        if (level === 'run')   childrenId = 'children-run';
+        else if (level === 'suite') childrenId = `children-suite-${{si}}`;
+        else if (level === 'case')  childrenId = `children-case-${{si}}-${{ci}}`;
+
+        const children = document.getElementById(childrenId);
+        if (!children) return;
+
+        const toggle = nodeEl.querySelector('.tree-toggle');
+        const collapsed = children.classList.toggle('collapsed');
+        if (toggle) toggle.classList.toggle('expanded', !collapsed);
+    }}
+
+    function applyTreeUpdate(update) {{
+        const {{ node_type, suite_idx, case_idx, step_idx, state }} = update;
+        let nodeId;
+
+        if      (node_type === 'run')   nodeId = 'tree-run';
+        else if (node_type === 'suite') nodeId = `tree-suite-${{suite_idx}}`;
+        else if (node_type === 'case')  nodeId = `tree-case-${{suite_idx}}-${{case_idx}}`;
+        else                            nodeId = `tree-step-${{suite_idx}}-${{case_idx}}-${{step_idx}}`;
+
+        const el = document.getElementById(nodeId);
+        if (!el) return;
+
+        const info     = stateInfo(state);
+        const iconEl   = el.querySelector('.tree-state-icon');
+        if (iconEl) {{
+            iconEl.className  = `tree-state-icon ${{info.cls}}`;
+            iconEl.textContent = info.icon;
+        }}
+
+        // Highlight executing node, remove from others at the same level
+        if (state === 'executing') {{
+            el.classList.add('executing');
+            // Scroll the tree so this node is visible
+            el.scrollIntoView({{ block: 'nearest', behavior: 'smooth' }});
+        }} else {{
+            el.classList.remove('executing');
+        }}
+
+        // Auto-expand parent children containers when a child becomes active
+        if (state === 'executing') {{
+            if (node_type === 'suite') {{
+                const c = document.getElementById(`children-suite-${{suite_idx}}`);
+                if (c) expandChildren(el, c);
+            }} else if (node_type === 'case') {{
+                const ps = document.getElementById(`children-suite-${{suite_idx}}`);
+                const pc = document.getElementById(`children-case-${{suite_idx}}-${{case_idx}}`);
+                if (ps) expandChildren(document.getElementById(`tree-suite-${{suite_idx}}`), ps);
+                if (pc) expandChildren(el, pc);
+            }} else if (node_type === 'step') {{
+                const pc = document.getElementById(`children-case-${{suite_idx}}-${{case_idx}}`);
+                if (pc) expandChildren(document.getElementById(`tree-case-${{suite_idx}}-${{case_idx}}`), pc);
+            }}
+        }}
+    }}
+
+    function expandChildren(nodeEl, childrenEl) {{
+        if (!childrenEl || !childrenEl.classList.contains('collapsed')) return;
+        // Children start un-collapsed unless user toggled them; nothing to do if already open.
+        childrenEl.classList.remove('collapsed');
+        if (nodeEl) {{
+            const toggle = nodeEl.querySelector('.tree-toggle');
+            if (toggle) toggle.classList.add('expanded');
+        }}
+    }}
+
+    // ── Step jump ────────────────────────────────────────────────────
+    function scrollToStep(stepId) {{
+        // Tier 1 — precise: "Executing Test Step: <title>" log entry was tagged with
+        // id="anchor-<stepId>" by createLogElement(). Always at the correct position.
+        const anchor = document.getElementById(`anchor-${{stepId}}`);
+        if (anchor) {{ _jumpTo(anchor); return; }}
+
+        // Tier 2 — approximate: fall back to the log-count index recorded when the
+        // step's tree_update(executing) event arrived. Useful for Python sub-steps
+        // that produce no "Executing Test Step:" line.
+        const targetIndex = stepLogIndex[stepId];
+        if (targetIndex !== undefined) {{
+            const entries = document.querySelectorAll('#logContainer .log-entry');
+            if (entries.length) _jumpTo(entries[Math.min(targetIndex, entries.length - 1)]);
+        }}
+    }}
+
+    function _jumpTo(el) {{
+        autoScroll = false;
+        document.getElementById('autoScrollBtn').classList.remove('active');
+        document.querySelectorAll('.step-jump-target').forEach(e => e.classList.remove('step-jump-target'));
+        el.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+        el.classList.add('step-jump-target');
+        setTimeout(() => el.classList.remove('step-jump-target'), 2000);
+    }}
+
+    // ── Log batch processing ─────────────────────────────────────────
+    function scheduleBatchProcessing() {{
+        if (batchProcessing) return;
+        const now = Date.now();
+        if (now - lastBatchTime >= BATCH_INTERVAL_MS || logBatchQueue.length >= MAX_BATCH_SIZE) {{
+            processBatch();
+        }} else {{
+            batchProcessing = true;
+            setTimeout(processBatch, BATCH_INTERVAL_MS - (now - lastBatchTime));
+        }}
+    }}
+
+    function processBatchImmediately() {{
+        if (logBatchQueue.length > 0) processBatch();
+    }}
+
+    function processBatch() {{
+        if (logBatchQueue.length === 0) {{ batchProcessing = false; return; }}
+
+        const container  = document.getElementById('logContainer');
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState) container.innerHTML = '';
+
+        const fragment  = document.createDocumentFragment();
+        const batchSize = Math.min(logBatchQueue.length, MAX_BATCH_SIZE);
+        const batch     = logBatchQueue.splice(0, batchSize);
+
+        batch.forEach(entry => {{
+            allLogs.push(entry);
+            logCount++;
+            fragment.appendChild(createLogElement(entry));
         }});
 
-        window.addEventListener('beforeunload', function() {{
-            if (eventSource) {{
-                eventSource.close();
+        container.appendChild(fragment);
+        document.getElementById('logCount').textContent = logCount;
+
+        if (autoScroll) container.scrollTop = container.scrollHeight;
+
+        lastBatchTime  = Date.now();
+        batchProcessing = false;
+
+        if (logBatchQueue.length > 0) scheduleBatchProcessing();
+    }}
+
+    function createLogElement(entry) {{
+        const div   = document.createElement('div');
+        const level = entry.level || 'INFO';
+        div.className      = `log-entry level-${{level.toLowerCase()}}`;
+        div.dataset.level  = level;
+        div.dataset.message = entry.message || '';
+
+        const timestamp = entry.timestamp || new Date().toISOString();
+        const timeStr   = new Date(timestamp).toLocaleTimeString('en-US', {{ hour12: false }});
+
+        div.innerHTML =
+            `<span class="log-timestamp">${{timeStr}}</span>` +
+            `<span class="log-level ${{level}}">${{level}}</span>` +
+            `<span class="log-message">${{escapeHtml(entry.message || '')}}</span>`;
+
+        // If this log line marks the start of a step, tag it as the scroll anchor.
+        // Matching against "Executing Test Step: <title>" is reliable because these
+        // entries arrive in the correct stream position (unlike TestStepUpdate events).
+        const stepMatch = (entry.message || '').match(/^Executing Test Step:\s+(.+)$/);
+        if (stepMatch) {{
+            const title = stepMatch[1].trim();
+            const ids   = stepTitleToIds[title];
+            if (ids && ids.length > 0) {{
+                // Pick the first step with this title that has no anchor yet.
+                const targetId = ids.find(id => !document.getElementById(`anchor-${{id}}`));
+                if (targetId) {{
+                    div.id = `anchor-${{targetId}}`;
+                    div.classList.add('step-anchor-entry');
+                }}
+            }}
+        }}
+
+        if (!activeFilters.has(level)) div.style.display = 'none';
+
+        return div;
+    }}
+
+    // ── Controls ─────────────────────────────────────────────────────
+    function clearLogs() {{
+        const container = document.getElementById('logContainer');
+        container.innerHTML =
+            '<div class="empty-state"><div class="empty-state-icon">&#128203;</div><div>Logs cleared</div></div>';
+        allLogs   = [];
+        logCount  = 0;
+        document.getElementById('logCount').textContent = '0';
+    }}
+
+    function toggleAutoScroll() {{
+        autoScroll = !autoScroll;
+        document.getElementById('autoScrollBtn').classList.toggle('active', autoScroll);
+        if (autoScroll) {{
+            const c = document.getElementById('logContainer');
+            c.scrollTop = c.scrollHeight;
+        }}
+    }}
+
+    function toggleFilter(level) {{
+        if (activeFilters.has(level)) {{ activeFilters.delete(level); }}
+        else                          {{ activeFilters.add(level);    }}
+        event.target.classList.toggle('active');
+        filterLogs();
+    }}
+
+    function filterLogs() {{
+        const searchText = document.getElementById('searchBox').value.toLowerCase();
+        document.querySelectorAll('.log-entry').forEach(entry => {{
+            const level   = entry.dataset.level;
+            const message = entry.dataset.message.toLowerCase();
+            const levelOk  = activeFilters.has(level);
+            const searchOk = !searchText || message.includes(searchText);
+            entry.style.display = (levelOk && searchOk) ? 'block' : 'none';
+
+            if (searchText && searchOk) {{
+                const msgEl = entry.querySelector('.log-message');
+                const regex = new RegExp(`(${{escapeRegex(searchText)}})`, 'gi');
+                msgEl.innerHTML = escapeHtml(entry.dataset.message).replace(regex, '<span class="highlight">$1</span>');
+            }} else {{
+                const msgEl = entry.querySelector('.log-message');
+                if (msgEl) msgEl.textContent = entry.dataset.message;
             }}
         }});
-    </script>
+    }}
+
+    function downloadLogs() {{
+        fetch('/download_logs')
+            .then(r => {{ if (!r.ok) throw new Error(); return r.blob(); }})
+            .then(blob => triggerDownload(blob, 'test_run_logs.log'))
+            .catch(() => downloadLogsClientSide());
+    }}
+
+    function downloadLogsClientSide() {{
+        let content = '';
+        allLogs.forEach(e => {{
+            const ts  = e.timestamp || new Date().toISOString();
+            const lvl = e.level || 'INFO';
+            content += `${{ts}} [${{lvl}}] ${{(e.message || '').replace(/\\n/g, '\n')}}\n`;
+        }});
+        if (!content) {{ alert('No logs to download'); return; }}
+        const dateStr = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
+        triggerDownload(new Blob([content], {{ type: 'text/plain;charset=utf-8' }}),
+                        `test_run_logs_${{dateStr}}.log`);
+    }}
+
+    function triggerDownload(blob, filename) {{
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        URL.revokeObjectURL(url); document.body.removeChild(a);
+    }}
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function escapeHtml(text) {{
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }}
+
+    function escapeRegex(text) {{
+        return text.replace(/[.*+?^${{}}()|[\]\\]/g, '\\$&');
+    }}
+
+    // ── Auto-scroll detection ────────────────────────────────────────
+    document.getElementById('logContainer').addEventListener('scroll', function() {{
+        const c = this;
+        const nearBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 100;
+        if (!nearBottom && autoScroll) {{
+            autoScroll = false;
+            document.getElementById('autoScrollBtn').classList.remove('active');
+        }} else if (nearBottom && !autoScroll) {{
+            autoScroll = true;
+            document.getElementById('autoScrollBtn').classList.add('active');
+        }}
+    }});
+
+    // ── Init ─────────────────────────────────────────────────────────
+    window.addEventListener('load', connectToLogStream);
+    window.addEventListener('beforeunload', () => {{ if (eventSource) eventSource.close(); }});
+</script>
 </body>
 </html>
