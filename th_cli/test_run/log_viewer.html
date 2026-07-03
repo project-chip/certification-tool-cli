@@ -451,10 +451,10 @@
 <div id="refreshBanner" class="refresh-banner hidden">
     <span class="banner-icon">&#8505;</span>
     <span class="banner-msg">
-        New execution detected: <strong id="newRunTitle"></strong>
+        New execution started: <strong id="newRunTitle"></strong>
     </span>
-    <button class="btn-reload" onclick="window.location.reload()">Reload page</button>
-    <button class="btn-dismiss" onclick="dismissBanner()">Dismiss</button>
+    <button class="btn-reload" onclick="switchToNewExecution()">Switch to new execution</button>
+    <button class="btn-dismiss" onclick="dismissBanner()">Stay here</button>
 </div>
 
 <!-- ── Main area ───────────────────────────────────────────────────── -->
@@ -462,7 +462,7 @@
 
     <!-- Tree sidebar -->
     <div class="tree-panel">
-        <div class="tree-panel-header">&#128462; Execution Tree</div>
+        <div class="tree-panel-header">&#9776; Execution Tree</div>
         <div class="tree-empty" id="treeEmpty">
             <div>
                 <div style="font-size:28px;margin-bottom:8px;">&#9203;</div>
@@ -529,16 +529,50 @@
     let wasDisconnected  = false;
     let currentRunTitle  = '{test_run_title}';  // initial title injected by server
 
+    // When true, all incoming SSE events from a new execution are ignored so the
+    // current page content (old execution) stays untouched until the user chooses.
+    let newExecutionPending  = false;
+
+    // Interval handle for /api/status polling after a clean stream end.
+    let statusPollInterval   = null;
+
     // Maps stepId → log-entry index at the moment the step became 'executing'.
-    // Used by scrollToStep() to jump without server-side stream markers.
     const stepLogIndex = {{}};
 
     // Maps step title → ordered list of stepIds built from the tree snapshot.
-    // Used to resolve "Executing Test Step: <title>" log entries to their DOM anchor.
     let stepTitleToIds = {{}};
 
     const BATCH_INTERVAL_MS = 50;
     const MAX_BATCH_SIZE    = 50;
+
+    // ── /api/status polling ──────────────────────────────────────────
+    // Used after a clean stream end so we never auto-connect a new SSE session
+    // (which would overwrite the page before the user has seen the banner).
+    function startStatusPolling() {{
+        if (statusPollInterval) return;
+        const indicator = document.getElementById('statusIndicator');
+        const statusTxt = document.getElementById('statusText');
+        statusTxt.textContent = 'Stream Ended — watching for next execution…';
+        statusPollInterval = setInterval(() => {{
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(s => {{
+                    if (s.run_title && s.run_title !== currentRunTitle) {{
+                        stopStatusPolling();
+                        newExecutionPending = true;
+                        showRefreshBanner(s.run_title);
+                    }}
+                }})
+                .catch(() => {{}});  // server not up yet — keep polling
+        }}, 3000);
+    }}
+
+    function stopStatusPolling() {{
+        if (statusPollInterval) {{
+            clearInterval(statusPollInterval);
+            statusPollInterval = null;
+        }}
+    }}
 
     // ── SSE connection ───────────────────────────────────────────────
     function connectToLogStream() {{
@@ -552,33 +586,40 @@
             statusTxt.textContent = 'Connected';
 
             if (wasDisconnected) {{
-                // Check whether a new execution has started.
+                // Preemptively block incoming events until the status check resolves.
+                // This prevents tree_init / log events from rewriting the page in the
+                // microseconds before the async fetch completes.
+                newExecutionPending = true;
                 fetch('/api/status')
                     .then(r => r.json())
                     .then(s => {{
                         if (s.run_title && s.run_title !== currentRunTitle) {{
                             showRefreshBanner(s.run_title);
+                            // newExecutionPending stays true — banner is the gate
+                        }} else {{
+                            // Same execution reconnected (e.g. network hiccup) — resume normally
+                            newExecutionPending = false;
                         }}
                     }})
-                    .catch(() => {{}});
+                    .catch(() => {{ newExecutionPending = false; }});
             }}
             wasDisconnected = false;
         }});
 
         eventSource.addEventListener('log', function(e) {{
+            if (newExecutionPending) return;
             logBatchQueue.push(JSON.parse(e.data));
             scheduleBatchProcessing();
         }});
 
         eventSource.addEventListener('tree_init', function(e) {{
+            if (newExecutionPending) return;
             renderTree(JSON.parse(e.data));
         }});
 
         eventSource.addEventListener('tree_update', function(e) {{
+            if (newExecutionPending) return;
             const update = JSON.parse(e.data);
-            // Record the current log-entry count when a step starts executing.
-            // scrollToStep() uses this index to find the approximate position in the
-            // DOM without needing server-injected markers in the log stream.
             if (update.node_type === 'step' && update.state === 'executing') {{
                 const stepId = `step-${{update.suite_idx}}-${{update.case_idx}}-${{update.step_idx}}`;
                 stepLogIndex[stepId] = logCount;
@@ -595,13 +636,18 @@
         }});
 
         eventSource.addEventListener('end', function(e) {{
+            // Execution finished cleanly. Close the SSE connection and switch to
+            // polling so we never auto-flow new-execution data into the current page.
             indicator.className = 'status-indicator disconnected';
-            statusTxt.textContent = 'Stream Ended';
             eventSource.close();
             processBatchImmediately();
+            wasDisconnected = true;
+            startStatusPolling();
         }});
 
         eventSource.onerror = function(e) {{
+            // Unexpected connection drop (e.g. network hiccup mid-execution).
+            // Reconnect normally; the connected handler will verify the title.
             indicator.className = 'status-indicator disconnected';
             statusTxt.textContent = 'Disconnected';
             wasDisconnected = true;
@@ -622,8 +668,21 @@
         document.getElementById('refreshBanner').classList.remove('hidden');
     }}
 
+    function switchToNewExecution() {{
+        window.location.reload();
+    }}
+
     function dismissBanner() {{
+        // User wants to stay on the current execution's data.
+        // Stop polling and close any open SSE connection so nothing overwrites the page.
+        stopStatusPolling();
+        newExecutionPending = false;
+        if (eventSource && eventSource.readyState !== EventSource.CLOSED) {{
+            eventSource.close();
+        }}
         document.getElementById('refreshBanner').classList.add('hidden');
+        document.getElementById('statusIndicator').className = 'status-indicator disconnected';
+        document.getElementById('statusText').textContent = 'Stream Ended';
     }}
 
     // ── Tree rendering ───────────────────────────────────────────────
@@ -728,8 +787,8 @@
 
         // Toggle arrow (for collapsible nodes)
         const toggle = document.createElement('span');
-        toggle.className = 'tree-toggle';
-        toggle.textContent = hasChildren ? '▶' : '';  // ▶
+        toggle.className = hasChildren ? 'tree-toggle expanded' : 'tree-toggle';
+        toggle.textContent = hasChildren ? '▶' : '';
         if (!hasChildren) toggle.style.visibility = 'hidden';
 
         // State icon
@@ -800,8 +859,6 @@
         // Highlight executing node, remove from others at the same level
         if (state === 'executing') {{
             el.classList.add('executing');
-            // Scroll the tree so this node is visible
-            el.scrollIntoView({{ block: 'nearest', behavior: 'smooth' }});
         }} else {{
             el.classList.remove('executing');
         }}
