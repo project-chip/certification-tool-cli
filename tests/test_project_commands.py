@@ -813,21 +813,37 @@ class TestProjectLogsCommand:
 
         assert Path(output_path).read_bytes() == expected_bytes
 
-    def test_logs_api_error(
+    def test_logs_api_error_project_not_found(
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
     ) -> None:
-        """Test log download with API error."""
+        """A 404 for a missing project gives a friendly, non-JSON message."""
         mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
-            UnexpectedResponse(status_code=404, content=b"Not Found")
+            UnexpectedResponse(status_code=404, content=b'{"detail": "Project not found"}')
         )
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
             result = cli_runner.invoke(project, ["logs", "--id", "99"])
 
         assert result.exit_code == 1
-        assert "404" in result.output
+        assert "Project ID '99' not found." in result.output
+
+    def test_logs_api_error_non_404_uses_generic_handler(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """Non-404 API errors still go through the generic error handler."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(status_code=500, content=b"Internal Server Error")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "500" in result.output
 
     def test_logs_no_executions_returns_error_and_writes_no_file(
         self,
@@ -835,12 +851,12 @@ class TestProjectLogsCommand:
         mock_sync_apis: Mock,
         temp_dir: Path,
     ) -> None:
-        """A project with no test run executions surfaces the backend's 404
+        """A project with no test run executions surfaces a friendly message
         instead of writing an empty/unusable zip file to disk."""
         mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
             UnexpectedResponse(
                 status_code=404,
-                content=b"Project 11 has no test run executions to download logs for",
+                content=b'{"detail": "Project 11 has no test run executions to download logs for"}',
             )
         )
 
@@ -849,7 +865,7 @@ class TestProjectLogsCommand:
                 result = cli_runner.invoke(project, ["logs", "--id", "11"])
 
                 assert result.exit_code == 1
-                assert "no test run executions" in result.output
+                assert "Nothing to download" in result.output
                 assert list(Path(".").glob("*.zip")) == []
 
     def test_logs_prints_progress_notice_before_download(
