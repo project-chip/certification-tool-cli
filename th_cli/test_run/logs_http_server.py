@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import copy
 import datetime
 import html
 import json
@@ -110,21 +111,37 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
-        log_queue = getattr(self.server, "log_queue", None)
-        if not log_queue:
-            logger.error("No log queue found on server for streaming")
+        # Create a per-client queue and register it in the broadcast set.
+        # Each SSE client owns its own queue so events are never stolen between connections.
+        client_queue: queue.Queue = queue.Queue(maxsize=500)
+        active_clients = getattr(self.server, "active_clients", None)
+        clients_lock = getattr(self.server, "clients_lock", None)
+        if active_clients is None or clients_lock is None:
+            logger.error("No active_clients/clients_lock found on server")
             return
+        with clients_lock:
+            active_clients.add(client_queue)
 
         # Send initial connection event.
         if not self._send_sse_event("connected", {"message": "Log stream connected"}):
+            with clients_lock:
+                active_clients.discard(client_queue)
             return
 
         # Send current tree snapshot if available — covers reconnecting clients
         # that arrive after init_tree() was called.
         tree_state: dict = getattr(self.server, "tree_state", {})
+        tree_lock = getattr(self.server, "tree_lock", None)
         sent_tree_snapshot = False
         if tree_state:
-            if not self._send_sse_event("tree_init", tree_state):
+            if tree_lock:
+                with tree_lock:
+                    tree_copy = copy.deepcopy(tree_state)
+            else:
+                tree_copy = copy.deepcopy(tree_state)
+            if not self._send_sse_event("tree_init", tree_copy):
+                with clients_lock:
+                    active_clients.discard(client_queue)
                 return
             sent_tree_snapshot = True
 
@@ -135,7 +152,7 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         try:
             while not client_disconnected:
                 try:
-                    entry = log_queue.get(timeout=1.0)
+                    entry = client_queue.get(timeout=1.0)
                 except queue.Empty:
                     if not self._send_sse_event("keepalive", {"timestamp": time.time()}):
                         client_disconnected = True
@@ -179,6 +196,9 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
             logger.debug("Client disconnected (broken pipe)")
         except Exception as e:
             logger.debug(f"Log streaming error: {e}")
+        finally:
+            with clients_lock:
+                active_clients.discard(client_queue)
 
         logger.info(f"Log stream ended, total log entries sent: {sent_count}")
 
@@ -246,30 +266,34 @@ class LogsHTTPServer:
 
     def start(
         self,
-        log_queue: queue.Queue,
+        active_clients: set,
+        clients_lock: threading.Lock,
         tree_state: dict,
         test_run_title: str = "Test Execution",
         local_ip: Optional[str] = None,
         log_file_path: Optional[str] = None,
+        tree_lock: Optional[threading.Lock] = None,
     ):
         """Start the HTTP server for log streaming.
 
         Args:
-            log_queue: Queue carrying log entries, tree events, and step markers.
+            active_clients: Shared set of per-client queues; broadcast puts into all of them.
+            clients_lock: Lock protecting active_clients mutations.
             tree_state: Mutable dict shared with LogStreamHandler; mutated in-place
                 so clients connecting after init_tree() receive a current snapshot.
             test_run_title: Title shown in the browser UI.
             local_ip: LAN IP used for display purposes.
             log_file_path: Path to the on-disk log file for download.
+            tree_lock: Lock protecting tree_state reads/writes.
         """
         try:
-            # Use ThreadingHTTPServer for better concurrency
             self.server = ThreadingHTTPServer(("0.0.0.0", self.port), LogStreamingHandler)
             self.server.allow_reuse_address = True
 
-            # Set required attributes on the server
-            self.server.log_queue = log_queue
+            self.server.active_clients = active_clients
+            self.server.clients_lock = clients_lock
             self.server.tree_state = tree_state  # shared reference — mutated externally
+            self.server.tree_lock = tree_lock
             self.server.test_run_title = test_run_title
             self.server.local_ip = local_ip or "localhost"
             self.server.log_file_path = log_file_path

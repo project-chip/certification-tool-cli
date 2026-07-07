@@ -493,12 +493,12 @@
                     <span class="log-count">Logs: <span id="logCount">0</span></span>
                 </div>
                 <div class="filter-group">
-                    <button class="filter-btn level-info     active" onclick="toggleFilter('INFO')">INFO</button>
-                    <button class="filter-btn level-warning  active" onclick="toggleFilter('WARNING')">WARN</button>
-                    <button class="filter-btn level-error    active" onclick="toggleFilter('ERROR')">ERROR</button>
-                    <button class="filter-btn level-debug"           onclick="toggleFilter('DEBUG')">DEBUG</button>
-                    <button class="filter-btn level-chiptool active" onclick="toggleFilter('CHIPTOOL')">CHIP</button>
-                    <button class="filter-btn level-python   active" onclick="toggleFilter('PYTHON_TEST')">PYTHON</button>
+                    <button class="filter-btn level-info     active" onclick="toggleFilter(this, 'INFO')">INFO</button>
+                    <button class="filter-btn level-warning  active" onclick="toggleFilter(this, 'WARNING')">WARN</button>
+                    <button class="filter-btn level-error    active" onclick="toggleFilter(this, 'ERROR')">ERROR</button>
+                    <button class="filter-btn level-debug"           onclick="toggleFilter(this, 'DEBUG')">DEBUG</button>
+                    <button class="filter-btn level-chiptool active" onclick="toggleFilter(this, 'CHIPTOOL')">CHIP</button>
+                    <button class="filter-btn level-python   active" onclick="toggleFilter(this, 'PYTHON_TEST')">PYTHON</button>
                 </div>
             </div>
 
@@ -532,6 +532,10 @@
     // When true, all incoming SSE events from a new execution are ignored so the
     // current page content (old execution) stays untouched until the user chooses.
     let newExecutionPending  = false;
+
+    // Events that arrive while newExecutionPending is true get buffered here.
+    // On same-execution reconnect they are replayed; on new-execution they are discarded.
+    let pendingEventBuffer   = [];
 
     // Interval handle for /api/status polling after a clean stream end.
     let statusPollInterval   = null;
@@ -587,38 +591,44 @@
 
             if (wasDisconnected) {{
                 // Preemptively block incoming events until the status check resolves.
-                // This prevents tree_init / log events from rewriting the page in the
-                // microseconds before the async fetch completes.
+                // Events are buffered (not silently dropped) so they can be replayed
+                // if it turns out to be the same execution reconnecting.
                 newExecutionPending = true;
+                pendingEventBuffer = [];
                 fetch('/api/status')
                     .then(r => r.json())
                     .then(s => {{
                         if (s.run_title && s.run_title !== currentRunTitle) {{
+                            pendingEventBuffer = [];  // Discard — new execution
                             showRefreshBanner(s.run_title);
                             // newExecutionPending stays true — banner is the gate
                         }} else {{
-                            // Same execution reconnected (e.g. network hiccup) — resume normally
+                            // Same execution reconnected (e.g. network hiccup) — replay buffered events
                             newExecutionPending = false;
+                            replayBuffered();
                         }}
                     }})
-                    .catch(() => {{ newExecutionPending = false; }});
+                    .catch(() => {{
+                        newExecutionPending = false;
+                        replayBuffered();
+                    }});
             }}
             wasDisconnected = false;
         }});
 
         eventSource.addEventListener('log', function(e) {{
-            if (newExecutionPending) return;
+            if (newExecutionPending) {{ pendingEventBuffer.push({{type:'log', data:JSON.parse(e.data)}}); return; }}
             logBatchQueue.push(JSON.parse(e.data));
             scheduleBatchProcessing();
         }});
 
         eventSource.addEventListener('tree_init', function(e) {{
-            if (newExecutionPending) return;
+            if (newExecutionPending) {{ pendingEventBuffer.push({{type:'tree_init', data:JSON.parse(e.data)}}); return; }}
             renderTree(JSON.parse(e.data));
         }});
 
         eventSource.addEventListener('tree_update', function(e) {{
-            if (newExecutionPending) return;
+            if (newExecutionPending) {{ pendingEventBuffer.push({{type:'tree_update', data:JSON.parse(e.data)}}); return; }}
             const update = JSON.parse(e.data);
             if (update.node_type === 'step' && update.state === 'executing') {{
                 const stepId = `step-${{update.suite_idx}}-${{update.case_idx}}-${{update.step_idx}}`;
@@ -674,8 +684,9 @@
 
     function dismissBanner() {{
         // User wants to stay on the current execution's data.
-        // Stop polling and close any open SSE connection so nothing overwrites the page.
+        // Stop polling, clear buffer, and close any open SSE connection.
         stopStatusPolling();
+        pendingEventBuffer = [];
         newExecutionPending = false;
         if (eventSource && eventSource.readyState !== EventSource.CLOSED) {{
             eventSource.close();
@@ -683,6 +694,26 @@
         document.getElementById('refreshBanner').classList.add('hidden');
         document.getElementById('statusIndicator').className = 'status-indicator disconnected';
         document.getElementById('statusText').textContent = 'Stream Ended';
+    }}
+
+    function replayBuffered() {{
+        const buffered = pendingEventBuffer;
+        pendingEventBuffer = [];
+        for (const evt of buffered) {{
+            if (evt.type === 'log') {{
+                logBatchQueue.push(evt.data);
+            }} else if (evt.type === 'tree_init') {{
+                renderTree(evt.data);
+            }} else if (evt.type === 'tree_update') {{
+                const update = evt.data;
+                if (update.node_type === 'step' && update.state === 'executing') {{
+                    const stepId = `step-${{update.suite_idx}}-${{update.case_idx}}-${{update.step_idx}}`;
+                    stepLogIndex[stepId] = logCount;
+                }}
+                applyTreeUpdate(update);
+            }}
+        }}
+        if (buffered.length > 0) scheduleBatchProcessing();
     }}
 
     // ── Tree rendering ───────────────────────────────────────────────
@@ -1016,7 +1047,7 @@
         }}
     }}
 
-    function toggleFilter(level) {{
+    function toggleFilter(btn, level) {{
         if (activeFilters.has(level)) {{ activeFilters.delete(level); }}
         else                          {{ activeFilters.add(level);    }}
         event.target.classList.toggle('active');

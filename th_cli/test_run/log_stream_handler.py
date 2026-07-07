@@ -16,6 +16,7 @@
 import datetime
 import queue
 import socket
+import threading
 from typing import Any, Optional
 
 from loguru import logger
@@ -34,9 +35,12 @@ class LogStreamHandler:
         """
         self.port = port
         self.http_server = LogsHTTPServer(port=port)
-        self.log_queue: queue.Queue = queue.Queue(maxsize=1000)
+        # Per-client broadcast set — each connected SSE client owns its own queue.
+        self._clients: set = set()
+        self._clients_lock = threading.Lock()
         # Mutable dict kept in-place so the server's reference always reflects current state.
         self.tree_state: dict = {}
+        self.tree_lock = threading.Lock()
         self.is_running = False
         self.log_file_path: Optional[str] = None
 
@@ -63,11 +67,13 @@ class LogStreamHandler:
             
             # Start HTTP server
             self.http_server.start(
-                log_queue=self.log_queue,
+                active_clients=self._clients,
+                clients_lock=self._clients_lock,
                 tree_state=self.tree_state,
                 test_run_title=test_run_title,
                 local_ip=local_ip,
                 log_file_path=log_file_path,
+                tree_lock=self.tree_lock
             )
 
             self.is_running = True
@@ -87,10 +93,9 @@ class LogStreamHandler:
             return
 
         try:
-            try:
-                self.log_queue.put_nowait(None)
-            except queue.Full:
-                pass
+            self._broadcast(None)
+            with self._clients_lock:
+                self._clients.clear()
 
             self.http_server.stop()
             self.is_running = False
@@ -113,13 +118,7 @@ class LogStreamHandler:
             "timestamp": timestamp,
         }
 
-        try:
-            # Try to add to queue without blocking
-            self.log_queue.put_nowait(log_entry)
-        except queue.Full:
-            # Queue is full, skip this entry silently to avoid blocking
-            # This is acceptable for real-time streaming when no browser is connected
-            pass
+        self._broadcast(log_entry)
 
     # ------------------------------------------------------------------
     # Tree management
@@ -136,14 +135,11 @@ class LogStreamHandler:
 
         try:
             tree = self._build_tree(run)
-            self.tree_state.clear()
-            self.tree_state.update(tree)
+            with self.tree_lock:
+                self.tree_state.clear()
+                self.tree_state.update(tree)
 
-            # Queue a tree_init event for the client that is already connected.
-            # Reconnecting clients receive the snapshot directly from tree_state.
-            self.log_queue.put_nowait({"type": "tree_init", "data": dict(tree)})
-        except queue.Full:
-            pass
+            self._broadcast({"type": "tree_init", "data": dict(tree)})
         except Exception as e:
             logger.debug(f"Error initialising tree: {e}")
 
@@ -176,14 +172,15 @@ class LogStreamHandler:
 
         # Mutate tree_state in-place (kept consistent for reconnecting clients).
         try:
-            if node_type == "run":
-                self.tree_state["state"] = state
-            elif node_type == "suite":
-                self.tree_state["suites"][suite_idx]["state"] = state
-            elif node_type == "case":
-                self.tree_state["suites"][suite_idx]["cases"][case_idx]["state"] = state
-            else:
-                self.tree_state["suites"][suite_idx]["cases"][case_idx]["steps"][step_idx]["state"] = state
+            with self.tree_lock:
+                if node_type == "run":
+                    self.tree_state["state"] = state
+                elif node_type == "suite":
+                    self.tree_state["suites"][suite_idx]["state"] = state
+                elif node_type == "case":
+                    self.tree_state["suites"][suite_idx]["cases"][case_idx]["state"] = state
+                else:
+                    self.tree_state["suites"][suite_idx]["cases"][case_idx]["steps"][step_idx]["state"] = state
         except (IndexError, KeyError, TypeError):
             pass
 
@@ -196,14 +193,21 @@ class LogStreamHandler:
             "state": state,
         }
 
-        try:
-            self.log_queue.put_nowait(event)
-        except queue.Full:
-            pass
+        self._broadcast(event)
 
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _broadcast(self, event) -> None:
+        """Put event into every active client's queue; drops silently if a queue is full."""
+        with self._clients_lock:
+            clients = list(self._clients)
+        for q in clients:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                pass
 
     def _build_tree(self, run: Any) -> dict:
         """Construct a plain-dict tree from a TestRunExecutionWithChildren."""
