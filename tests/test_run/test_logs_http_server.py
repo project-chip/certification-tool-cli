@@ -45,6 +45,12 @@ def _make_handler(path="/", server_attrs=None):
     handler.path = path
 
     mock_server = MagicMock()
+    # Set sensible defaults for the broadcast-pattern attributes so stream_logs()
+    # doesn't hit MagicMock internals (e.g. deepcopy of threading.Lock).
+    mock_server.active_clients = set()
+    mock_server.clients_lock = threading.Lock()
+    mock_server.tree_state = {}   # empty dict avoids deepcopy branch
+    mock_server.tree_lock = None
     for attr, value in (server_attrs or {}).items():
         setattr(mock_server, attr, value)
     handler.server = mock_server
@@ -62,6 +68,14 @@ def _make_handler(path="/", server_attrs=None):
     handler.send_error = lambda code, msg=None: setattr(handler, "_error_code", code)
 
     return handler
+
+
+def _pre_filled_queue(*items):
+    """Return a queue pre-loaded with items for use when patching queue.Queue."""
+    q = queue.Queue()
+    for item in items:
+        q.put(item)
+    return q
 
 
 # ---------------------------------------------------------------------------
@@ -202,49 +216,41 @@ class TestSendSseEvent:
 @pytest.mark.unit
 class TestStreamLogs:
     def test_sends_sse_headers(self):
-        q = queue.Queue()
-        q.put(None)  # immediate end-of-stream
-        h = _make_handler(server_attrs={"log_queue": q})
-
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.stream_logs()
+        h = _make_handler()
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
 
         assert h._response_code == 200
         assert h._headers_sent.get("Content-Type") == "text/event-stream"
 
     def test_sends_end_event_on_none_sentinel(self):
-        q = queue.Queue()
-        q.put(None)
-        h = _make_handler(server_attrs={"log_queue": q})
+        h = _make_handler()
         sent_events = []
-        original_send = h._send_sse_event
         h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
 
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.stream_logs()
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
 
         assert "end" in sent_events
 
     def test_streams_log_entries_from_queue(self):
-        q = queue.Queue()
-        q.put({"message": "hello", "level": "INFO", "timestamp": "2025-01-01"})
-        q.put(None)
-        h = _make_handler(server_attrs={"log_queue": q})
+        h = _make_handler()
         sent_events = []
         h._send_sse_event = lambda ev, data: sent_events.append((ev, data)) or True
 
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.stream_logs()
+        entry = {"message": "hello", "level": "INFO", "timestamp": "2025-01-01"}
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(entry, None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
 
         log_events = [d for ev, d in sent_events if ev == "log"]
         assert len(log_events) == 1
         assert log_events[0]["message"] == "hello"
 
     def test_stops_when_send_sse_returns_false(self):
-        q = queue.Queue()
-        q.put({"message": "msg", "level": "INFO", "timestamp": "t"})
-        q.put({"message": "msg2", "level": "INFO", "timestamp": "t"})
-        h = _make_handler(server_attrs={"log_queue": q})
+        h = _make_handler()
         call_count = [0]
 
         def _send(ev, data):
@@ -254,33 +260,33 @@ class TestStreamLogs:
             return False  # disconnect immediately
 
         h._send_sse_event = _send
+        entry1 = {"message": "msg", "level": "INFO", "timestamp": "t"}
+        entry2 = {"message": "msg2", "level": "INFO", "timestamp": "t"}
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(entry1, entry2)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
 
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.stream_logs()
-
-        # Should not have kept reading after disconnect
         assert call_count[0] <= 3
 
-    def test_no_log_queue_on_server_returns_early(self):
-        h = _make_handler(server_attrs={"log_queue": None})
+    def test_no_active_clients_on_server_returns_early(self):
+        h = _make_handler(server_attrs={"active_clients": None, "clients_lock": None})
         with patch("th_cli.test_run.logs_http_server.logger"):
             h.stream_logs()
-        # Should have sent 200 headers but not crashed
         assert h._response_code == 200
 
     def test_debug_log_at_100_entries(self):
-        """Covers line 134: `if sent_count % 100 == 0` debug message."""
-        q = queue.Queue()
-        # Put 100 log entries then sentinel
-        for i in range(100):
-            q.put({"message": f"msg{i}", "level": "INFO", "timestamp": "t"})
-        q.put(None)
+        """Covers line `if sent_count % 100 == 0` debug message."""
+        entries = [{"message": f"msg{i}", "level": "INFO", "timestamp": "t"} for i in range(100)]
+        entries.append(None)  # sentinel
+        pre_q = queue.Queue()
+        for e in entries:
+            pre_q.put(e)
 
-        h = _make_handler(server_attrs={"log_queue": q})
-        with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
-            h.stream_logs()
+        h = _make_handler()
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=pre_q):
+            with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+                h.stream_logs()
 
-        # 100 entries should have triggered the debug log
         mock_logger.debug.assert_called()
 
 
@@ -381,7 +387,8 @@ class TestLogsHTTPServerInit:
 class TestLogsHTTPServerStart:
     def test_creates_threading_http_server(self):
         srv = LogsHTTPServer(port=0)
-        q = queue.Queue()
+        clients = set()
+        lock = threading.Lock()
 
         with patch("th_cli.test_run.logs_http_server.ThreadingHTTPServer") as mock_cls:
             mock_ths = MagicMock()
@@ -390,23 +397,32 @@ class TestLogsHTTPServerStart:
                 mock_thread = MagicMock()
                 mock_thread_cls.return_value = mock_thread
                 with patch("th_cli.test_run.logs_http_server.logger"):
-                    srv.start(log_queue=q, test_run_title="Run")
+                    srv.start(active_clients=clients, clients_lock=lock, tree_state={}, test_run_title="Run")
 
         mock_cls.assert_called_once()
         mock_thread.start.assert_called_once()
 
     def test_sets_server_attributes(self):
         srv = LogsHTTPServer(port=0)
-        q = queue.Queue()
+        clients = set()
+        lock = threading.Lock()
 
         with patch("th_cli.test_run.logs_http_server.ThreadingHTTPServer") as mock_cls:
             mock_ths = MagicMock()
             mock_cls.return_value = mock_ths
             with patch("th_cli.test_run.logs_http_server.threading.Thread", return_value=MagicMock()):
                 with patch("th_cli.test_run.logs_http_server.logger"):
-                    srv.start(log_queue=q, test_run_title="MyTitle", local_ip="1.2.3.4", log_file_path="/tmp/f.log")
+                    srv.start(
+                        active_clients=clients,
+                        clients_lock=lock,
+                        tree_state={},
+                        test_run_title="MyTitle",
+                        local_ip="1.2.3.4",
+                        log_file_path="/tmp/f.log",
+                    )
 
-        assert mock_ths.log_queue is q
+        assert mock_ths.active_clients is clients
+        assert mock_ths.clients_lock is lock
         assert mock_ths.test_run_title == "MyTitle"
         assert mock_ths.local_ip == "1.2.3.4"
         assert mock_ths.log_file_path == "/tmp/f.log"
@@ -416,7 +432,7 @@ class TestLogsHTTPServerStart:
         with patch("th_cli.test_run.logs_http_server.ThreadingHTTPServer", side_effect=OSError("port in use")):
             with patch("th_cli.test_run.logs_http_server.logger"):
                 with pytest.raises(OSError):
-                    srv.start(log_queue=queue.Queue(), test_run_title="run")
+                    srv.start(active_clients=set(), clients_lock=threading.Lock(), tree_state={}, test_run_title="run")
 
 
 # ---------------------------------------------------------------------------
