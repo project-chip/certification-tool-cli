@@ -506,6 +506,10 @@ def _download_project_logs(
     sync_apis: SyncApis, id: int, grouped: bool, output_file: str | None
 ) -> None:
     """Download all logs for a project as a single zip archive"""
+    click.echo(
+        f"Downloading logs for project {id}... this may take a while for "
+        "projects with many or large test run executions."
+    )
     try:
         log_bytes: bytes = sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get(
             id=id, grouped=grouped
