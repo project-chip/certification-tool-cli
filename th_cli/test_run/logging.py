@@ -35,16 +35,16 @@ _log_stream_handler: Optional["LogStreamHandler"] = None
 
 def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> str:
     """Configure logger for a test run.
-    
+
     Args:
         title: Title of the test run
         enable_log_streaming: Whether to enable real-time log streaming
-        
+
     Returns:
         Path to the log file
     """
     global _log_stream_handler
-    
+
     # Reset (Remove all sinks from logger)
     logger.remove()
 
@@ -63,15 +63,14 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
 
             _log_stream_handler = LogStreamHandler(port=8998)
             viewer_url = _log_stream_handler.start(test_run_title=title, log_file_path=log_path)
+
             # Add custom sink that forwards logs to the stream handler
             def stream_sink(message):
                 """Custom sink that forwards logs to the HTTP stream."""
                 try:
                     record = message.record
                     _log_stream_handler.add_log_entry(
-                        message=record["message"],
-                        level=record["level"].name,
-                        timestamp=record["time"].isoformat()
+                        message=record["message"], level=record["level"].name, timestamp=record["time"].isoformat()
                     )
                 except Exception:
                     # Silently fail to avoid disrupting logging
@@ -91,7 +90,7 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
 def stop_log_streaming():
     """Stop the log streaming server if it's running."""
     global _log_stream_handler
-    
+
     if _log_stream_handler:
         try:
             _log_stream_handler.stop()
@@ -104,7 +103,7 @@ def stop_log_streaming():
 
 def get_log_stream_url() -> Optional[str]:
     """Get the URL for the log viewer if streaming is enabled.
-    
+
     Returns:
         URL string or None if streaming is not enabled
     """

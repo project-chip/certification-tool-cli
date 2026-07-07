@@ -15,18 +15,21 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import Coroutine, IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, Coroutine
 
 from th_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
 
+
 class _TestRunConfigsApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_read_test_run_configs_api_v1_test_run_configs__get(self, skip: int | None = None, limit: int | None = None) -> Coroutine[Any, Any, list[m.TestRunConfig]]:
+    def _build_for_read_test_run_configs_api_v1_test_run_configs__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> Coroutine[Any, Any, list[m.TestRunConfig]]:
         """
         Read Test Run Configs
         """
@@ -37,63 +40,64 @@ class _TestRunConfigsApi:
             query_params["limit"] = str(limit)
 
         return self.api_client.request(
-            type_=list[m.TestRunConfig],
-            method="GET",
-            url="/api/v1/test_run_configs/",
-            params=query_params
+            type_=list[m.TestRunConfig], method="GET", url="/api/v1/test_run_configs/", params=query_params
         )
 
-    def _build_for_create_test_run_config_api_v1_test_run_configs__post(self, body: m.TestRunConfigCreate) -> Coroutine[Any, Any, m.TestRunConfig]:
+    def _build_for_create_test_run_config_api_v1_test_run_configs__post(
+        self, body: m.TestRunConfigCreate
+    ) -> Coroutine[Any, Any, m.TestRunConfig]:
         """
         Create Test Run Config
         """
-        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
+        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
 
         return self.api_client.request(
-            type_=m.TestRunConfig,
-            method="POST",
-            url="/api/v1/test_run_configs/",
-            json=json_body
+            type_=m.TestRunConfig, method="POST", url="/api/v1/test_run_configs/", json=json_body
         )
 
-    def _build_for_read_test_run_config_api_v1_test_run_configs__id__get(self, id: int) -> Coroutine[Any, Any, m.TestRunConfig]:
+    def _build_for_read_test_run_config_api_v1_test_run_configs__id__get(
+        self, id: int
+    ) -> Coroutine[Any, Any, m.TestRunConfig]:
         """
         Read Test Run Config
         """
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.TestRunConfig,
-            method="GET",
-            url="/api/v1/test_run_configs/{id}",
-            path_params=path_params
+            type_=m.TestRunConfig, method="GET", url="/api/v1/test_run_configs/{id}", path_params=path_params
         )
 
-    def _build_for_update_test_run_config_api_v1_test_run_configs__id__put(self, body: m.TestRunConfigUpdate, id: int) -> Coroutine[Any, Any, m.TestRunConfig]:
+    def _build_for_update_test_run_config_api_v1_test_run_configs__id__put(
+        self, body: m.TestRunConfigUpdate, id: int
+    ) -> Coroutine[Any, Any, m.TestRunConfig]:
         """
         Update Test Run Config
         """
         path_params = {"id": str(id)}
 
-        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
+        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
 
         return self.api_client.request(
             type_=m.TestRunConfig,
             method="PUT",
             url="/api/v1/test_run_configs/{id}",
             path_params=path_params,
-            json=json_body
+            json=json_body,
         )
 
 
 class AsyncTestRunConfigsApi(_TestRunConfigsApi):
-    async def read_test_run_configs_api_v1_test_run_configs__get(self, skip: int | None = None, limit: int | None = None) -> list[m.TestRunConfig]:
+    async def read_test_run_configs_api_v1_test_run_configs__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> list[m.TestRunConfig]:
         """
         Read Test Run Configs
         """
         return await self._build_for_read_test_run_configs_api_v1_test_run_configs__get(skip=skip, limit=limit)
 
-    async def create_test_run_config_api_v1_test_run_configs__post(self, body: m.TestRunConfigCreate) -> m.TestRunConfig:
+    async def create_test_run_config_api_v1_test_run_configs__post(
+        self, body: m.TestRunConfigCreate
+    ) -> m.TestRunConfig:
         """
         Create Test Run Config
         """
@@ -105,7 +109,9 @@ class AsyncTestRunConfigsApi(_TestRunConfigsApi):
         """
         return await self._build_for_read_test_run_config_api_v1_test_run_configs__id__get(id=id)
 
-    async def update_test_run_config_api_v1_test_run_configs__id__put(self, body: m.TestRunConfigUpdate, id: int) -> m.TestRunConfig:
+    async def update_test_run_config_api_v1_test_run_configs__id__put(
+        self, body: m.TestRunConfigUpdate, id: int
+    ) -> m.TestRunConfig:
         """
         Update Test Run Config
         """
@@ -113,7 +119,9 @@ class AsyncTestRunConfigsApi(_TestRunConfigsApi):
 
 
 class SyncTestRunConfigsApi(_TestRunConfigsApi):
-    def read_test_run_configs_api_v1_test_run_configs__get(self, skip: int | None = None, limit: int | None = None) -> list[m.TestRunConfig]:
+    def read_test_run_configs_api_v1_test_run_configs__get(
+        self, skip: int | None = None, limit: int | None = None
+    ) -> list[m.TestRunConfig]:
         """
         Read Test Run Configs
         """
@@ -134,7 +142,9 @@ class SyncTestRunConfigsApi(_TestRunConfigsApi):
         coroutine = self._build_for_read_test_run_config_api_v1_test_run_configs__id__get(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def update_test_run_config_api_v1_test_run_configs__id__put(self, body: m.TestRunConfigUpdate, id: int) -> m.TestRunConfig:
+    def update_test_run_config_api_v1_test_run_configs__id__put(
+        self, body: m.TestRunConfigUpdate, id: int
+    ) -> m.TestRunConfig:
         """
         Update Test Run Config
         """

@@ -44,20 +44,20 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         else:
             logger.warning(f"404 for GET {self.path}")
             self.send_error(404)
-    
+
     def download_logs(self):
         """Serve the log file for download using chunked streaming."""
         log_file_path = getattr(self.server, "log_file_path", None)
-        
+
         if not log_file_path or not Path(log_file_path).exists():
             self.send_error(404, "Log file not found")
             return
-        
+
         try:
             file_path = Path(log_file_path)
             filename = file_path.name
             file_size = file_path.stat().st_size
-            
+
             # Send headers
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -65,18 +65,18 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(file_size))
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
-            
+
             # Stream file in chunks to avoid loading entire file into memory
             CHUNK_SIZE = 65536  # 64KB chunks
             bytes_sent = 0
 
-            with open(log_file_path, 'rb') as f:
+            with open(log_file_path, "rb") as f:
                 while chunk := f.read(CHUNK_SIZE):
                     self.wfile.write(chunk)
                     bytes_sent += len(chunk)
 
             logger.info(f"Log file downloaded: {filename} ({bytes_sent} bytes)")
-            
+
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             # Client disconnected during download - normal, not an error
             logger.debug("Client disconnected during log file download")
@@ -87,7 +87,7 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
     def stream_logs(self):
         """Stream logs using Server-Sent Events (SSE)."""
         logger.info("Client connected for log stream")
-        
+
         # Send SSE headers
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -105,18 +105,18 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         logger.info("Starting to stream logs to client via SSE")
         sent_count = 0
         client_disconnected = False
-        
+
         try:
             # Send initial connection message
             if not self._send_sse_event("connected", {"message": "Log stream connected"}):
                 logger.debug("Client disconnected during initial connection")
                 return
-            
+
             while not client_disconnected:
                 try:
                     # Get log entry from queue with timeout
                     log_entry = log_queue.get(timeout=1.0)
-                    
+
                     if log_entry is None:  # Signal to stop
                         logger.info("Received end-of-stream signal for logs")
                         self._send_sse_event("end", {"message": "Log stream ended"})
@@ -127,9 +127,9 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
                         logger.debug("Client disconnected while streaming")
                         client_disconnected = True
                         break
-                        
+
                     sent_count += 1
-                    
+
                     if sent_count % 100 == 0:
                         logger.debug(f"Sent {sent_count} log entries to client")
 
@@ -153,13 +153,13 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
 
     def _send_sse_event(self, event_type: str, data: dict) -> bool:
         """Send a Server-Sent Event.
-        
+
         Returns:
             True if event was sent successfully, False if client disconnected
         """
         try:
             event_data = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
-            self.wfile.write(event_data.encode('utf-8'))
+            self.wfile.write(event_data.encode("utf-8"))
             self.wfile.flush()
             return True
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
@@ -173,7 +173,7 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         """Serve the log viewer HTML page."""
         # Get configuration from server
         test_run_title = getattr(self.server, "test_run_title", "Test Execution")
-        
+
         # Read HTML template from file
         try:
             template_path = Path(__file__).parent / "log_viewer.html"
@@ -181,9 +181,7 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
                 html_template = f.read()
 
             # Replace placeholders
-            html_content = html_template.format(
-                test_run_title=html.escape(test_run_title)
-            )
+            html_content = html_template.format(test_run_title=html.escape(test_run_title))
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
             # Fallback to simple HTML
@@ -218,7 +216,7 @@ class LogsHTTPServer:
 
     def __init__(self, port: int = 8998):
         """Initialize the logs HTTP server.
-        
+
         Args:
             port: Port number for the HTTP server (default: 8998)
         """
@@ -234,7 +232,7 @@ class LogsHTTPServer:
         log_file_path: Optional[str] = None,
     ):
         """Start HTTP server for log streaming.
-        
+
         Args:
             log_queue: Queue containing log entries to stream
             test_run_title: Title of the test run for display

@@ -15,13 +15,38 @@
 #
 """API endpoint classes."""
 
-from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollectionsApi, SyncTestCollectionsApi
-from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
-from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
-from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
-from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
-from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
-from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
 from th_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
+from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
+from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
+from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollectionsApi, SyncTestCollectionsApi
+from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
+from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
+from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
+from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
 
-__all__ = ["TestCollectionsApi", "AsyncTestCollectionsApi", "SyncTestCollectionsApi", "ProjectsApi", "AsyncProjectsApi", "SyncProjectsApi", "OperatorsApi", "AsyncOperatorsApi", "SyncOperatorsApi", "TestRunExecutionsApi", "AsyncTestRunExecutionsApi", "SyncTestRunExecutionsApi", "TestRunConfigsApi", "AsyncTestRunConfigsApi", "SyncTestRunConfigsApi", "VersionApi", "AsyncVersionApi", "SyncVersionApi", "UtilsApi", "AsyncUtilsApi", "SyncUtilsApi", "DevicesApi", "AsyncDevicesApi", "SyncDevicesApi"]
+__all__ = [
+    "TestCollectionsApi",
+    "AsyncTestCollectionsApi",
+    "SyncTestCollectionsApi",
+    "ProjectsApi",
+    "AsyncProjectsApi",
+    "SyncProjectsApi",
+    "OperatorsApi",
+    "AsyncOperatorsApi",
+    "SyncOperatorsApi",
+    "TestRunExecutionsApi",
+    "AsyncTestRunExecutionsApi",
+    "SyncTestRunExecutionsApi",
+    "TestRunConfigsApi",
+    "AsyncTestRunConfigsApi",
+    "SyncTestRunConfigsApi",
+    "VersionApi",
+    "AsyncVersionApi",
+    "SyncVersionApi",
+    "UtilsApi",
+    "AsyncUtilsApi",
+    "SyncUtilsApi",
+    "DevicesApi",
+    "AsyncDevicesApi",
+    "SyncDevicesApi",
+]

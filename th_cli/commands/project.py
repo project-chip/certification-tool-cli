@@ -23,7 +23,13 @@ from pydantic import ValidationError
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.api_lib_autogen.models import PICS, BodyImportprojectConfigApiV1ProjectsImportPost, Project, ProjectCreate, ProjectUpdate
+from th_cli.api_lib_autogen.models import (
+    PICS,
+    BodyImportprojectConfigApiV1ProjectsImportPost,
+    Project,
+    ProjectCreate,
+    ProjectUpdate,
+)
 from th_cli.client import get_client
 from th_cli.colorize import (
     colorize_cmd_help,
@@ -39,6 +45,7 @@ from th_cli.utils import __print_config, __print_json, read_pics_config
 from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
+
 
 # Click command group for project management
 @click.group(
@@ -132,11 +139,7 @@ def create(name: str, config: str | None, pics_config_folder: str | None) -> Non
     help=colorize_help("Print JSON response for more details"),
 )
 @click.option(
-    "--config",
-    "-c",
-    is_flag=True,
-    default=False,
-    help=colorize_help("Print project configuration in JSON format")
+    "--config", "-c", is_flag=True, default=False, help=colorize_help("Print project configuration in JSON format")
 )
 def list_projects(
     id: int | None,
@@ -275,18 +278,14 @@ def import_project(file: str) -> None:
     "--grouped",
     is_flag=True,
     default=False,
-    help=colorize_help(
-        "Download grouped logs (organized by test case state) instead of flat log files"
-    ),
+    help=colorize_help("Download grouped logs (organized by test case state) instead of flat log files"),
 )
 @click.option(
     "--output-file",
     "-o",
     type=click.Path(file_okay=True, dir_okay=False),
     required=False,
-    help=colorize_help(
-        "Output zip file path (defaults to <project-name>-logs.zip)"
-    ),
+    help=colorize_help("Output zip file path (defaults to <project-name>-logs.zip)"),
 )
 def logs(id: int, grouped: bool, output_file: str | None) -> None:
     """Download all logs for a project as a single zip archive"""
@@ -502,9 +501,7 @@ def _import_project(sync_apis: SyncApis, file: str) -> None:
         handle_api_error(e, f"import project from '{file}'")
 
 
-def _download_project_logs(
-    sync_apis: SyncApis, id: int, grouped: bool, output_file: str | None
-) -> None:
+def _download_project_logs(sync_apis: SyncApis, id: int, grouped: bool, output_file: str | None) -> None:
     """Download all logs for a project as a single zip archive"""
     click.echo(
         f"Downloading logs for project {id}... this may take a while for "
@@ -520,9 +517,7 @@ def _download_project_logs(
     if not output_file:
         try:
             project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
-            safe_name = "".join(
-                c if c.isalnum() or c in "-_" else "_" for c in (project.name or f"project-{id}")
-            )
+            safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (project.name or f"project-{id}"))
         except Exception:
             # The logs have already been downloaded successfully at this point;
             # any failure fetching the project name (network glitch, unexpected

@@ -20,6 +20,7 @@ from httpx import Response
 
 class ApiException(Exception):
     """Base exception for API client errors."""
+
     pass
 
 

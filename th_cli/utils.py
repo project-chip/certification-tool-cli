@@ -39,11 +39,13 @@ DEFAULT_CLI_PROJECT_NAME = "CLI Project Execution"
 def __print_json(object: Any) -> None:
     click.echo(colorize_dump(__json_string(object)))
 
+
 def __print_config(project: Any) -> None:
     if isinstance(project, list):
         raise CLIError("Please provide a single project ID (using --id) to print the configuration.")
     config = project.config if project.config is not None else {}
     click.echo(colorize_dump(json.dumps(config, indent=4, default=str)))
+
 
 def __json_string(object: Any) -> str:
     if object is None:
@@ -432,9 +434,7 @@ def load_tc_params_mapping(
     raw = parse_and_validate_tc_params_file(mapping_path)
 
     # Build a normalised-key → params lookup.
-    normalised_mapping: dict[str, dict[str, Any]] = {
-        _normalise(key): value for key, value in raw.items()
-    }
+    normalised_mapping: dict[str, dict[str, Any]] = {_normalise(key): value for key, value in raw.items()}
 
     # Match each requested test ID against the normalised mapping.
     merged_params: dict[str, Any] = {}
@@ -502,7 +502,7 @@ def get_versions() -> dict:
         sync_apis = SyncApis(client)
         version_api = sync_apis.version_api
         versions_info = version_api.get_test_harness_backend_version_api_v1_version_get()
-        return versions_info.model_dump(mode='json')
+        return versions_info.model_dump(mode="json")
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except UnexpectedResponse:
