@@ -513,14 +513,17 @@ def _download_project_logs(sync_apis: SyncApis, id: int, grouped: bool, output_f
         )
     except UnexpectedResponse as e:
         if e.status_code == 404:
-            content = e.content.decode("utf-8", errors="ignore") if isinstance(e.content, bytes) else e.content
-            detail = ""
-            try:
-                parsed = json.loads(content) if content else {}
-                if isinstance(parsed, dict):
-                    detail = parsed.get("detail", "")
-            except json.JSONDecodeError:
-                pass
+            if isinstance(e.content, dict):
+                detail = e.content.get("detail", "")
+            else:
+                content = e.content.decode("utf-8", errors="ignore") if isinstance(e.content, bytes) else e.content
+                detail = ""
+                try:
+                    parsed = json.loads(content) if content else {}
+                    if isinstance(parsed, dict):
+                        detail = parsed.get("detail", "")
+                except json.JSONDecodeError:
+                    pass
             if "no test run executions" in detail:
                 raise CLIError(f"Project {id} has no test run executions yet. Nothing to download.")
             raise CLIError(f"Project ID '{id}' not found.")

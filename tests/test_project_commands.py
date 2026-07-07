@@ -820,7 +820,7 @@ class TestProjectLogsCommand:
     ) -> None:
         """A 404 for a missing project gives a friendly, non-JSON message."""
         mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
-            UnexpectedResponse(status_code=404, content=b'{"detail": "Project not found"}')
+            UnexpectedResponse(status_code=404, content={"detail": "Project not found"})
         )
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -852,11 +852,35 @@ class TestProjectLogsCommand:
         temp_dir: Path,
     ) -> None:
         """A project with no test run executions surfaces a friendly message
-        instead of writing an empty/unusable zip file to disk."""
+        instead of writing an empty/unusable zip file to disk. Mirrors the
+        dict-shaped content the real API client delivers via response.json()."""
         mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
             UnexpectedResponse(
                 status_code=404,
-                content=b'{"detail": "Project 11 has no test run executions to download logs for"}',
+                content={"detail": "Project 11 has no test run executions to download logs for"},
+            )
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "11"])
+
+                assert result.exit_code == 1
+                assert "Nothing to download" in result.output
+                assert list(Path(".").glob("*.zip")) == []
+
+    def test_logs_no_executions_with_string_content_fallback(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """Also handles JSON-string content, in case the client ever
+        surfaces the raw response body instead of a parsed dict."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(
+                status_code=404,
+                content='{"detail": "Project 11 has no test run executions to download logs for"}',
             )
         )
 
