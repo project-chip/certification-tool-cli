@@ -46,10 +46,11 @@ class TestLogStreamHandlerInit:
             h = LogStreamHandler()
         assert h.is_running is False
 
-    def test_log_queue_is_queue(self):
+    def test_clients_is_empty_set(self):
         with patch("th_cli.test_run.log_stream_handler.LogsHTTPServer"):
             h = LogStreamHandler()
-        assert isinstance(h.log_queue, queue.Queue)
+        assert isinstance(h._clients, set)
+        assert len(h._clients) == 0
 
     def test_log_file_path_initially_none(self):
         with patch("th_cli.test_run.log_stream_handler.LogsHTTPServer"):
@@ -163,24 +164,23 @@ class TestLogStreamHandlerStop:
 
         assert h.is_running is False
 
-    def test_puts_none_sentinel_into_queue(self):
+    def test_broadcasts_none_sentinel_on_stop(self):
         h, mock_srv = _make_handler()
         h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
 
         with patch("th_cli.test_run.log_stream_handler.logger"):
             h.stop()
 
-        assert h.log_queue.get_nowait() is None
+        assert client_q.get_nowait() is None
 
-    def test_skips_sentinel_when_queue_full(self):
+    def test_stop_does_not_raise_when_client_queue_full(self):
         h, mock_srv = _make_handler()
         h.is_running = True
-        # Fill the queue to capacity
-        for _ in range(h.log_queue.maxsize):
-            try:
-                h.log_queue.put_nowait("entry")
-            except queue.Full:
-                break
+        client_q = queue.Queue(maxsize=1)
+        client_q.put_nowait("existing")  # fill to capacity
+        h._clients.add(client_q)
 
         with patch("th_cli.test_run.log_stream_handler.logger"):
             h.stop()  # must not raise
@@ -196,45 +196,54 @@ class TestAddLogEntry:
     def test_noop_when_not_running(self):
         h, _ = _make_handler()
         h.is_running = False
-        h.add_log_entry(message="ignored")
-        assert h.log_queue.empty()
+        with patch.object(h, "_broadcast") as mock_bcast:
+            h.add_log_entry(message="ignored")
+        mock_bcast.assert_not_called()
 
     def test_adds_entry_to_queue_when_running(self):
         h, _ = _make_handler()
         h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
         h.add_log_entry(message="hello", level="INFO")
-        entry = h.log_queue.get_nowait()
+        entry = client_q.get_nowait()
         assert entry["message"] == "hello"
         assert entry["level"] == "INFO"
 
     def test_auto_generates_timestamp_when_not_provided(self):
         h, _ = _make_handler()
         h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
         h.add_log_entry(message="msg")
-        entry = h.log_queue.get_nowait()
+        entry = client_q.get_nowait()
         assert "timestamp" in entry
         assert entry["timestamp"] is not None
 
     def test_uses_provided_timestamp(self):
         h, _ = _make_handler()
         h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
         h.add_log_entry(message="msg", timestamp="2025-01-01T00:00:00")
-        entry = h.log_queue.get_nowait()
+        entry = client_q.get_nowait()
         assert entry["timestamp"] == "2025-01-01T00:00:00"
 
     def test_level_uppercased(self):
         h, _ = _make_handler()
         h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
         h.add_log_entry(message="msg", level="warning")
-        entry = h.log_queue.get_nowait()
+        entry = client_q.get_nowait()
         assert entry["level"] == "WARNING"
 
     def test_silently_drops_when_queue_full(self):
         h, _ = _make_handler()
         h.is_running = True
-        # Fill queue to max
-        for _ in range(h.log_queue.maxsize):
-            h.log_queue.put_nowait({"message": "x"})
+        client_q = queue.Queue(maxsize=1)
+        client_q.put_nowait({"message": "x"})  # fill to capacity
+        h._clients.add(client_q)
         h.add_log_entry(message="overflow")  # must not raise
 
 

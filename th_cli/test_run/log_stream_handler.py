@@ -16,7 +16,8 @@
 import datetime
 import queue
 import socket
-from typing import Optional
+import threading
+from typing import Any, Optional
 
 from loguru import logger
 
@@ -34,10 +35,15 @@ class LogStreamHandler:
         """
         self.port = port
         self.http_server = LogsHTTPServer(port=port)
-        self.log_queue: queue.Queue = queue.Queue(maxsize=1000)
+        # Per-client broadcast set — each connected SSE client owns its own queue.
+        self._clients: set = set()
+        self._clients_lock = threading.Lock()
+        # Mutable dict kept in-place so the server's reference always reflects current state.
+        self.tree_state: dict = {}
+        self.tree_lock = threading.Lock()
         self.is_running = False
         self.log_file_path: Optional[str] = None
-        
+
     def start(self, test_run_title: str = "Test Execution", log_file_path: Optional[str] = None) -> str:
         """Start the log streaming HTTP server.
         
@@ -51,7 +57,7 @@ class LogStreamHandler:
         if self.is_running:
             logger.warning("Log stream handler already running")
             return self._get_log_viewer_url()
-        
+
         try:
             # Store log file path for download functionality
             self.log_file_path = log_file_path
@@ -61,78 +67,197 @@ class LogStreamHandler:
             
             # Start HTTP server
             self.http_server.start(
-                log_queue=self.log_queue,
+                active_clients=self._clients,
+                clients_lock=self._clients_lock,
+                tree_state=self.tree_state,
                 test_run_title=test_run_title,
                 local_ip=local_ip,
                 log_file_path=log_file_path,
+                tree_lock=self.tree_lock
             )
-            
+
             self.is_running = True
-            
+
             viewer_url = f"http://{local_ip}:{self.port}"
             logger.info(f"Log stream viewer started: {viewer_url}")
-            
+
             return viewer_url
-            
+
         except Exception as e:
             logger.error(f"Failed to start log stream handler: {e}")
             raise
-    
+
     def stop(self):
         """Stop the log streaming HTTP server."""
         if not self.is_running:
             return
-        
+
         try:
-            # Signal end of stream
-            if not self.log_queue.full():
-                try:
-                    self.log_queue.put_nowait(None)
-                except queue.Full:
-                    pass
-            
-            # Stop HTTP server
+            self._broadcast(None)
+            with self._clients_lock:
+                self._clients.clear()
+
             self.http_server.stop()
-            
             self.is_running = False
             logger.info("Log stream handler stopped")
-            
+
         except Exception as e:
             logger.error(f"Error stopping log stream handler: {e}")
-    
-    def add_log_entry(
-        self,
-        message: str,
-        level: str = "INFO",
-        timestamp: Optional[str] = None
-    ):
-        """Add a log entry to the stream.
-        
-        Args:
-            message: Log message text
-            level: Log level (INFO, WARNING, ERROR, DEBUG, etc.)
-            timestamp: ISO format timestamp (auto-generated if not provided)
-        """
+
+    def add_log_entry(self, message: str, level: str = "INFO", timestamp: Optional[str] = None):
+        """Add a log entry to the stream."""
         if not self.is_running:
             return
-        
+
         if timestamp is None:
             timestamp = datetime.datetime.now().isoformat()
-        
+
         log_entry = {
             "message": message,
             "level": level.upper(),
             "timestamp": timestamp,
         }
-        
+
+        self._broadcast(log_entry)
+
+    # ------------------------------------------------------------------
+    # Tree management
+    # ------------------------------------------------------------------
+
+    def init_tree(self, run: Any) -> None:
+        """Build the tree from a TestRunExecutionWithChildren and broadcast it.
+
+        Keeps tree_state mutated in-place so the server's reference stays valid
+        for clients that connect (or reconnect) after this point.
+        """
+        if not self.is_running:
+            return
+
         try:
-            # Try to add to queue without blocking
-            self.log_queue.put_nowait(log_entry)
-        except queue.Full:
-            # Queue is full, skip this entry silently to avoid blocking
-            # This is acceptable for real-time streaming when no browser is connected
+            tree = self._build_tree(run)
+            with self.tree_lock:
+                self.tree_state.clear()
+                self.tree_state.update(tree)
+
+            self._broadcast({"type": "tree_init", "data": dict(tree)})
+        except Exception as e:
+            logger.debug(f"Error initialising tree: {e}")
+
+    def update_tree_node(
+        self,
+        state: str,
+        suite_idx: Optional[int] = None,
+        case_idx: Optional[int] = None,
+        step_idx: Optional[int] = None,
+    ) -> None:
+        """Update a single node's state and queue a tree_update event.
+
+        Pass only the indices that identify the target level:
+          - suite_idx=None              → run-level update
+          - suite_idx=N, case_idx=None  → suite-level update
+          - suite_idx=N, case_idx=M, step_idx=None → case-level update
+          - suite_idx=N, case_idx=M, step_idx=K    → step-level update
+        """
+        if not self.is_running:
+            return
+
+        if suite_idx is None:
+            node_type = "run"
+        elif case_idx is None:
+            node_type = "suite"
+        elif step_idx is None:
+            node_type = "case"
+        else:
+            node_type = "step"
+
+        # Mutate tree_state in-place (kept consistent for reconnecting clients).
+        try:
+            with self.tree_lock:
+                if node_type == "run":
+                    self.tree_state["state"] = state
+                elif node_type == "suite":
+                    self.tree_state["suites"][suite_idx]["state"] = state
+                elif node_type == "case":
+                    self.tree_state["suites"][suite_idx]["cases"][case_idx]["state"] = state
+                else:
+                    self.tree_state["suites"][suite_idx]["cases"][case_idx]["steps"][step_idx]["state"] = state
+        except (IndexError, KeyError, TypeError):
             pass
-    
+
+        event = {
+            "type": "tree_update",
+            "node_type": node_type,
+            "suite_idx": suite_idx,
+            "case_idx": case_idx,
+            "step_idx": step_idx,
+            "state": state,
+        }
+
+        self._broadcast(event)
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    def _broadcast(self, event) -> None:
+        """Put event into every active client's queue; drops silently if a queue is full."""
+        with self._clients_lock:
+            clients = list(self._clients)
+        for q in clients:
+            try:
+                q.put_nowait(event)
+            except queue.Full:
+                pass
+
+    def _build_tree(self, run: Any) -> dict:
+        """Construct a plain-dict tree from a TestRunExecutionWithChildren."""
+        tree: dict = {
+            "title": getattr(run, "title", "Test Run"),
+            "state": self._get_state(run),
+            "suites": [],
+        }
+
+        for suite_idx, suite in enumerate(getattr(run, "test_suite_executions", []) or []):
+            smeta = getattr(suite, "test_suite_metadata", None)
+            suite_node: dict = {
+                "index": suite_idx,
+                "title": getattr(smeta, "title", f"Suite {suite_idx}") if smeta else f"Suite {suite_idx}",
+                "state": self._get_state(suite),
+                "cases": [],
+            }
+
+            for case_idx, case in enumerate(getattr(suite, "test_case_executions", []) or []):
+                cmeta = getattr(case, "test_case_metadata", None)
+                case_node: dict = {
+                    "index": case_idx,
+                    "title": getattr(cmeta, "title", f"Case {case_idx}") if cmeta else f"Case {case_idx}",
+                    "public_id": getattr(cmeta, "public_id", "") if cmeta else "",
+                    "state": self._get_state(case),
+                    "steps": [],
+                }
+
+                for step_idx, step in enumerate(getattr(case, "test_step_executions", []) or []):
+                    case_node["steps"].append({
+                        "index": step_idx,
+                        "title": getattr(step, "title", f"Step {step_idx}"),
+                        "state": self._get_state(step),
+                    })
+
+                suite_node["cases"].append(case_node)
+
+            tree["suites"].append(suite_node)
+
+        return tree
+
+    def _get_state(self, obj: Any) -> str:
+        try:
+            state = getattr(obj, "state", None)
+            if state is None:
+                return "pending"
+            return state.value if hasattr(state, "value") else str(state)
+        except Exception:
+            return "pending"
+
     def _get_local_ip(self) -> str:
         """Get the local IP address of the machine.
         
@@ -149,7 +274,7 @@ class LogStreamHandler:
             return local_ip
         except Exception:
             return "localhost"
-    
+
     def _get_log_viewer_url(self) -> str:
         """Get the URL for the log viewer.
         
