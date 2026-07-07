@@ -829,6 +829,49 @@ class TestProjectLogsCommand:
         assert result.exit_code == 1
         assert "404" in result.output
 
+    def test_logs_no_executions_returns_error_and_writes_no_file(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """A project with no test run executions surfaces the backend's 404
+        instead of writing an empty/unusable zip file to disk."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(
+                status_code=404,
+                content=b"Project 11 has no test run executions to download logs for",
+            )
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "11"])
+
+                assert result.exit_code == 1
+                assert "no test run executions" in result.output
+                assert list(Path(".").glob("*.zip")) == []
+
+    def test_logs_prints_progress_notice_before_download(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """A heads-up is printed before the request, since building the zip
+        server-side can take a while for large projects."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"log content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1"])
+
+        assert result.exit_code == 0
+        assert "Downloading logs for project 1" in result.output
+        assert "may take a while" in result.output
+
     def test_logs_falls_back_to_default_filename_when_project_name_lookup_fails(
         self,
         cli_runner: CliRunner,
@@ -845,9 +888,9 @@ class TestProjectLogsCommand:
             with cli_runner.isolated_filesystem(temp_dir=temp_dir):
                 result = cli_runner.invoke(project, ["logs", "--id", "7"])
 
-        assert result.exit_code == 0
-        assert "saved to 'project-7-logs.zip'" in result.output
-        assert Path("project-7-logs.zip").read_bytes() == b"zip content"
+                assert result.exit_code == 0
+                assert "saved to 'project-7-logs.zip'" in result.output
+                assert Path("project-7-logs.zip").read_bytes() == b"zip content"
 
     def test_logs_help_message(self, cli_runner: CliRunner) -> None:
         """Test the help message for the logs command."""
