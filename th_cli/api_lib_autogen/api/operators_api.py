@@ -15,21 +15,18 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import IO, TYPE_CHECKING, Any, Coroutine
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
 
-
 class _OperatorsApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_read_operators_api_v1_operators__get(
-        self, skip: int | None = None, limit: int | None = None
-    ) -> Coroutine[Any, Any, list[m.Operator]]:
+    def _build_for_read_operators_api_v1_operators__get(self, skip: int | None = None, limit: int | None = None) -> Coroutine[Any, Any, list[m.Operator]]:
         """
         Read Operators
         """
@@ -40,18 +37,24 @@ class _OperatorsApi:
             query_params["limit"] = str(limit)
 
         return self.api_client.request(
-            type_=list[m.Operator], method="GET", url="/api/v1/operators/", params=query_params
+            type_=list[m.Operator],
+            method="GET",
+            url="/api/v1/operators/",
+            params=query_params
         )
 
-    def _build_for_create_operator_api_v1_operators__post(
-        self, body: m.OperatorCreate
-    ) -> Coroutine[Any, Any, m.Operator]:
+    def _build_for_create_operator_api_v1_operators__post(self, body: m.OperatorCreate) -> Coroutine[Any, Any, m.Operator]:
         """
         Create Operator
         """
-        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
 
-        return self.api_client.request(type_=m.Operator, method="POST", url="/api/v1/operators/", json=json_body)
+        return self.api_client.request(
+            type_=m.Operator,
+            method="POST",
+            url="/api/v1/operators/",
+            json=json_body
+        )
 
     def _build_for_read_operator_api_v1_operators__id__get(self, id: int) -> Coroutine[Any, Any, m.Operator]:
         """
@@ -60,21 +63,26 @@ class _OperatorsApi:
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Operator, method="GET", url="/api/v1/operators/{id}", path_params=path_params
+            type_=m.Operator,
+            method="GET",
+            url="/api/v1/operators/{id}",
+            path_params=path_params
         )
 
-    def _build_for_update_operator_api_v1_operators__id__put(
-        self, body: m.OperatorUpdate, id: int
-    ) -> Coroutine[Any, Any, m.Operator]:
+    def _build_for_update_operator_api_v1_operators__id__put(self, body: m.OperatorUpdate, id: int) -> Coroutine[Any, Any, m.Operator]:
         """
         Update Operator
         """
         path_params = {"id": str(id)}
 
-        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
 
         return self.api_client.request(
-            type_=m.Operator, method="PUT", url="/api/v1/operators/{id}", path_params=path_params, json=json_body
+            type_=m.Operator,
+            method="PUT",
+            url="/api/v1/operators/{id}",
+            path_params=path_params,
+            json=json_body
         )
 
     def _build_for_delete_operator_api_v1_operators__id__delete(self, id: int) -> Coroutine[Any, Any, m.Operator]:
@@ -84,14 +92,15 @@ class _OperatorsApi:
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Operator, method="DELETE", url="/api/v1/operators/{id}", path_params=path_params
+            type_=m.Operator,
+            method="DELETE",
+            url="/api/v1/operators/{id}",
+            path_params=path_params
         )
 
 
 class AsyncOperatorsApi(_OperatorsApi):
-    async def read_operators_api_v1_operators__get(
-        self, skip: int | None = None, limit: int | None = None
-    ) -> list[m.Operator]:
+    async def read_operators_api_v1_operators__get(self, skip: int | None = None, limit: int | None = None) -> list[m.Operator]:
         """
         Read Operators
         """
@@ -123,9 +132,7 @@ class AsyncOperatorsApi(_OperatorsApi):
 
 
 class SyncOperatorsApi(_OperatorsApi):
-    def read_operators_api_v1_operators__get(
-        self, skip: int | None = None, limit: int | None = None
-    ) -> list[m.Operator]:
+    def read_operators_api_v1_operators__get(self, skip: int | None = None, limit: int | None = None) -> list[m.Operator]:
         """
         Read Operators
         """

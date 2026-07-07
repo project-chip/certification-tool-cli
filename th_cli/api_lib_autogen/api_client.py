@@ -19,14 +19,14 @@ from typing import Any, Awaitable, Callable, Generic, Type, TypeVar, overload
 from httpx import AsyncClient, Request, Response
 from pydantic import TypeAdapter
 
-from th_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
-from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
-from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
 from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollectionsApi, SyncTestCollectionsApi
-from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
+from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjectsApi
+from th_cli.api_lib_autogen.api.operators_api import AsyncOperatorsApi, SyncOperatorsApi
 from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
-from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
+from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
 from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
+from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
+from th_cli.api_lib_autogen.api.devices_api import AsyncDevicesApi, SyncDevicesApi
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 
 ClientT = TypeVar("ClientT", bound="ApiClient")
@@ -80,14 +80,12 @@ class ApiClient:
     @overload
     async def request(
         self, *, type_: Type[T], method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     async def request(
         self, *, type_: None, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def request(
         self, *, type_: Any, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
@@ -99,12 +97,10 @@ class ApiClient:
         return await self.send(request, type_)
 
     @overload
-    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T:
-        ...
+    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T: ...
 
     @overload
-    def request_sync(self, *, type_: None, **kwargs: Any) -> None:
-        ...
+    def request_sync(self, *, type_: None, **kwargs: Any) -> None: ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:
         """
@@ -114,13 +110,15 @@ class ApiClient:
 
     async def send(self, request: Request, type_: Type[T]) -> T | str:
         response = await self.middleware(request, self.send_inner)
-        if response.status_code in [200, 201]:
+        if response.status_code in [200, 201, 204]:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
+                if type_ is None or response.status_code == 204:
+                    return None
                 adapter = TypeAdapter(type_)
                 if type_ == bytes:
                     return adapter.validate_python(response.content)
-                return adapter.validate_python(response.json()) if type_ else response.text
+                return adapter.validate_python(response.json())
             except Exception as e:
                 raise ResponseHandlingException(e)
         raise UnexpectedResponse.for_response(response)

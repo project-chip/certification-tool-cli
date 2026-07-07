@@ -15,13 +15,12 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import IO, TYPE_CHECKING, Any, Coroutine
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
-
 
 class _DevicesApi:
     def __init__(self, api_client: "ApiClient"):
@@ -31,17 +30,24 @@ class _DevicesApi:
         """
         Get Device Configs
         """
-        return self.api_client.request(type_=dict[str, Any], method="GET", url="/api/v1/devices/")
+        return self.api_client.request(
+            type_=dict[str, Any],
+            method="GET",
+            url="/api/v1/devices/"
+        )
 
-    def _build_for_add_device_config_api_v1_devices__put(
-        self, body: dict[str, Any]
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
+    def _build_for_add_device_config_api_v1_devices__put(self, body: dict[str, Any]) -> Coroutine[Any, Any, dict[str, Any]]:
         """
         Add Device Config
         """
-        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
 
-        return self.api_client.request(type_=dict[str, Any], method="PUT", url="/api/v1/devices/", json=json_body)
+        return self.api_client.request(
+            type_=dict[str, Any],
+            method="PUT",
+            url="/api/v1/devices/",
+            json=json_body
+        )
 
 
 class AsyncDevicesApi(_DevicesApi):

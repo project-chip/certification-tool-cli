@@ -15,13 +15,12 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import IO, TYPE_CHECKING, Any, Coroutine
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
-
 
 class _UtilsApi:
     def __init__(self, api_client: "ApiClient"):
@@ -33,7 +32,12 @@ class _UtilsApi:
         """
         query_params = {"email_to": str(email_to)}
 
-        return self.api_client.request(type_=m.Msg, method="POST", url="/api/v1/utils/test-email/", params=query_params)
+        return self.api_client.request(
+            type_=m.Msg,
+            method="POST",
+            url="/api/v1/utils/test-email/",
+            params=query_params
+        )
 
 
 class AsyncUtilsApi(_UtilsApi):

@@ -15,21 +15,18 @@
 #
 # flake8: noqa E501
 from asyncio import get_event_loop
-from typing import IO, TYPE_CHECKING, Any, Coroutine
+from typing import Coroutine, IO, TYPE_CHECKING, Any
 
 from th_cli.api_lib_autogen import models as m
 
 if TYPE_CHECKING:
     from th_cli.api_lib_autogen.api_client import ApiClient
 
-
 class _ProjectsApi:
     def __init__(self, api_client: "ApiClient"):
         self.api_client = api_client
 
-    def _build_for_read_projects_api_v1_projects__get(
-        self, archived: bool | None = None, skip: int | None = None, limit: int | None = None
-    ) -> Coroutine[Any, Any, list[m.Project]]:
+    def _build_for_read_projects_api_v1_projects__get(self, archived: bool | None = None, skip: int | None = None, limit: int | None = None) -> Coroutine[Any, Any, list[m.Project]]:
         """
         Read Projects
         """
@@ -42,22 +39,34 @@ class _ProjectsApi:
             query_params["limit"] = str(limit)
 
         return self.api_client.request(
-            type_=list[m.Project], method="GET", url="/api/v1/projects/", params=query_params
+            type_=list[m.Project],
+            method="GET",
+            url="/api/v1/projects/",
+            params=query_params
         )
 
     def _build_for_create_project_api_v1_projects__post(self, body: m.ProjectCreate) -> Coroutine[Any, Any, m.Project]:
         """
         Create Project
         """
-        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
 
-        return self.api_client.request(type_=m.Project, method="POST", url="/api/v1/projects/", json=json_body)
+        return self.api_client.request(
+            type_=m.Project,
+            method="POST",
+            url="/api/v1/projects/",
+            json=json_body
+        )
 
     def _build_for_default_config_api_v1_projects_default_config_get(self) -> Coroutine[Any, Any, dict[str, Any]]:
         """
         Default Config
         """
-        return self.api_client.request(type_=dict[str, Any], method="GET", url="/api/v1/projects/default_config")
+        return self.api_client.request(
+            type_=dict[str, Any],
+            method="GET",
+            url="/api/v1/projects/default_config"
+        )
 
     def _build_for_read_project_api_v1_projects__id__get(self, id: int) -> Coroutine[Any, Any, m.Project]:
         """
@@ -66,21 +75,26 @@ class _ProjectsApi:
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Project, method="GET", url="/api/v1/projects/{id}", path_params=path_params
+            type_=m.Project,
+            method="GET",
+            url="/api/v1/projects/{id}",
+            path_params=path_params
         )
 
-    def _build_for_update_project_api_v1_projects__id__put(
-        self, body: m.ProjectUpdate, id: int
-    ) -> Coroutine[Any, Any, m.Project]:
+    def _build_for_update_project_api_v1_projects__id__put(self, body: m.ProjectUpdate, id: int) -> Coroutine[Any, Any, m.Project]:
         """
         Update Project
         """
         path_params = {"id": str(id)}
 
-        json_body = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
+        json_body = body.model_dump(mode='json') if hasattr(body, 'model_dump') else body
 
         return self.api_client.request(
-            type_=m.Project, method="PUT", url="/api/v1/projects/{id}", path_params=path_params, json=json_body
+            type_=m.Project,
+            method="PUT",
+            url="/api/v1/projects/{id}",
+            path_params=path_params,
+            json=json_body
         )
 
     def _build_for_delete_project_api_v1_projects__id__delete(self, id: int) -> Coroutine[Any, Any, m.Project]:
@@ -90,7 +104,10 @@ class _ProjectsApi:
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Project, method="DELETE", url="/api/v1/projects/{id}", path_params=path_params
+            type_=m.Project,
+            method="DELETE",
+            url="/api/v1/projects/{id}",
+            path_params=path_params
         )
 
     def _build_for_archive_project_api_v1_projects__id__archive_post(self, id: int) -> Coroutine[Any, Any, m.Project]:
@@ -100,24 +117,26 @@ class _ProjectsApi:
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Project, method="POST", url="/api/v1/projects/{id}/archive", path_params=path_params
+            type_=m.Project,
+            method="POST",
+            url="/api/v1/projects/{id}/archive",
+            path_params=path_params
         )
 
-    def _build_for_unarchive_project_api_v1_projects__id__unarchive_post(
-        self, id: int
-    ) -> Coroutine[Any, Any, m.Project]:
+    def _build_for_unarchive_project_api_v1_projects__id__unarchive_post(self, id: int) -> Coroutine[Any, Any, m.Project]:
         """
         Unarchive Project
         """
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.Project, method="POST", url="/api/v1/projects/{id}/unarchive", path_params=path_params
+            type_=m.Project,
+            method="POST",
+            url="/api/v1/projects/{id}/unarchive",
+            path_params=path_params
         )
 
-    def _build_for_upload_pics_api_v1_projects__id__upload_pics_put(
-        self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int
-    ) -> Coroutine[Any, Any, m.Project]:
+    def _build_for_upload_pics_api_v1_projects__id__upload_pics_put(self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int) -> Coroutine[Any, Any, m.Project]:
         """
         Upload Pics
         """
@@ -129,11 +148,11 @@ class _ProjectsApi:
         # Process body fields to populate files and data dictionaries
         if body is not None:
             # Process field: file
-            if hasattr(body, "file"):
-                field_value = getattr(body, "file")
+            if hasattr(body, 'file'):
+                field_value = getattr(body, 'file')
                 if field_value is not None:
                     # File field
-                    files["file"] = field_value
+                    files['file'] = field_value
 
         return self.api_client.request(
             type_=m.Project,
@@ -141,12 +160,10 @@ class _ProjectsApi:
             url="/api/v1/projects/{id}/upload_pics",
             path_params=path_params,
             data=data,
-            files=files,
+            files=files
         )
 
-    def _build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(
-        self, id: int, cluster_name: str
-    ) -> Coroutine[Any, Any, m.Project]:
+    def _build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(self, id: int, cluster_name: str) -> Coroutine[Any, Any, m.Project]:
         """
         Remove Pics Cluster Type
         """
@@ -159,12 +176,10 @@ class _ProjectsApi:
             method="DELETE",
             url="/api/v1/projects/{id}/pics_cluster_type",
             path_params=path_params,
-            params=query_params,
+            params=query_params
         )
 
-    def _build_for_applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(
-        self, id: int
-    ) -> Coroutine[Any, Any, m.PICSApplicableTestCases]:
+    def _build_for_applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(self, id: int) -> Coroutine[Any, Any, m.PICSApplicableTestCases]:
         """
         Applicable Test Cases
         """
@@ -174,43 +189,23 @@ class _ProjectsApi:
             type_=m.PICSApplicableTestCases,
             method="GET",
             url="/api/v1/projects/{id}/applicable_test_cases",
-            path_params=path_params,
+            path_params=path_params
         )
 
-    def _build_for_export_project_config_api_v1_projects__id__export_get(
-        self, id: int
-    ) -> Coroutine[Any, Any, m.ProjectCreate]:
+    def _build_for_export_project_config_api_v1_projects__id__export_get(self, id: int) -> Coroutine[Any, Any, m.ProjectCreate]:
         """
         Export Project Config
         """
         path_params = {"id": str(id)}
 
         return self.api_client.request(
-            type_=m.ProjectCreate, method="GET", url="/api/v1/projects/{id}/export", path_params=path_params
-        )
-
-    def _build_for_download_project_logs_api_v1_projects__id__logs_get(
-        self, id: int, grouped: bool = False
-    ) -> Coroutine[Any, Any, bytes]:
-        """
-        Download Project Logs
-        """
-        path_params = {"id": str(id)}
-        query_params: dict[str, Any] = {}
-        if grouped:
-            query_params["grouped"] = "true"
-
-        return self.api_client.request(
-            type_=bytes,
+            type_=m.ProjectCreate,
             method="GET",
-            url="/api/v1/projects/{id}/logs",
-            path_params=path_params,
-            params=query_params,
+            url="/api/v1/projects/{id}/export",
+            path_params=path_params
         )
 
-    def _build_for_importproject_config_api_v1_projects_import_post(
-        self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost
-    ) -> Coroutine[Any, Any, m.Project]:
+    def _build_for_importproject_config_api_v1_projects_import_post(self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost) -> Coroutine[Any, Any, m.Project]:
         """
         Importproject Config
         """
@@ -220,21 +215,41 @@ class _ProjectsApi:
         # Process body fields to populate files and data dictionaries
         if body is not None:
             # Process field: import_file
-            if hasattr(body, "import_file"):
-                field_value = getattr(body, "import_file")
+            if hasattr(body, 'import_file'):
+                field_value = getattr(body, 'import_file')
                 if field_value is not None:
                     # File field
-                    files["import_file"] = field_value
+                    files['import_file'] = field_value
 
         return self.api_client.request(
-            type_=m.Project, method="POST", url="/api/v1/projects/import", data=data, files=files
+            type_=m.Project,
+            method="POST",
+            url="/api/v1/projects/import",
+            data=data,
+            files=files
+        )
+
+    def _build_for_download_project_logs_api_v1_projects__id__logs_get(self, id: int, grouped: bool | None = None) -> Coroutine[Any, Any, bytes]:
+        """
+        Download Project Logs
+        """
+        path_params = {"id": str(id)}
+
+        query_params = {}
+        if grouped is not None:
+            query_params["grouped"] = str(grouped)
+
+        return self.api_client.request(
+            type_=bytes,
+            method="GET",
+            url="/api/v1/projects/{id}/logs",
+            path_params=path_params,
+            params=query_params
         )
 
 
 class AsyncProjectsApi(_ProjectsApi):
-    async def read_projects_api_v1_projects__get(
-        self, archived: bool | None = None, skip: int | None = None, limit: int | None = None
-    ) -> list[m.Project]:
+    async def read_projects_api_v1_projects__get(self, archived: bool | None = None, skip: int | None = None, limit: int | None = None) -> list[m.Project]:
         """
         Read Projects
         """
@@ -282,27 +297,19 @@ class AsyncProjectsApi(_ProjectsApi):
         """
         return await self._build_for_unarchive_project_api_v1_projects__id__unarchive_post(id=id)
 
-    async def upload_pics_api_v1_projects__id__upload_pics_put(
-        self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int
-    ) -> m.Project:
+    async def upload_pics_api_v1_projects__id__upload_pics_put(self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int) -> m.Project:
         """
         Upload Pics
         """
         return await self._build_for_upload_pics_api_v1_projects__id__upload_pics_put(body=body, id=id)
 
-    async def remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(
-        self, id: int, cluster_name: str
-    ) -> m.Project:
+    async def remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(self, id: int, cluster_name: str) -> m.Project:
         """
         Remove Pics Cluster Type
         """
-        return await self._build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(
-            id=id, cluster_name=cluster_name
-        )
+        return await self._build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(id=id, cluster_name=cluster_name)
 
-    async def applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(
-        self, id: int
-    ) -> m.PICSApplicableTestCases:
+    async def applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(self, id: int) -> m.PICSApplicableTestCases:
         """
         Applicable Test Cases
         """
@@ -314,29 +321,21 @@ class AsyncProjectsApi(_ProjectsApi):
         """
         return await self._build_for_export_project_config_api_v1_projects__id__export_get(id=id)
 
-    async def importproject_config_api_v1_projects_import_post(
-        self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost
-    ) -> m.Project:
+    async def importproject_config_api_v1_projects_import_post(self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost) -> m.Project:
         """
         Importproject Config
         """
         return await self._build_for_importproject_config_api_v1_projects_import_post(body=body)
 
-    async def download_project_logs_api_v1_projects__id__logs_get(
-        self, id: int, grouped: bool = False
-    ) -> bytes:
+    async def download_project_logs_api_v1_projects__id__logs_get(self, id: int, grouped: bool | None = None) -> bytes:
         """
         Download Project Logs
         """
-        return await self._build_for_download_project_logs_api_v1_projects__id__logs_get(
-            id=id, grouped=grouped
-        )
+        return await self._build_for_download_project_logs_api_v1_projects__id__logs_get(id=id, grouped=grouped)
 
 
 class SyncProjectsApi(_ProjectsApi):
-    def read_projects_api_v1_projects__get(
-        self, archived: bool | None = None, skip: int | None = None, limit: int | None = None
-    ) -> list[m.Project]:
+    def read_projects_api_v1_projects__get(self, archived: bool | None = None, skip: int | None = None, limit: int | None = None) -> list[m.Project]:
         """
         Read Projects
         """
@@ -392,29 +391,21 @@ class SyncProjectsApi(_ProjectsApi):
         coroutine = self._build_for_unarchive_project_api_v1_projects__id__unarchive_post(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def upload_pics_api_v1_projects__id__upload_pics_put(
-        self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int
-    ) -> m.Project:
+    def upload_pics_api_v1_projects__id__upload_pics_put(self, body: m.BodyUploadPicsApiV1ProjectsIdUploadPicsPut, id: int) -> m.Project:
         """
         Upload Pics
         """
         coroutine = self._build_for_upload_pics_api_v1_projects__id__upload_pics_put(body=body, id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(
-        self, id: int, cluster_name: str
-    ) -> m.Project:
+    def remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(self, id: int, cluster_name: str) -> m.Project:
         """
         Remove Pics Cluster Type
         """
-        coroutine = self._build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(
-            id=id, cluster_name=cluster_name
-        )
+        coroutine = self._build_for_remove_pics_cluster_type_api_v1_projects__id__pics_cluster_type_delete(id=id, cluster_name=cluster_name)
         return get_event_loop().run_until_complete(coroutine)
 
-    def applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(
-        self, id: int
-    ) -> m.PICSApplicableTestCases:
+    def applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(self, id: int) -> m.PICSApplicableTestCases:
         """
         Applicable Test Cases
         """
@@ -428,22 +419,16 @@ class SyncProjectsApi(_ProjectsApi):
         coroutine = self._build_for_export_project_config_api_v1_projects__id__export_get(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
-    def importproject_config_api_v1_projects_import_post(
-        self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost
-    ) -> m.Project:
+    def importproject_config_api_v1_projects_import_post(self, body: m.BodyImportprojectConfigApiV1ProjectsImportPost) -> m.Project:
         """
         Importproject Config
         """
         coroutine = self._build_for_importproject_config_api_v1_projects_import_post(body=body)
         return get_event_loop().run_until_complete(coroutine)
 
-    def download_project_logs_api_v1_projects__id__logs_get(
-        self, id: int, grouped: bool = False
-    ) -> bytes:
+    def download_project_logs_api_v1_projects__id__logs_get(self, id: int, grouped: bool | None = None) -> bytes:
         """
         Download Project Logs
         """
-        coroutine = self._build_for_download_project_logs_api_v1_projects__id__logs_get(
-            id=id, grouped=grouped
-        )
+        coroutine = self._build_for_download_project_logs_api_v1_projects__id__logs_get(id=id, grouped=grouped)
         return get_event_loop().run_until_complete(coroutine)
