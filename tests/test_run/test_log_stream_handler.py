@@ -314,7 +314,7 @@ class TestLogStreamHandlerStopError:
         mock_srv.stop.side_effect = RuntimeError("stop failed")
         with patch("th_cli.test_run.log_stream_handler.logger") as mock_logger:
             h.stop()
-        mock_logger.error.assert_called()
+        mock_logger.error.assert_called_once_with("Error stopping log stream handler: stop failed")
 
 
 # ---------------------------------------------------------------------------
@@ -359,8 +359,9 @@ class TestInitTree:
         h, _ = _make_handler()
         h.is_running = True
         with patch.object(h, "_build_tree", side_effect=RuntimeError("fail")):
-            with patch("th_cli.test_run.log_stream_handler.logger"):
-                h.init_tree(MagicMock())  # must not raise
+            with patch("th_cli.test_run.log_stream_handler.logger") as mock_logger:
+                h.init_tree(MagicMock())
+        mock_logger.debug.assert_called_once_with("Error initialising tree: fail")
 
 
 # ---------------------------------------------------------------------------

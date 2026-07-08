@@ -513,7 +513,7 @@ class TestDownloadLogsExceptions:
         h.wfile.write.side_effect = RuntimeError("unexpected write error")
         with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
             h.download_logs()
-        mock_logger.error.assert_called()
+        mock_logger.error.assert_called_once_with("Error serving log file: unexpected write error")
 
 
 # ---------------------------------------------------------------------------
@@ -561,16 +561,15 @@ class TestStreamLogsAdditional:
 
     def test_tree_snapshot_sent_using_tree_lock(self):
         tree = {"title": "Run", "state": "pending", "suites": []}
-        lock = threading.Lock()
+        lock = MagicMock()
         h = _make_handler(server_attrs={"tree_state": tree, "tree_lock": lock})
         sent_events = []
         h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
-
         with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
             with patch("th_cli.test_run.logs_http_server.logger"):
                 h.stream_logs()
-
         assert "tree_init" in sent_events
+        lock.__enter__.assert_called_once()
 
     def test_early_return_when_tree_snapshot_send_fails(self):
         tree = {"title": "Run", "state": "pending", "suites": []}
@@ -641,7 +640,7 @@ class TestStreamLogsAdditional:
             with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
                 h.stream_logs()
 
-        mock_logger.debug.assert_called()
+        mock_logger.debug.assert_called_once_with("Queue read error: unexpected queue error")
 
     def test_skips_non_dict_entries(self):
         h = _make_handler()
@@ -706,7 +705,7 @@ class TestStreamLogsAdditional:
             with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
                 h.stream_logs()  # must not raise
 
-        mock_logger.debug.assert_called()
+        mock_logger.debug.assert_called_once_with("Client disconnected (broken pipe)")
 
     def test_generic_exception_in_stream_loop_handled_gracefully(self):
         h = _make_handler()
@@ -722,7 +721,7 @@ class TestStreamLogsAdditional:
             with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
                 h.stream_logs()  # must not raise
 
-        mock_logger.debug.assert_called()
+        mock_logger.debug.assert_called_once_with("Log streaming error: unexpected error")
 
 
 # ---------------------------------------------------------------------------
@@ -752,7 +751,7 @@ class TestLogsHTTPServerRunServerException:
                 with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
                     srv.start(active_clients=clients, clients_lock=lock, tree_state={}, test_run_title="Run")
                     captured_target[0]()  # invoke thread target directly
-                    mock_logger.error.assert_called()
+                    mock_logger.error.assert_called_once_with("Logs HTTP server error: server crashed")
 
 
 # ---------------------------------------------------------------------------
