@@ -29,6 +29,7 @@ from th_cli.test_run.logs_http_server import (
     ENDPOINT_DOWNLOAD_LOGS,
     ENDPOINT_LOGS_STREAM,
     ENDPOINT_ROOT,
+    ENDPOINT_STATUS,
     LogStreamingHandler,
     LogsHTTPServer,
 )
@@ -468,3 +469,307 @@ class TestLogsHTTPServerStop:
 
         assert srv.server is None
         assert srv.server_thread is None
+
+
+# ---------------------------------------------------------------------------
+# serve_status()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestServeStatus:
+    def test_routes_to_serve_status(self):
+        h = _make_handler(path=ENDPOINT_STATUS)
+        with patch.object(h, "serve_status") as mock_fn:
+            h.do_GET()
+        mock_fn.assert_called_once()
+
+    def test_returns_200_with_json_content_type(self):
+        h = _make_handler(server_attrs={"test_run_title": "MyRun", "start_time": "2025-01-01"})
+        h.serve_status()
+        assert h._response_code == 200
+        assert h._headers_sent.get("Content-Type") == "application/json"
+
+    def test_body_contains_run_title_and_start_time(self):
+        h = _make_handler(server_attrs={"test_run_title": "RunTitle", "start_time": "2025-06-01"})
+        h.serve_status()
+        body = json.loads(h.wfile.getvalue())
+        assert body["run_title"] == "RunTitle"
+        assert body["start_time"] == "2025-06-01"
+
+
+# ---------------------------------------------------------------------------
+# download_logs() — generic exception path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestDownloadLogsExceptions:
+    def test_handles_generic_exception_gracefully(self, tmp_path):
+        log_file = tmp_path / "test.log"
+        log_file.write_bytes(b"data")
+        h = _make_handler(server_attrs={"log_file_path": str(log_file)})
+        h.wfile = MagicMock()
+        h.wfile.write.side_effect = RuntimeError("unexpected write error")
+        with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+            h.download_logs()
+        mock_logger.error.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# _send_sse_event() — generic exception path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSendSseEventException:
+    def test_returns_false_on_generic_exception(self):
+        h = _make_handler()
+        h.wfile = MagicMock()
+        h.wfile.write.side_effect = OSError("disk full")
+        with patch("th_cli.test_run.logs_http_server.logger"):
+            result = h._send_sse_event("ev", {})
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# stream_logs() — additional paths
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestStreamLogsAdditional:
+    def test_deregisters_client_when_connected_send_fails(self):
+        h = _make_handler()
+        h._send_sse_event = lambda ev, data: False  # all sends fail immediately
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue()):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+        assert len(h.server.active_clients) == 0
+
+    def test_sends_tree_snapshot_when_tree_state_not_empty(self):
+        tree = {"title": "Run", "state": "pending", "suites": []}
+        h = _make_handler(server_attrs={"tree_state": tree})
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "tree_init" in sent_events
+
+    def test_tree_snapshot_sent_using_tree_lock(self):
+        tree = {"title": "Run", "state": "pending", "suites": []}
+        lock = threading.Lock()
+        h = _make_handler(server_attrs={"tree_state": tree, "tree_lock": lock})
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "tree_init" in sent_events
+
+    def test_early_return_when_tree_snapshot_send_fails(self):
+        tree = {"title": "Run", "state": "pending", "suites": []}
+        h = _make_handler(server_attrs={"tree_state": tree})
+        call_count = [0]
+
+        def _send(ev, data):
+            call_count[0] += 1
+            return ev == "connected"  # True only for connected, False for tree_init
+
+        h._send_sse_event = _send
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert call_count[0] == 2  # connected + tree_init (which failed → early return)
+
+    def test_keepalive_sent_on_queue_empty(self):
+        call_num = [0]
+        mock_q = MagicMock()
+
+        def get_side_effect(timeout=None):
+            call_num[0] += 1
+            if call_num[0] == 1:
+                raise queue.Empty
+            return None  # sentinel on second call
+
+        mock_q.get.side_effect = get_side_effect
+
+        h = _make_handler()
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=mock_q):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "keepalive" in sent_events
+
+    def test_disconnect_when_keepalive_send_fails(self):
+        mock_q = MagicMock()
+        mock_q.get.side_effect = queue.Empty
+
+        h = _make_handler()
+        h._send_sse_event = lambda ev, data: ev == "connected"  # keepalive returns False
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=mock_q):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()  # must exit cleanly
+
+    def test_queue_read_generic_exception_exits_loop(self):
+        call_num = [0]
+        mock_q = MagicMock()
+
+        def get_side_effect(timeout=None):
+            call_num[0] += 1
+            if call_num[0] == 1:
+                raise RuntimeError("unexpected queue error")
+            return None
+
+        mock_q.get.side_effect = get_side_effect
+
+        h = _make_handler()
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=mock_q):
+            with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+                h.stream_logs()
+
+        mock_logger.debug.assert_called()
+
+    def test_skips_non_dict_entries(self):
+        h = _make_handler()
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue("not-a-dict", None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "log" not in sent_events
+
+    def test_streams_tree_init_event_from_queue(self):
+        tree_event = {"type": "tree_init", "data": {"title": "Run", "suites": []}}
+        h = _make_handler()  # tree_state={} so snapshot is not sent first
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(tree_event, None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "tree_init" in sent_events
+
+    def test_skips_duplicate_tree_init_when_snapshot_already_sent(self):
+        tree = {"title": "Run", "state": "pending", "suites": []}
+        tree_event = {"type": "tree_init", "data": tree}
+        h = _make_handler(server_attrs={"tree_state": tree})  # snapshot sent on connect
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(tree_event, None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert sent_events.count("tree_init") == 1  # snapshot only, queue duplicate skipped
+
+    def test_streams_tree_update_event(self):
+        update = {"type": "tree_update", "node_type": "step", "suite_idx": 0,
+                  "case_idx": 0, "step_idx": 0, "state": "passed"}
+        h = _make_handler()
+        sent_events = []
+        h._send_sse_event = lambda ev, data: sent_events.append(ev) or True
+
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(update, None)):
+            with patch("th_cli.test_run.logs_http_server.logger"):
+                h.stream_logs()
+
+        assert "tree_update" in sent_events
+
+    def test_broken_pipe_in_stream_loop_handled_gracefully(self):
+        h = _make_handler()
+
+        def _send(ev, data):
+            if ev == "connected":
+                return True
+            raise BrokenPipeError("pipe broken")
+
+        h._send_sse_event = _send
+        entry = {"message": "msg", "level": "INFO", "timestamp": "t"}
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(entry, None)):
+            with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+                h.stream_logs()  # must not raise
+
+        mock_logger.debug.assert_called()
+
+    def test_generic_exception_in_stream_loop_handled_gracefully(self):
+        h = _make_handler()
+
+        def _send(ev, data):
+            if ev == "connected":
+                return True
+            raise RuntimeError("unexpected error")
+
+        h._send_sse_event = _send
+        entry = {"message": "msg", "level": "INFO", "timestamp": "t"}
+        with patch("th_cli.test_run.logs_http_server.queue.Queue", return_value=_pre_filled_queue(entry, None)):
+            with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+                h.stream_logs()  # must not raise
+
+        mock_logger.debug.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# LogsHTTPServer.start() — run_server thread exception path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestLogsHTTPServerRunServerException:
+    def test_run_server_exception_is_logged(self):
+        srv = LogsHTTPServer(port=0)
+        clients = set()
+        lock = threading.Lock()
+        captured_target = [None]
+
+        def capture_thread(target=None, daemon=None):
+            captured_target[0] = target
+            t = MagicMock()
+            t.start = lambda: None
+            return t
+
+        with patch("th_cli.test_run.logs_http_server.ThreadingHTTPServer") as mock_cls:
+            mock_ths = MagicMock()
+            mock_ths.serve_forever.side_effect = RuntimeError("server crashed")
+            mock_cls.return_value = mock_ths
+            with patch("th_cli.test_run.logs_http_server.threading.Thread", side_effect=capture_thread):
+                with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
+                    srv.start(active_clients=clients, clients_lock=lock, tree_state={}, test_run_title="Run")
+                    captured_target[0]()  # invoke thread target directly
+                    mock_logger.error.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# LogsHTTPServer.stop() — exception path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestLogsHTTPServerStopException:
+    def test_stop_handles_shutdown_exception_gracefully(self):
+        srv = LogsHTTPServer()
+        mock_ths = MagicMock()
+        mock_ths.shutdown.side_effect = RuntimeError("shutdown failed")
+        srv.server = mock_ths
+
+        with patch("th_cli.test_run.logs_http_server.logger"):
+            srv.stop()  # must not raise
+
+        assert srv.server is None
+

@@ -299,3 +299,240 @@ class TestGetLogViewerUrl:
         with patch.object(h, "_get_local_ip", return_value="172.16.0.5"):
             url = h._get_log_viewer_url()
         assert "172.16.0.5" in url
+
+
+# ---------------------------------------------------------------------------
+# stop() — error path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestLogStreamHandlerStopError:
+    def test_logs_error_when_http_server_stop_raises(self):
+        h, mock_srv = _make_handler()
+        h.is_running = True
+        mock_srv.stop.side_effect = RuntimeError("stop failed")
+        with patch("th_cli.test_run.log_stream_handler.logger") as mock_logger:
+            h.stop()
+        mock_logger.error.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# init_tree()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestInitTree:
+    def test_noop_when_not_running(self):
+        h, _ = _make_handler()
+        h.is_running = False
+        with patch.object(h, "_broadcast") as mock_bcast:
+            h.init_tree(MagicMock())
+        mock_bcast.assert_not_called()
+
+    def test_broadcasts_tree_init_event(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        client_q = queue.Queue()
+        h._clients.add(client_q)
+        run = MagicMock()
+        run.title = "My Run"
+        run.test_suite_executions = []
+        with patch("th_cli.test_run.log_stream_handler.logger"):
+            h.init_tree(run)
+        event = client_q.get_nowait()
+        assert event["type"] == "tree_init"
+        assert "data" in event
+
+    def test_updates_tree_state_in_place(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        run = MagicMock()
+        run.title = "Run Title"
+        run.test_suite_executions = []
+        with patch("th_cli.test_run.log_stream_handler.logger"):
+            h.init_tree(run)
+        assert h.tree_state.get("title") == "Run Title"
+
+    def test_handles_build_exception_silently(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        with patch.object(h, "_build_tree", side_effect=RuntimeError("fail")):
+            with patch("th_cli.test_run.log_stream_handler.logger"):
+                h.init_tree(MagicMock())  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# update_tree_node()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestUpdateTreeNode:
+    def test_noop_when_not_running(self):
+        h, _ = _make_handler()
+        h.is_running = False
+        with patch.object(h, "_broadcast") as mock_bcast:
+            h.update_tree_node(state="passed")
+        mock_bcast.assert_not_called()
+
+    def test_run_level_update(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        h.tree_state = {"state": "pending", "suites": []}
+        client_q = queue.Queue()
+        h._clients.add(client_q)
+        h.update_tree_node(state="executing")
+        assert h.tree_state["state"] == "executing"
+        event = client_q.get_nowait()
+        assert event["node_type"] == "run"
+        assert event["state"] == "executing"
+
+    def test_suite_level_update(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        h.tree_state = {"suites": [{"state": "pending", "cases": []}]}
+        client_q = queue.Queue()
+        h._clients.add(client_q)
+        h.update_tree_node(state="passed", suite_idx=0)
+        assert h.tree_state["suites"][0]["state"] == "passed"
+        event = client_q.get_nowait()
+        assert event["node_type"] == "suite"
+
+    def test_case_level_update(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        h.tree_state = {"suites": [{"cases": [{"state": "pending", "steps": []}]}]}
+        client_q = queue.Queue()
+        h._clients.add(client_q)
+        h.update_tree_node(state="failed", suite_idx=0, case_idx=0)
+        assert h.tree_state["suites"][0]["cases"][0]["state"] == "failed"
+        event = client_q.get_nowait()
+        assert event["node_type"] == "case"
+
+    def test_step_level_update(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        h.tree_state = {"suites": [{"cases": [{"steps": [{"state": "pending"}]}]}]}
+        client_q = queue.Queue()
+        h._clients.add(client_q)
+        h.update_tree_node(state="passed", suite_idx=0, case_idx=0, step_idx=0)
+        assert h.tree_state["suites"][0]["cases"][0]["steps"][0]["state"] == "passed"
+        event = client_q.get_nowait()
+        assert event["node_type"] == "step"
+
+    def test_tolerates_index_error_on_invalid_tree_state(self):
+        h, _ = _make_handler()
+        h.is_running = True
+        h.tree_state = {}  # missing expected structure
+        h.update_tree_node(state="passed", suite_idx=99)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# _build_tree()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestBuildTree:
+    def test_minimal_run_no_suites(self):
+        h, _ = _make_handler()
+        run = MagicMock()
+        run.title = "My Run"
+        run.state = MagicMock(value="pending")
+        run.test_suite_executions = []
+        tree = h._build_tree(run)
+        assert tree["title"] == "My Run"
+        assert tree["suites"] == []
+
+    def test_builds_suite_case_step_hierarchy(self):
+        h, _ = _make_handler()
+
+        step = MagicMock()
+        step.title = "Step 1"
+        step.state = MagicMock(value="pending")
+
+        case = MagicMock()
+        case.test_case_metadata.title = "Case 1"
+        case.test_case_metadata.public_id = "TC-1"
+        case.state = MagicMock(value="pending")
+        case.test_step_executions = [step]
+
+        suite = MagicMock()
+        suite.test_suite_metadata.title = "Suite 1"
+        suite.state = MagicMock(value="pending")
+        suite.test_case_executions = [case]
+
+        run = MagicMock()
+        run.title = "Run"
+        run.state = MagicMock(value="executing")
+        run.test_suite_executions = [suite]
+
+        tree = h._build_tree(run)
+        assert len(tree["suites"]) == 1
+        assert tree["suites"][0]["title"] == "Suite 1"
+        assert len(tree["suites"][0]["cases"]) == 1
+        assert len(tree["suites"][0]["cases"][0]["steps"]) == 1
+        assert tree["suites"][0]["cases"][0]["steps"][0]["title"] == "Step 1"
+
+    def test_falls_back_to_default_titles_when_metadata_none(self):
+        h, _ = _make_handler()
+
+        case = MagicMock()
+        case.test_case_metadata = None
+        case.state = MagicMock(value="pending")
+        case.test_step_executions = []
+
+        suite = MagicMock()
+        suite.test_suite_metadata = None
+        suite.state = MagicMock(value="pending")
+        suite.test_case_executions = [case]
+
+        run = MagicMock()
+        run.title = "Run"
+        run.state = MagicMock(value="pending")
+        run.test_suite_executions = [suite]
+
+        tree = h._build_tree(run)
+        assert "Suite 0" in tree["suites"][0]["title"]
+        assert "Case 0" in tree["suites"][0]["cases"][0]["title"]
+
+
+# ---------------------------------------------------------------------------
+# _get_state()
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestGetState:
+    def test_returns_pending_when_state_is_none(self):
+        h, _ = _make_handler()
+        obj = MagicMock()
+        obj.state = None
+        assert h._get_state(obj) == "pending"
+
+    def test_returns_state_value_for_enum_like_object(self):
+        h, _ = _make_handler()
+        obj = MagicMock()
+        obj.state = MagicMock(value="executing")
+        assert h._get_state(obj) == "executing"
+
+    def test_returns_str_state_when_no_value_attr(self):
+        h, _ = _make_handler()
+        obj = MagicMock()
+        obj.state = "passed"  # plain string — no .value attribute
+        assert h._get_state(obj) == "passed"
+
+    def test_returns_pending_on_exception(self):
+        h, _ = _make_handler()
+
+        class BrokenState:
+            @property
+            def value(self):
+                raise RuntimeError("broken")
+
+        obj = MagicMock()
+        obj.state = BrokenState()
+        assert h._get_state(obj) == "pending"
+
