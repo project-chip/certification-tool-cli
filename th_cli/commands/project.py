@@ -23,7 +23,13 @@ from pydantic import ValidationError
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.api_lib_autogen.models import PICS, BodyImportprojectConfigApiV1ProjectsImportPost, Project, ProjectCreate, ProjectUpdate
+from th_cli.api_lib_autogen.models import (
+    PICS,
+    BodyImportprojectConfigApiV1ProjectsImportPost,
+    Project,
+    ProjectCreate,
+    ProjectUpdate,
+)
 from th_cli.client import get_client
 from th_cli.colorize import (
     colorize_cmd_help,
@@ -39,6 +45,7 @@ from th_cli.utils import __print_config, __print_json, read_pics_config
 from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
+
 
 # Click command group for project management
 @click.group(
@@ -132,11 +139,7 @@ def create(name: str, config: str | None, pics_config_folder: str | None) -> Non
     help=colorize_help("Print JSON response for more details"),
 )
 @click.option(
-    "--config",
-    "-c",
-    is_flag=True,
-    default=False,
-    help=colorize_help("Print project configuration in JSON format")
+    "--config", "-c", is_flag=True, default=False, help=colorize_help("Print project configuration in JSON format")
 )
 def list_projects(
     id: int | None,
@@ -257,6 +260,37 @@ def import_project(file: str) -> None:
     """Import a project config from a JSON file"""
     with get_sync_apis("import") as sync_apis:
         _import_project(sync_apis, file)
+
+
+# Click command to download all logs for a project
+@project.command(
+    "logs",
+    short_help=colorize_help("Download all logs for a project"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID"),
+)
+@click.option(
+    "--grouped",
+    is_flag=True,
+    default=False,
+    help=colorize_help("Download grouped logs (organized by test case state) instead of flat log files"),
+)
+@click.option(
+    "--output-file",
+    "-o",
+    type=click.Path(file_okay=True, dir_okay=False),
+    required=False,
+    help=colorize_help("Output zip file path (defaults to <project-name>-logs.zip)"),
+)
+def logs(id: int, grouped: bool, output_file: str | None) -> None:
+    """Download all logs for a project as a single zip archive"""
+    with get_sync_apis("logs") as sync_apis:
+        _download_project_logs(sync_apis, id, grouped, output_file)
 
 
 def _create_project(sync_apis: SyncApis, name: str, config: str | None, pics_config_folder: str | None) -> None:
@@ -465,3 +499,51 @@ def _import_project(sync_apis: SyncApis, file: str) -> None:
         click.echo(colorize_success(f"Project '{response.name}' imported with ID {response.id}"))
     except UnexpectedResponse as e:
         handle_api_error(e, f"import project from '{file}'")
+
+
+def _download_project_logs(sync_apis: SyncApis, id: int, grouped: bool, output_file: str | None) -> None:
+    """Download all logs for a project as a single zip archive"""
+    click.echo(
+        f"Downloading logs for project {id}... this may take a while for "
+        "projects with many or large test run executions."
+    )
+    try:
+        log_bytes: bytes = sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get(
+            id=id, grouped=grouped
+        )
+    except UnexpectedResponse as e:
+        if e.status_code == 404:
+            if isinstance(e.content, dict):
+                detail = e.content.get("detail", "")
+            else:
+                content = e.content.decode("utf-8", errors="ignore") if isinstance(e.content, bytes) else e.content
+                detail = ""
+                try:
+                    parsed = json.loads(content) if content else {}
+                    if isinstance(parsed, dict):
+                        detail = parsed.get("detail", "")
+                except json.JSONDecodeError:
+                    pass
+            if "no test run executions" in detail:
+                raise CLIError(f"Project {id} has no test run executions yet. Nothing to download.")
+            raise CLIError(f"Project ID '{id}' not found.")
+        handle_api_error(e, f"download logs for project ID '{id}'")
+
+    if not output_file:
+        try:
+            project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
+            safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (project.name or f"project-{id}"))
+        except Exception:
+            # The logs have already been downloaded successfully at this point;
+            # any failure fetching the project name (network glitch, unexpected
+            # response shape, etc.) should just fall back to a safe default
+            # filename instead of discarding the downloaded bytes.
+            safe_name = f"project-{id}"
+        output_file = f"{safe_name}-logs.zip"
+
+    try:
+        Path(output_file).write_bytes(log_bytes)
+        mode = "grouped" if grouped else "flat"
+        click.echo(colorize_success(f"Project {id} logs ({mode}) saved to '{output_file}'"))
+    except OSError as e:
+        raise CLIError(f"Failed to write logs file '{output_file}': {e}")

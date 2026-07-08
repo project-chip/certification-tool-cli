@@ -139,8 +139,7 @@ def parse_and_validate_tc_params_file(file_path: str) -> dict[str, dict[str, Any
             data: Any = json.load(f)
     except json.JSONDecodeError as e:
         raise CLIError(
-            f"Invalid JSON in TC params mapping file '{file_path}': "
-            f"{e.msg} (line {e.lineno}, column {e.colno})"
+            f"Invalid JSON in TC params mapping file '{file_path}': " f"{e.msg} (line {e.lineno}, column {e.colno})"
         )
     except OSError as e:
         raise CLIError(f"Failed to read TC params mapping file '{file_path}': {e}")

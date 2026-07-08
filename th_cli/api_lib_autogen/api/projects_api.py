@@ -211,6 +211,22 @@ class _ProjectsApi:
             type_=m.Project, method="POST", url="/api/v1/projects/import", data=data, files=files
         )
 
+    def _build_for_download_project_logs_api_v1_projects__id__logs_get(
+        self, id: int, grouped: bool | None = None
+    ) -> Coroutine[Any, Any, bytes]:
+        """
+        Download Project Logs
+        """
+        path_params = {"id": str(id)}
+
+        query_params = {}
+        if grouped is not None:
+            query_params["grouped"] = str(grouped)
+
+        return self.api_client.request(
+            type_=bytes, method="GET", url="/api/v1/projects/{id}/logs", path_params=path_params, params=query_params
+        )
+
 
 class AsyncProjectsApi(_ProjectsApi):
     async def read_projects_api_v1_projects__get(
@@ -302,6 +318,12 @@ class AsyncProjectsApi(_ProjectsApi):
         Importproject Config
         """
         return await self._build_for_importproject_config_api_v1_projects_import_post(body=body)
+
+    async def download_project_logs_api_v1_projects__id__logs_get(self, id: int, grouped: bool | None = None) -> bytes:
+        """
+        Download Project Logs
+        """
+        return await self._build_for_download_project_logs_api_v1_projects__id__logs_get(id=id, grouped=grouped)
 
 
 class SyncProjectsApi(_ProjectsApi):
@@ -406,4 +428,11 @@ class SyncProjectsApi(_ProjectsApi):
         Importproject Config
         """
         coroutine = self._build_for_importproject_config_api_v1_projects_import_post(body=body)
+        return get_event_loop().run_until_complete(coroutine)
+
+    def download_project_logs_api_v1_projects__id__logs_get(self, id: int, grouped: bool | None = None) -> bytes:
+        """
+        Download Project Logs
+        """
+        coroutine = self._build_for_download_project_logs_api_v1_projects__id__logs_get(id=id, grouped=grouped)
         return get_event_loop().run_until_complete(coroutine)

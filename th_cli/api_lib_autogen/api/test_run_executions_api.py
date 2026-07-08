@@ -358,24 +358,6 @@ class _TestRunExecutionsApi:
             files=files,
         )
 
-    def _build_for_generate_summary_log_api_v1_test_run_executions__id__performance_summary_post(
-        self, id: int, project_id: int
-    ) -> Coroutine[Any, Any, dict[str, Any]]:
-        """
-        Generate Summary Log
-        """
-        path_params = {"id": str(id)}
-
-        query_params = {"project_id": str(project_id)}
-
-        return self.api_client.request(
-            type_=dict[str, Any],
-            method="POST",
-            url="/api/v1/test_run_executions/{id}/performance_summary",
-            path_params=path_params,
-            params=query_params,
-        )
-
 
 class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
     async def read_test_run_executions_api_v1_test_run_executions__get(
@@ -546,16 +528,6 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         """
         return await self._build_for_import_test_run_execution_api_v1_test_run_executions_import_post(
             body=body, project_id=project_id
-        )
-
-    async def generate_summary_log_api_v1_test_run_executions__id__performance_summary_post(
-        self, id: int, project_id: int
-    ) -> dict[str, Any]:
-        """
-        Generate Summary Log
-        """
-        return await self._build_for_generate_summary_log_api_v1_test_run_executions__id__performance_summary_post(
-            id=id, project_id=project_id
         )
 
 
@@ -741,16 +713,5 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         """
         coroutine = self._build_for_import_test_run_execution_api_v1_test_run_executions_import_post(
             body=body, project_id=project_id
-        )
-        return get_event_loop().run_until_complete(coroutine)
-
-    def generate_summary_log_api_v1_test_run_executions__id__performance_summary_post(
-        self, id: int, project_id: int
-    ) -> dict[str, Any]:
-        """
-        Generate Summary Log
-        """
-        coroutine = self._build_for_generate_summary_log_api_v1_test_run_executions__id__performance_summary_post(
-            id=id, project_id=project_id
         )
         return get_event_loop().run_until_complete(coroutine)

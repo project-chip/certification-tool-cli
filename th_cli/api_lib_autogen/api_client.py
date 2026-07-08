@@ -80,14 +80,12 @@ class ApiClient:
     @overload
     async def request(
         self, *, type_: Type[T], method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     async def request(
         self, *, type_: None, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def request(
         self, *, type_: Any, method: str, url: str, path_params: dict[str, Any] | None = None, **kwargs: Any
@@ -99,12 +97,10 @@ class ApiClient:
         return await self.send(request, type_)
 
     @overload
-    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T:
-        ...
+    def request_sync(self, *, type_: Type[T], **kwargs: Any) -> T: ...
 
     @overload
-    def request_sync(self, *, type_: None, **kwargs: Any) -> None:
-        ...
+    def request_sync(self, *, type_: None, **kwargs: Any) -> None: ...
 
     def request_sync(self, *, type_: Any, **kwargs: Any) -> Any:
         """
@@ -114,13 +110,15 @@ class ApiClient:
 
     async def send(self, request: Request, type_: Type[T]) -> T | str:
         response = await self.middleware(request, self.send_inner)
-        if response.status_code in [200, 201]:
+        if response.status_code in [200, 201, 204]:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
+                if type_ is None or response.status_code == 204:
+                    return None
                 adapter = TypeAdapter(type_)
                 if type_ == bytes:
                     return adapter.validate_python(response.content)
-                return adapter.validate_python(response.json()) if type_ else response.text
+                return adapter.validate_python(response.json())
             except Exception as e:
                 raise ResponseHandlingException(e)
         raise UnexpectedResponse.for_response(response)

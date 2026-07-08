@@ -728,3 +728,215 @@ class TestImportProjectCommand:
 
         assert result.exit_code == 0
         assert "--file" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestProjectLogsCommand:
+    """Test cases for the project logs command."""
+
+    def test_logs_flat_success_default_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful flat log download with auto-generated filename."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"log content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1"])
+
+        assert result.exit_code == 0
+        assert "saved to" in result.output
+        assert "flat" in result.output
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.assert_called_once_with(
+            id=1, grouped=False
+        )
+
+    def test_logs_grouped_success_default_filename(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test successful grouped log download with auto-generated filename."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1", "--grouped"])
+
+        assert result.exit_code == 0
+        assert "grouped" in result.output
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.assert_called_once_with(
+            id=1, grouped=True
+        )
+
+    def test_logs_custom_output_file(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test log download to a specified output file."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        output_path = str(temp_dir / "my_logs.zip")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "1", "--output-file", output_path])
+
+        assert result.exit_code == 0
+        assert f"saved to '{output_path}'" in result.output
+        assert Path(output_path).read_bytes() == b"zip content"
+
+    def test_logs_file_content_is_written(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """Test that the downloaded bytes are written correctly to disk."""
+        expected_bytes = b"PK\x03\x04fakezipdata"
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = expected_bytes
+        output_path = str(temp_dir / "output.zip")
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            cli_runner.invoke(project, ["logs", "--id", "42", "--output-file", output_path])
+
+        assert Path(output_path).read_bytes() == expected_bytes
+
+    def test_logs_api_error_project_not_found(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """A 404 for a missing project gives a friendly, non-JSON message."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(status_code=404, content={"detail": "Project not found"})
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "Project ID '99' not found." in result.output
+
+    def test_logs_api_error_non_404_uses_generic_handler(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+    ) -> None:
+        """Non-404 API errors still go through the generic error handler."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(status_code=500, content=b"Internal Server Error")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["logs", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "500" in result.output
+
+    def test_logs_no_executions_returns_error_and_writes_no_file(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """A project with no test run executions surfaces a friendly message
+        instead of writing an empty/unusable zip file to disk. Mirrors the
+        dict-shaped content the real API client delivers via response.json()."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(
+                status_code=404,
+                content={"detail": "Project 11 has no test run executions to download logs for"},
+            )
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "11"])
+
+                assert result.exit_code == 1
+                assert "Nothing to download" in result.output
+                assert list(Path(".").glob("*.zip")) == []
+
+    def test_logs_no_executions_with_string_content_fallback(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """Also handles JSON-string content, in case the client ever
+        surfaces the raw response body instead of a parsed dict."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.side_effect = (
+            UnexpectedResponse(
+                status_code=404,
+                content='{"detail": "Project 11 has no test run executions to download logs for"}',
+            )
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "11"])
+
+                assert result.exit_code == 1
+                assert "Nothing to download" in result.output
+                assert list(Path(".").glob("*.zip")) == []
+
+    def test_logs_prints_progress_notice_before_download(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        sample_project: api_models.Project,
+        temp_dir: Path,
+    ) -> None:
+        """A heads-up is printed before the request, since building the zip
+        server-side can take a while for large projects."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"log content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "1"])
+
+        assert result.exit_code == 0
+        assert "Downloading logs for project 1" in result.output
+        assert "may take a while" in result.output
+
+    def test_logs_falls_back_to_default_filename_when_project_name_lookup_fails(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        temp_dir: Path,
+    ) -> None:
+        """Logs are still written even if fetching the project name fails."""
+        mock_sync_apis.projects_api.download_project_logs_api_v1_projects__id__logs_get.return_value = b"zip content"
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.side_effect = RuntimeError(
+            "network glitch"
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with cli_runner.isolated_filesystem(temp_dir=temp_dir):
+                result = cli_runner.invoke(project, ["logs", "--id", "7"])
+
+                assert result.exit_code == 0
+                assert "saved to 'project-7-logs.zip'" in result.output
+                assert Path("project-7-logs.zip").read_bytes() == b"zip content"
+
+    def test_logs_help_message(self, cli_runner: CliRunner) -> None:
+        """Test the help message for the logs command."""
+        result = cli_runner.invoke(project, ["logs", "--help"])
+
+        assert result.exit_code == 0
+        assert "--id" in result.output
+        assert "--grouped" in result.output
+        assert "--output-file" in result.output
