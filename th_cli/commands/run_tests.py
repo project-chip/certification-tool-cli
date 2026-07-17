@@ -144,7 +144,8 @@ async def run_tests(
         config = str(config_path)
 
     if pics_config_folder:
-        pics_config_folder = validate_directory_path(pics_config_folder, must_exist=True)
+        pics_path = validate_directory_path(pics_config_folder, must_exist=True)
+        pics_config_folder = str(pics_path)
 
     client = None
     _webrtc_handler = None
