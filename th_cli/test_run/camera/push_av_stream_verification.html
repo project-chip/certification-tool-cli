@@ -526,6 +526,19 @@
             nonConformingSection.style.display = 'none';
         }}
 
+        // Push AV Server returns each stream's uploaded files as valid_uploads/error_uploads,
+        // each entry being an object with a file_path (and reasons, for error_uploads).
+        // Older server responses used plain filename arrays under files/valid_files/invalid_files -
+        // keep supporting those too so this page degrades gracefully against either shape.
+        function getStreamFilePaths(stream) {{
+            if (stream.valid_uploads || stream.error_uploads) {{
+                const validPaths = (stream.valid_uploads || []).map(u => u.file_path);
+                const invalidPaths = (stream.error_uploads || []).map(u => u.file_path);
+                return [...validPaths, ...invalidPaths];
+            }}
+            return stream.files || [...(stream.valid_files || []), ...(stream.invalid_files || [])];
+        }}
+
         function selectStream(index) {{
             if (!streamsData || !streamsData[index]) {{
                 console.error('Stream data not found for index:', index);
@@ -535,8 +548,7 @@
             const stream = streamsData[index];
             selectedStreamId = stream.id || index;
 
-            // Combine valid_files and invalid_files (or use files if present)
-            const allFiles = stream.files || [...(stream.valid_files || []), ...(stream.invalid_files || [])];
+            const allFiles = getStreamFilePaths(stream);
 
             // Update selected styling
             document.querySelectorAll('.stream-item').forEach(item => {{
@@ -582,9 +594,14 @@
             const streamNum = parseInt(stream.id) + 1;
             streamContentsTitle.textContent = `Stream ${{streamNum}} Contents`;
 
-            // Combine valid and invalid files (or use files if present)
-            const validFiles = stream.valid_files || [];
-            const invalidFiles = stream.invalid_files || [];
+            const hasUploadsShape = !!(stream.valid_uploads || stream.error_uploads);
+            const validFiles = hasUploadsShape
+                ? (stream.valid_uploads || []).map(u => u.file_path)
+                : (stream.valid_files || []);
+            const invalidUploads = hasUploadsShape ? (stream.error_uploads || []) : [];
+            const invalidFiles = hasUploadsShape
+                ? invalidUploads.map(u => u.file_path)
+                : (stream.invalid_files || []);
             const allFiles = stream.files || [...validFiles, ...invalidFiles];
 
             // Display files
@@ -611,11 +628,24 @@
 
             // Display conformance status
             if (invalidFiles.length > 0) {{
-                nonConformingContent.innerHTML = `<div style="color: #c62828; text-align: center;">Found ${{invalidFiles.length}} non-conforming file(s)</div>`;
+                const reasons = invalidUploads
+                    .flatMap(u => u.reasons || [])
+                    .filter(Boolean);
+                const reasonsHtml = reasons.length > 0
+                    ? `<br><small>${{reasons.map(r => html_escape(r)).join('<br>')}}</small>`
+                    : '';
+                nonConformingContent.innerHTML =
+                    `<div style="color: #c62828; text-align: center;">Found ${{invalidFiles.length}} non-conforming file(s)${{reasonsHtml}}</div>`;
             }} else {{
                 nonConformingContent.innerHTML = '<div class="conforming-message">All files conform to Matter Spec.</div>';
             }}
             nonConformingSection.style.display = 'block';
+        }}
+
+        function html_escape(str) {{
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }}
 
         let currentDashPlayer = null;  // Track current player instance

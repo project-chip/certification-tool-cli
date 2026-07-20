@@ -294,6 +294,52 @@ class TestVideoStreamingHandlerRouting:
 
 
 # ---------------------------------------------------------------------------
+# VideoStreamingHandler.serve_player - Push AV Stream Verification template
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestServePlayerPushAVTemplate:
+    """Regression tests for issue #1051: the Push AV Server returns each stream's
+    uploaded files under valid_uploads/error_uploads (list of {file_path, reasons?}),
+    not the legacy files/valid_files/invalid_files shape. The rendered template's
+    JS must read the current field names or the video player stays blank even
+    when the DUT has successfully uploaded content."""
+
+    def _render(self):
+        handler = _make_handler(
+            path="/",
+            server_attrs={
+                "prompt_options": {"PASS": 1, "FAIL": 2},
+                "prompt_text": "Verify the video stream",
+                "is_push_av_verification": True,
+                "push_av_server_url": "https://192.168.0.53:1234",
+            },
+        )
+        handler.serve_player()
+        return handler.wfile.getvalue().decode("utf-8")
+
+    def test_renders_without_template_error(self):
+        html_content = self._render()
+        assert "Template error" not in html_content
+        assert "<!DOCTYPE html>" in html_content or "<html>" in html_content
+
+    def test_reads_valid_and_error_uploads_fields(self):
+        html_content = self._render()
+        assert "stream.valid_uploads" in html_content
+        assert "stream.error_uploads" in html_content
+        assert "u.file_path" in html_content
+
+    def test_no_longer_relies_solely_on_legacy_file_fields(self):
+        """The old field names may still appear as a fallback, but the current
+        server field names must be checked first."""
+        html_content = self._render()
+        valid_uploads_idx = html_content.index("stream.valid_uploads")
+        valid_files_idx = html_content.index("stream.valid_files")
+        assert valid_uploads_idx < valid_files_idx
+
+
+# ---------------------------------------------------------------------------
 # VideoStreamingHandler.handle_response
 # ---------------------------------------------------------------------------
 
