@@ -328,7 +328,7 @@ class TestServePlayerPushAVTemplate:
         html_content = self._render()
         assert "stream.valid_uploads" in html_content
         assert "stream.error_uploads" in html_content
-        assert "u.file_path" in html_content
+        assert "file_path" in html_content
 
     def test_no_longer_relies_solely_on_legacy_file_fields(self):
         """The old field names may still appear as a fallback, but the current

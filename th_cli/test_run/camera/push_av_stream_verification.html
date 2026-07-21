@@ -532,8 +532,8 @@
         // keep supporting those too so this page degrades gracefully against either shape.
         function getStreamFilePaths(stream) {{
             if (stream.valid_uploads || stream.error_uploads) {{
-                const validPaths = (stream.valid_uploads || []).map(u => u.file_path);
-                const invalidPaths = (stream.error_uploads || []).map(u => u.file_path);
+                const validPaths = (stream.valid_uploads || []).map(u => u?.file_path).filter(Boolean);
+                const invalidPaths = (stream.error_uploads || []).map(u => u?.file_path).filter(Boolean);
                 return [...validPaths, ...invalidPaths];
             }}
             return stream.files || [...(stream.valid_files || []), ...(stream.invalid_files || [])];
@@ -596,11 +596,11 @@
 
             const hasUploadsShape = !!(stream.valid_uploads || stream.error_uploads);
             const validFiles = hasUploadsShape
-                ? (stream.valid_uploads || []).map(u => u.file_path)
+                ? (stream.valid_uploads || []).map(u => u?.file_path).filter(Boolean)
                 : (stream.valid_files || []);
             const invalidUploads = hasUploadsShape ? (stream.error_uploads || []) : [];
             const invalidFiles = hasUploadsShape
-                ? invalidUploads.map(u => u.file_path)
+                ? invalidUploads.map(u => u?.file_path).filter(Boolean)
                 : (stream.invalid_files || []);
             const allFiles = stream.files || [...validFiles, ...invalidFiles];
 
@@ -629,7 +629,7 @@
             // Display conformance status
             if (invalidFiles.length > 0) {{
                 const reasons = invalidUploads
-                    .flatMap(u => u.reasons || [])
+                    .flatMap(u => u?.reasons || [])
                     .filter(Boolean);
                 const reasonsHtml = reasons.length > 0
                     ? `<br><small>${{reasons.map(r => html_escape(r)).join('<br>')}}</small>`
