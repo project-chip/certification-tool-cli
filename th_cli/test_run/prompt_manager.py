@@ -480,10 +480,10 @@ async def __prompt_user_for_file_upload(prompt: PromptRequest) -> str:
         click.echo("Enter the path to the file to upload (or press Enter to skip): ")
 
         # Wait for input async
-        file_path = await aioconsole.ainput()
+        file_path = (await aioconsole.ainput()).strip()
 
         # If user just pressed Enter, return empty string
-        if not file_path.strip():
+        if not file_path:
             return ""
 
         # Validate file path and type

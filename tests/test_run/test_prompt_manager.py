@@ -377,6 +377,32 @@ class TestValidFileUpload:
         mock_send.assert_called_once()
         assert mock_send.call_args[1]["response"] == ""
 
+    @pytest.mark.asyncio
+    async def test_strips_trailing_whitespace_from_input(self):
+        """A stray trailing \\r or space from the input stream (e.g. some
+        terminals/SSH sessions send CRLF) must not cause a valid, existing
+        file path to be rejected as invalid."""
+        with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch(
+                "th_cli.test_run.prompt_manager.__upload_file_and_send_response",
+                new_callable=AsyncMock,
+            ) as mock_upload:
+                with patch("aioconsole.ainput", new_callable=AsyncMock, return_value=f"{tmp_path}\r"):
+                    with patch("click.echo"):
+                        await prompt_manager.handle_file_upload_request(
+                            socket=AsyncMock(),
+                            request=MagicMock(prompt="Upload file", timeout=30),
+                        )
+
+            mock_upload.assert_called_once()
+            assert mock_upload.call_args[1]["file_path"] == tmp_path
+        finally:
+            os.unlink(tmp_path)
+
 
 # ---------------------------------------------------------------------------
 # __upload_file_and_send_response
