@@ -25,6 +25,7 @@ from typing import Any, Union
 import aioconsole
 import click
 import httpx
+import websockets
 from websockets.client import WebSocketClientProtocol
 
 from th_cli.colorize import colorize_error, colorize_key_value, italic
@@ -531,7 +532,21 @@ async def __upload_file_and_send_response(
 
                 response.raise_for_status()
                 click.echo("✅ File uploaded successfully")
-                await _send_prompt_response(socket=socket, response="SUCCESS", prompt=prompt)
+
+        # The upload itself succeeded at this point (the HTTP response was already
+        # received above). Uploading a large log can keep the backend's event loop
+        # busy long enough that the WebSocket's keepalive ping/pong times out and
+        # the connection is dropped before we get a chance to send the prompt
+        # response. Report that separately, so it isn't mistaken for an upload
+        # failure (see GitHub issue #1062).
+        try:
+            await _send_prompt_response(socket=socket, response="SUCCESS", prompt=prompt)
+        except websockets.exceptions.ConnectionClosed as e:
+            click.echo(
+                "⚠️  File was uploaded successfully, but the connection to the backend was "
+                f"closed before the confirmation could be sent: {e}",
+                err=True,
+            )
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)

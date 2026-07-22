@@ -20,7 +20,9 @@ import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import httpx
 import pytest
+import websockets
 
 from th_cli.shared_constants import MessageTypeEnum
 from th_cli.test_run import prompt_manager
@@ -374,6 +376,131 @@ class TestValidFileUpload:
 
         mock_send.assert_called_once()
         assert mock_send.call_args[1]["response"] == ""
+
+
+# ---------------------------------------------------------------------------
+# __upload_file_and_send_response
+# ---------------------------------------------------------------------------
+# `__upload_file_and_send_response` is a module-level name, so it is NOT
+# name-mangled. It's accessed here via getattr() to avoid writing the literal
+# dunder-prefixed attribute inside a class body, which *would* be mangled.
+
+
+def _get_upload_file_and_send_response():
+    return getattr(prompt_manager, "__upload_file_and_send_response")
+
+
+class _FakeAsyncClient:
+    """Minimal async context-manager stand-in for httpx.AsyncClient."""
+
+    def __init__(self, response=None, post_error=None):
+        self._response = response or MagicMock(status_code=200)
+        self._response.raise_for_status = Mock()
+        self._post_error = post_error
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def post(self, *args, **kwargs):
+        if self._post_error:
+            raise self._post_error
+        return self._response
+
+
+@pytest.mark.unit
+class TestUploadFileAndSendResponse:
+    """Uploading the file and sending the prompt response are two separate
+    network operations. A failure sending the prompt response after a
+    successful upload must not be reported as an upload failure
+    (see GitHub issue #1062)."""
+
+    @pytest.mark.asyncio
+    async def test_success_sends_prompt_response(self):
+        upload_file_and_send_response = _get_upload_file_and_send_response()
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+                with patch("httpx.AsyncClient", return_value=_FakeAsyncClient()):
+                    with patch("click.echo"):
+                        await upload_file_and_send_response(
+                            socket=AsyncMock(),
+                            file_path=tmp_path,
+                            prompt=MagicMock(message_id=1),
+                        )
+
+            mock_send.assert_called_once()
+            assert mock_send.call_args[1]["response"] == "SUCCESS"
+        finally:
+            os.unlink(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_websocket_closed_after_successful_upload_reports_warning_not_error(self):
+        """If the upload succeeds but the websocket is closed before the
+        confirmation can be sent, this must be surfaced as a warning about the
+        lost confirmation - not as an upload error - since the file was
+        already uploaded successfully."""
+        upload_file_and_send_response = _get_upload_file_and_send_response()
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch(
+                "th_cli.test_run.prompt_manager._send_prompt_response",
+                new_callable=AsyncMock,
+                side_effect=websockets.exceptions.ConnectionClosedError(None, None, None),
+            ):
+                with patch("httpx.AsyncClient", return_value=_FakeAsyncClient()):
+                    with patch("click.echo") as mock_echo:
+                        await upload_file_and_send_response(
+                            socket=AsyncMock(),
+                            file_path=tmp_path,
+                            prompt=MagicMock(message_id=1),
+                        )
+
+            echoed = " ".join(str(call.args[0]) for call in mock_echo.call_args_list)
+            assert "uploaded successfully" in echoed
+            assert "Unexpected error uploading file" not in echoed
+        finally:
+            os.unlink(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_http_error_during_upload_still_reports_error(self):
+        """A failure during the actual upload (before success) must still be
+        reported as an upload error, and the empty response must be sent."""
+        upload_file_and_send_response = _get_upload_file_and_send_response()
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch("th_cli.test_run.prompt_manager._send_prompt_response", new_callable=AsyncMock) as mock_send:
+                with patch(
+                    "httpx.AsyncClient",
+                    return_value=_FakeAsyncClient(post_error=httpx.ConnectError("boom")),
+                ):
+                    with patch("click.echo") as mock_echo:
+                        await upload_file_and_send_response(
+                            socket=AsyncMock(),
+                            file_path=tmp_path,
+                            prompt=MagicMock(message_id=1),
+                        )
+
+            mock_send.assert_called_once()
+            assert mock_send.call_args[1]["response"] == ""
+            echoed = " ".join(str(call.args[0]) for call in mock_echo.call_args_list)
+            assert "Network error during file upload" in echoed
+        finally:
+            os.unlink(tmp_path)
 
 
 # ---------------------------------------------------------------------------
