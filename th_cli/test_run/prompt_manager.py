@@ -480,10 +480,10 @@ async def __prompt_user_for_file_upload(prompt: PromptRequest) -> str:
         click.echo("Enter the path to the file to upload (or press Enter to skip): ")
 
         # Wait for input async
-        file_path = await aioconsole.ainput()
+        file_path = (await aioconsole.ainput()).strip()
 
         # If user just pressed Enter, return empty string
-        if not file_path.strip():
+        if not file_path:
             return ""
 
         # Validate file path and type
@@ -531,7 +531,22 @@ async def __upload_file_and_send_response(
 
                 response.raise_for_status()
                 click.echo("✅ File uploaded successfully")
-                await _send_prompt_response(socket=socket, response="SUCCESS", prompt=prompt)
+
+        # The upload itself succeeded at this point (the HTTP response was already
+        # received above). Uploading a large log can keep the backend's event loop
+        # busy long enough that the WebSocket's keepalive ping/pong times out and
+        # the connection is dropped before we get a chance to send the prompt
+        # response. Any failure sending that response is therefore a post-upload
+        # notification failure, not an upload failure - report it separately so
+        # it isn't mistaken for one (see GitHub issue #1062).
+        try:
+            await _send_prompt_response(socket=socket, response="SUCCESS", prompt=prompt)
+        except Exception as e:
+            click.echo(
+                "⚠️  File was uploaded successfully, but the confirmation could not be sent "
+                f"to the backend: {e}",
+                err=True,
+            )
 
     except httpx.RequestError as e:
         click.echo(f"❌ Network error during file upload: {str(e)}", err=True)
