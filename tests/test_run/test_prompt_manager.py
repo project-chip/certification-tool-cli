@@ -473,6 +473,39 @@ class TestUploadFileAndSendResponse:
             os.unlink(tmp_path)
 
     @pytest.mark.asyncio
+    async def test_other_exception_after_successful_upload_reports_warning_not_error(self):
+        """Any exception sending the confirmation (not just ConnectionClosed -
+        e.g. websockets.exceptions.InvalidState, or a plain OSError) must also
+        be reported as a post-upload notification warning, not an upload
+        error, since the upload already succeeded by this point."""
+        upload_file_and_send_response = _get_upload_file_and_send_response()
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"hello")
+            tmp_path = f.name
+
+        try:
+            with patch(
+                "th_cli.test_run.prompt_manager._send_prompt_response",
+                new_callable=AsyncMock,
+                side_effect=OSError("socket already closed"),
+            ):
+                with patch("httpx.AsyncClient", return_value=_FakeAsyncClient()):
+                    with patch("click.echo") as mock_echo:
+                        await upload_file_and_send_response(
+                            socket=AsyncMock(),
+                            file_path=tmp_path,
+                            prompt=MagicMock(message_id=1),
+                        )
+
+            echoed = " ".join(str(call.args[0]) for call in mock_echo.call_args_list)
+            assert "uploaded successfully" in echoed
+            assert "confirmation could not be sent" in echoed
+            assert "Unexpected error uploading file" not in echoed
+        finally:
+            os.unlink(tmp_path)
+
+    @pytest.mark.asyncio
     async def test_http_error_during_upload_still_reports_error(self):
         """A failure during the actual upload (before success) must still be
         reported as an upload error, and the empty response must be sent."""
