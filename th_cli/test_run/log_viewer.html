@@ -548,6 +548,12 @@
 
     const BATCH_INTERVAL_MS = 50;
     const MAX_BATCH_SIZE    = 50;
+    // Cap how many entries are kept in memory/rendered in the DOM. A run
+    // can produce hundreds of thousands of log lines; retaining all of
+    // them here (unbounded array + DOM nodes) is what freezes the tab.
+    // The "Download Logs" button reads the full file from disk directly,
+    // so it isn't affected by this cap.
+    const MAX_RETAINED_LOGS = 5000;
 
     // ── /api/status polling ──────────────────────────────────────────
     // Used after a clean stream end so we never auto-connect a new SSE session
@@ -981,6 +987,18 @@
         }});
 
         container.appendChild(fragment);
+
+        // Trim oldest entries once past the retention cap, so memory and
+        // DOM size stay bounded regardless of total run volume.
+        if (allLogs.length > MAX_RETAINED_LOGS) {{
+            const excess = allLogs.length - MAX_RETAINED_LOGS;
+            allLogs.splice(0, excess);
+            for (let i = 0; i < excess; i++) {{
+                const oldest = container.firstElementChild;
+                if (oldest) container.removeChild(oldest);
+            }}
+        }}
+
         document.getElementById('logCount').textContent = logCount;
 
         if (autoScroll) container.scrollTop = container.scrollHeight;
