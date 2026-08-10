@@ -28,7 +28,14 @@ from th_cli.api_lib_autogen.models import (
     TestSuiteExecution,
     TestSuiteMetadata,
 )
-from th_cli.test_run.socket_schemas import TestCaseUpdate, TestRunUpdate, TestStepUpdate, TestSuiteUpdate, TestUpdate
+from th_cli.test_run.socket_schemas import (
+    TestCaseUpdate,
+    TestLogRecord,
+    TestRunUpdate,
+    TestStepUpdate,
+    TestSuiteUpdate,
+    TestUpdate,
+)
 from th_cli.test_run.websocket import TestRunSocket
 
 # ---------------------------------------------------------------------------
@@ -304,7 +311,7 @@ class TestHandleTestUpdate:
             ),
         )
         with patch.object(s, "_TestRunSocket__log_test_step_update") as mock_fn:
-            await s._TestRunSocket__handle_test_update(socket=AsyncMock(), update=update)
+            await s._TestRunSocket__handle_test_update(update=update)
 
         mock_fn.assert_called_once()
 
@@ -319,7 +326,7 @@ class TestHandleTestUpdate:
             body=TestCaseUpdate(state="passed", test_case_execution_index=0, test_suite_execution_index=0),
         )
         with patch.object(s, "_TestRunSocket__log_test_case_update") as mock_fn:
-            await s._TestRunSocket__handle_test_update(socket=AsyncMock(), update=update)
+            await s._TestRunSocket__handle_test_update(update=update)
 
         mock_fn.assert_called_once()
 
@@ -333,28 +340,40 @@ class TestHandleTestUpdate:
             body=TestSuiteUpdate(state="passed", test_suite_execution_index=0),
         )
         with patch.object(s, "_TestRunSocket__log_test_suite_update") as mock_fn:
-            await s._TestRunSocket__handle_test_update(socket=AsyncMock(), update=update)
+            await s._TestRunSocket__handle_test_update(update=update)
 
         mock_fn.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_run_update_executing_does_not_close_socket(self):
+    async def test_run_update_executing_leaves_run_not_finished(self):
         s = _make_socket()
-        mock_socket = AsyncMock()
 
         update = TestUpdate(test_type="test_run", body=TestRunUpdate(state="executing", test_run_execution_id=1))
         with patch.object(s, "_TestRunSocket__log_test_run_update", new_callable=AsyncMock):
-            await s._TestRunSocket__handle_test_update(socket=mock_socket, update=update)
+            await s._TestRunSocket__handle_test_update(update=update)
 
-        mock_socket.close.assert_not_called()
+        assert s._run_finished is False
 
     @pytest.mark.asyncio
-    async def test_run_update_non_executing_closes_socket(self):
+    async def test_run_update_non_executing_marks_run_finished(self):
         s = _make_socket()
-        mock_socket = AsyncMock()
 
         update = TestUpdate(test_type="test_run", body=TestRunUpdate(state="passed", test_run_execution_id=1))
         with patch.object(s, "_TestRunSocket__log_test_run_update", new_callable=AsyncMock):
-            await s._TestRunSocket__handle_test_update(socket=mock_socket, update=update)
+            await s._TestRunSocket__handle_test_update(update=update)
 
-        mock_socket.close.assert_called_once()
+        assert s._run_finished is True
+
+    @pytest.mark.asyncio
+    async def test_handle_log_record_logs_every_record(self):
+        s = _make_socket()
+        records = [
+            TestLogRecord(level="INFO", timestamp=0.0, message=f"msg{i}") for i in range(3)
+        ]
+
+        with patch("th_cli.test_run.websocket.logger") as mock_logger:
+            await s._TestRunSocket__handle_log_record(records)
+
+        assert mock_logger.log.call_count == 3
+        for record in records:
+            mock_logger.log.assert_any_call(record.level, record.message)

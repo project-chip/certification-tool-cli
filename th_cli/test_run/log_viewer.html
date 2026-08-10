@@ -293,6 +293,8 @@
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 500;
+            display: inline-block;
+            text-decoration: none;
         }}
         .btn:hover  {{ background: #f0f0f0; border-color: #999; }}
         .btn.active {{ background: #2196F3; border-color: #2196F3; color: white; }}
@@ -483,11 +485,13 @@
                 &#128268; Live logs streaming in real-time from test execution
             </div>
 
+
             <div class="controls">
                 <div class="control-group">
                     <button id="clearBtn"      class="btn"          onclick="clearLogs()">Clear</button>
                     <button id="autoScrollBtn" class="btn active"   onclick="toggleAutoScroll()">Auto-scroll</button>
-                    <button id="downloadBtn"   class="btn download" onclick="downloadLogs()">Download Logs</button>
+                    <a      id="downloadBtn"   class="btn download" href="#" onclick="return false;"
+                            title="Available once the run starts" style="opacity:0.5;cursor:default;">Download Logs</a>
                     <input  type="text" id="searchBox" class="search-box"
                             placeholder="Search logs&hellip;" oninput="filterLogs()">
                     <span class="log-count">Logs: <span id="logCount">0</span></span>
@@ -518,6 +522,14 @@
 
 <script>
     // ── State ────────────────────────────────────────────────────────
+    // Injected server-side: the run's id (or null if the run hasn't been
+    // created yet) and the backend's configured hostname (or null if it
+    // was just "localhost"/"127.0.0.1" - meaningless once embedded in a
+    // page that may be opened from a different device than the one
+    // running the CLI). See updateDownloadLink() below.
+    const RUN_ID = {run_id};
+    const BACKEND_HOST = {backend_host};
+
     let eventSource      = null;
     let autoScroll       = true;
     let logCount         = 0;
@@ -551,9 +563,20 @@
     // Cap how many entries are kept in memory/rendered in the DOM. A run
     // can produce hundreds of thousands of log lines; retaining all of
     // them here (unbounded array + DOM nodes) is what freezes the tab.
-    // The "Download Logs" button reads the full file from disk directly,
-    // so it isn't affected by this cap.
+    // The "Download Logs" button fetches the full log from the backend
+    // directly, so it isn't affected by this cap.
     const MAX_RETAINED_LOGS = 5000;
+    // Cap how many entries can sit unrendered in the queue. Without this,
+    // a fast burst (hundreds of thousands of lines) makes the queue grow
+    // into a multi-minute backlog: the view still eventually renders
+    // everything, but always shows stale content instead of what's
+    // happening right now - as bad as no live view at all for reading
+    // context to answer a prompt while a test is running. Dropping the
+    // oldest not-yet-rendered entries keeps the view within a few
+    // seconds of real-time, at the cost of some historical entries never
+    // appearing live during a burst (the full history is unaffected -
+    // it's still in the saved log file and via "Download Logs").
+    const MAX_PENDING_QUEUE = 2000;
 
     // ── /api/status polling ──────────────────────────────────────────
     // Used after a clean stream end so we never auto-connect a new SSE session
@@ -625,6 +648,9 @@
         eventSource.addEventListener('log', function(e) {{
             if (newExecutionPending) {{ pendingEventBuffer.push({{type:'log', data:JSON.parse(e.data)}}); return; }}
             logBatchQueue.push(JSON.parse(e.data));
+            if (logBatchQueue.length > MAX_PENDING_QUEUE) {{
+                logBatchQueue.splice(0, logBatchQueue.length - MAX_PENDING_QUEUE);
+            }}
             scheduleBatchProcessing();
         }});
 
@@ -1092,34 +1118,6 @@
         }});
     }}
 
-    function downloadLogs() {{
-        fetch('/download_logs')
-            .then(r => {{ if (!r.ok) throw new Error(); return r.blob(); }})
-            .then(blob => triggerDownload(blob, 'test_run_logs.log'))
-            .catch(() => downloadLogsClientSide());
-    }}
-
-    function downloadLogsClientSide() {{
-        let content = '';
-        allLogs.forEach(e => {{
-            const ts  = e.timestamp || new Date().toISOString();
-            const lvl = e.level || 'INFO';
-            content += `${{ts}} [${{lvl}}] ${{(e.message || '').replace(/\\n/g, '\n')}}\n`;
-        }});
-        if (!content) {{ alert('No logs to download'); return; }}
-        const dateStr = new Date().toISOString().slice(0,19).replace(/[T:]/g, '-');
-        triggerDownload(new Blob([content], {{ type: 'text/plain;charset=utf-8' }}),
-                        `test_run_logs_${{dateStr}}.log`);
-    }}
-
-    function triggerDownload(blob, filename) {{
-        const url = URL.createObjectURL(blob);
-        const a   = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click();
-        URL.revokeObjectURL(url); document.body.removeChild(a);
-    }}
-
     // ── Helpers ──────────────────────────────────────────────────────
     function escapeHtml(text) {{
         const d = document.createElement('div');
@@ -1145,7 +1143,29 @@
     }});
 
     // ── Init ─────────────────────────────────────────────────────────
-    window.addEventListener('load', connectToLogStream);
+    function updateDownloadLink() {{
+        if (RUN_ID === null) {{
+            return;
+        }}
+        // Prefer the backend's own configured hostname when it's a real
+        // address; otherwise fall back to whatever host this page was
+        // actually loaded from (correct whenever the CLI and backend
+        // run on the same machine, which is the common case - see the
+        // comment on BACKEND_HOST above).
+        const host = BACKEND_HOST || window.location.hostname;
+        const btn = document.getElementById('downloadBtn');
+        btn.href = `${{window.location.protocol}}//${{host}}/api/v1/test_run_executions/${{RUN_ID}}/log`;
+        btn.target = '_blank';
+        btn.removeAttribute('onclick');
+        btn.title = '';
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+    }}
+
+    window.addEventListener('load', function() {{
+        updateDownloadLink();
+        connectToLogStream();
+    }});
     window.addEventListener('beforeunload', () => {{ if (eventSource) eventSource.close(); }});
 </script>
 </body>

@@ -52,11 +52,6 @@ class TestLogStreamHandlerInit:
         assert isinstance(h._clients, set)
         assert len(h._clients) == 0
 
-    def test_log_file_path_initially_none(self):
-        with patch("th_cli.test_run.log_stream_handler.LogsHTTPServer"):
-            h = LogStreamHandler()
-        assert h.log_file_path is None
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -99,15 +94,8 @@ class TestLogStreamHandlerStart:
         h, mock_srv = _make_handler()
         with patch.object(h, "_get_local_ip", return_value="10.0.0.1"):
             with patch("th_cli.test_run.log_stream_handler.logger"):
-                h.start(test_run_title="run", log_file_path="/tmp/test.log")
+                h.start(test_run_title="run")
         mock_srv.start.assert_called_once()
-
-    def test_stores_log_file_path(self):
-        h, mock_srv = _make_handler()
-        with patch.object(h, "_get_local_ip", return_value="10.0.0.1"):
-            with patch("th_cli.test_run.log_stream_handler.logger"):
-                h.start(test_run_title="run", log_file_path="/var/log/test.log")
-        assert h.log_file_path == "/var/log/test.log"
 
     def test_already_running_returns_url_without_restart(self):
         h, mock_srv = _make_handler()
