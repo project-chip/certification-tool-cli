@@ -184,6 +184,8 @@
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 500;
+            display: inline-block;
+            text-decoration: none;
         }}
 
         .btn:hover {{
@@ -496,7 +498,7 @@
                     <div class="control-group">
                         <button id="clearBtn" class="btn" onclick="clearLogs()">Clear</button>
                         <button id="autoScrollBtn" class="btn active" onclick="toggleAutoScroll()">Auto-scroll</button>
-                        <button id="downloadBtn" class="btn download" onclick="downloadLogs()">Download Logs</button>
+                        <a id="downloadBtn" class="btn download" href="#" onclick="return false;" title="Available once the run starts" style="opacity:0.5;cursor:default;">Download Logs</a>
                         <input type="text" id="searchBox" class="search-box" placeholder="Search logs..." oninput="filterLogs()">
                         <span class="log-count">Logs: <span id="logCount">0</span></span>
                     </div>
@@ -522,6 +524,14 @@
     </div>
 
     <script>
+        // Injected server-side: the run's id (or null if the run hasn't been
+        // created yet) and the backend's configured hostname (or null if it
+        // was just "localhost"/"127.0.0.1" - meaningless once embedded in a
+        // page that may be opened from a different device than the one
+        // running the CLI). See updateDownloadLink() below.
+        const RUN_ID = {run_id};
+        const BACKEND_HOST = {backend_host};
+
         let eventSource = null;
         let autoScroll = true;
         let logCount = 0;
@@ -538,29 +548,43 @@
         // The "Download Logs" button reads the full file from disk directly,
         // so it isn't affected by this cap.
         const MAX_RETAINED_LOGS = 5000;
+        // Cap how many entries can sit unrendered in the queue. Without this,
+        // a fast burst (hundreds of thousands of lines) makes the queue grow
+        // into a multi-minute backlog: the view still eventually renders
+        // everything, but always shows stale content instead of what's
+        // happening right now - as bad as no live view at all for reading
+        // context to answer a prompt while a test is running. Dropping the
+        // oldest not-yet-rendered entries keeps the view within a few
+        // seconds of real-time, at the cost of some historical entries never
+        // appearing live during a burst (the full history is unaffected -
+        // it's still in the saved log file and via "Download Logs").
+        const MAX_PENDING_QUEUE = 2000;
 
         function connectToLogStream() {{
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
-            
+
             eventSource = new EventSource('/api/logs/stream');
-            
+
             eventSource.addEventListener('connected', function(e) {{
                 console.log('Connected to log stream');
                 statusIndicator.className = 'status-indicator connected';
                 statusText.textContent = 'Connected';
             }});
-            
+
             eventSource.addEventListener('log', function(e) {{
                 const logEntry = JSON.parse(e.data);
                 logBatchQueue.push(logEntry);
+                if (logBatchQueue.length > MAX_PENDING_QUEUE) {{
+                    logBatchQueue.splice(0, logBatchQueue.length - MAX_PENDING_QUEUE);
+                }}
                 scheduleBatchProcessing();
             }});
-            
+
             eventSource.addEventListener('keepalive', function(e) {{
                 // Silent keepalive
             }});
-            
+
             eventSource.addEventListener('end', function(e) {{
                 console.log('Log stream ended');
                 statusIndicator.className = 'status-indicator disconnected';
@@ -746,69 +770,6 @@
             }});
         }}
 
-        function downloadLogs() {{
-            // First try server download (if server is still running)
-            fetch('/download_logs')
-                .then(response => {{
-                    if (response.ok) {{
-                        return response.blob();
-                    }}
-                    throw new Error('Server not available');
-                }})
-                .then(blob => {{
-                    // Server download successful
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'test_run_logs.log';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }})
-                .catch(error => {{
-                    // Server not available, use client-side download
-                    console.log('Server unavailable, using client-side download');
-                    downloadLogsClientSide();
-                }});
-        }}
-
-        function downloadLogsClientSide() {{
-            // Build log content from stored logs
-            let logContent = '';
-            allLogs.forEach(entry => {{
-                const timestamp = entry.timestamp || new Date().toISOString();
-                const level = entry.level || 'INFO';
-                const message = entry.message || '';
-                // Replace literal \n strings with actual newlines, then add entry
-                const cleanMessage = message.replace(/\\n/g, '\n');
-                logContent += `${{timestamp}} [${{level}}] ${{cleanMessage}}\n`;
-            }});
-
-            if (logContent === '') {{
-                alert('No logs to download');
-                return;
-            }}
-
-            // Create blob and download
-            const blob = new Blob([logContent], {{ type: 'text/plain;charset=utf-8' }});
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
-            // Generate filename with current timestamp
-            const now = new Date();
-            const dateStr = now.toISOString().slice(0,19).replace(/[T:]/g, '-');
-            a.download = `test_run_logs_${{dateStr}}.log`;
-            
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            
-            console.log(`Downloaded ${{allLogs.length}} log entries client-side`);
-        }}
-
         function escapeHtml(text) {{
             const div = document.createElement('div');
             div.textContent = text;
@@ -832,7 +793,27 @@
             }}
         }});
 
+        function updateDownloadLink() {{
+            if (RUN_ID === null) {{
+                return;
+            }}
+            // Prefer the backend's own configured hostname when it's a real
+            // address; otherwise fall back to whatever host this page was
+            // actually loaded from (correct whenever the CLI and backend
+            // run on the same machine, which is the common case - see the
+            // comment on BACKEND_HOST above).
+            const host = BACKEND_HOST || window.location.hostname;
+            const btn = document.getElementById('downloadBtn');
+            btn.href = `${{window.location.protocol}}//${{host}}/api/v1/test_run_executions/${{RUN_ID}}/log`;
+            btn.target = '_blank';
+            btn.removeAttribute('onclick');
+            btn.title = '';
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+        }}
+
         window.addEventListener('load', function() {{
+            updateDownloadLink();
             connectToLogStream();
         }});
 

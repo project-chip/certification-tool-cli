@@ -24,10 +24,11 @@ from typing import Optional
 
 from loguru import logger
 
+from th_cli.config import config
+
 # HTTP Endpoints
 ENDPOINT_ROOT = "/"
 ENDPOINT_LOGS_STREAM = "/api/logs/stream"
-ENDPOINT_DOWNLOAD_LOGS = "/download_logs"
 
 
 class LogStreamingHandler(BaseHTTPRequestHandler):
@@ -39,51 +40,10 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
             self.serve_log_viewer()
         elif self.path == ENDPOINT_LOGS_STREAM:
             self.stream_logs()
-        elif self.path == ENDPOINT_DOWNLOAD_LOGS:
-            self.download_logs()
         else:
             logger.warning(f"404 for GET {self.path}")
             self.send_error(404)
     
-    def download_logs(self):
-        """Serve the log file for download using chunked streaming."""
-        log_file_path = getattr(self.server, "log_file_path", None)
-        
-        if not log_file_path or not Path(log_file_path).exists():
-            self.send_error(404, "Log file not found")
-            return
-        
-        try:
-            file_path = Path(log_file_path)
-            filename = file_path.name
-            file_size = file_path.stat().st_size
-            
-            # Send headers
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-            self.send_header("Content-Length", str(file_size))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            
-            # Stream file in chunks to avoid loading entire file into memory
-            CHUNK_SIZE = 65536  # 64KB chunks
-            bytes_sent = 0
-
-            with open(log_file_path, 'rb') as f:
-                while chunk := f.read(CHUNK_SIZE):
-                    self.wfile.write(chunk)
-                    bytes_sent += len(chunk)
-
-            logger.info(f"Log file downloaded: {filename} ({bytes_sent} bytes)")
-            
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-            # Client disconnected during download - normal, not an error
-            logger.debug("Client disconnected during log file download")
-        except Exception as e:
-            logger.error(f"Error serving log file: {e}")
-            # Note: Can't send error response because headers were already sent
-
     def stream_logs(self):
         """Stream logs using Server-Sent Events (SSE)."""
         logger.info("Client connected for log stream")
@@ -173,7 +133,22 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         """Serve the log viewer HTML page."""
         # Get configuration from server
         test_run_title = getattr(self.server, "test_run_title", "Test Execution")
-        
+        run_id = getattr(self.server, "run_id", None)
+
+        # config.hostname is only meaningful to the download link when it's a
+        # real, routable address. This page can be opened from a different
+        # device than the one running the CLI (that's why this server binds
+        # to the LAN IP in the first place) - if config.hostname is just
+        # "localhost" (the common case when the CLI and backend run on the
+        # same machine as each other), embedding it here would tell a remote
+        # browser to download from *itself*. Leave it unset in that case so
+        # the page falls back to whatever host the browser actually used to
+        # reach it (correct whenever the CLI and backend share a machine,
+        # which is the common case); keep it when it's a real configured
+        # address (correct when the CLI talks to a genuinely separate
+        # backend host).
+        backend_host = None if config.hostname in ("localhost", "127.0.0.1") else config.hostname
+
         # Read HTML template from file
         try:
             template_path = Path(__file__).parent / "log_viewer.html"
@@ -182,7 +157,9 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
 
             # Replace placeholders
             html_content = html_template.format(
-                test_run_title=html.escape(test_run_title)
+                test_run_title=html.escape(test_run_title),
+                run_id=json.dumps(run_id),
+                backend_host=json.dumps(backend_host),
             )
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
@@ -231,15 +208,13 @@ class LogsHTTPServer:
         log_queue: queue.Queue,
         test_run_title: str = "Test Execution",
         local_ip: Optional[str] = None,
-        log_file_path: Optional[str] = None,
     ):
         """Start HTTP server for log streaming.
-        
+
         Args:
             log_queue: Queue containing log entries to stream
             test_run_title: Title of the test run for display
             local_ip: Local IP address for display (defaults to localhost)
-            log_file_path: Path to log file for download functionality
         """
         try:
             # Use ThreadingHTTPServer for better concurrency
@@ -250,7 +225,7 @@ class LogsHTTPServer:
             self.server.log_queue = log_queue
             self.server.test_run_title = test_run_title
             self.server.local_ip = local_ip or "localhost"
-            self.server.log_file_path = log_file_path
+            self.server.run_id = None
 
             logger.info(f"Logs HTTP server configured for test run: {test_run_title}")
 
@@ -268,6 +243,13 @@ class LogsHTTPServer:
         except Exception as e:
             logger.error(f"Failed to start logs HTTP server: {e}")
             raise
+
+    def set_run_id(self, run_id: int) -> None:
+        """Set the run id the "Download Logs" link should point to, once the
+        run has been created (it doesn't exist yet when the server starts).
+        """
+        if self.server is not None:
+            self.server.run_id = run_id
 
     def stop(self):
         """Stop HTTP server."""
