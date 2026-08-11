@@ -804,8 +804,10 @@
             // comment on BACKEND_HOST above).
             const host = BACKEND_HOST || window.location.hostname;
             const btn = document.getElementById('downloadBtn');
-            btn.href = `${{window.location.protocol}}//${{host}}/api/v1/test_run_executions/${{RUN_ID}}/log`;
-            btn.target = '_blank';
+            // download=true tells the backend to send Content-Disposition:
+            // attachment, so the browser downloads the file directly
+            // instead of just rendering the raw log text in the tab.
+            btn.href = `${{window.location.protocol}}//${{host}}/api/v1/test_run_executions/${{RUN_ID}}/log?download=true`;
             btn.removeAttribute('onclick');
             btn.title = '';
             btn.style.opacity = '';
