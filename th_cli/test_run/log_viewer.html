@@ -525,11 +525,15 @@
 
     <script>
         // Injected server-side: the run's id (or null if the run hasn't been
-        // created yet) and the backend's configured hostname (or null if it
-        // was just "localhost"/"127.0.0.1" - meaningless once embedded in a
-        // page that may be opened from a different device than the one
-        // running the CLI). See updateDownloadLink() below.
-        const RUN_ID = {run_id};
+        // created yet - reassigned later via the 'run_id' SSE event below if
+        // it arrives after this page has already loaded, which is the
+        // common case: the viewer URL is printed and typically opened
+        // before the run is created) and the backend's configured hostname
+        // (or null if it was just "localhost"/"127.0.0.1" - meaningless
+        // once embedded in a page that may be opened from a different
+        // device than the one running the CLI). See updateDownloadLink()
+        // below.
+        let RUN_ID = {run_id};
         const BACKEND_HOST = {backend_host};
 
         let eventSource = null;
@@ -570,6 +574,16 @@
                 console.log('Connected to log stream');
                 statusIndicator.className = 'status-indicator connected';
                 statusText.textContent = 'Connected';
+            }});
+
+            eventSource.addEventListener('run_id', function(e) {{
+                // Arrives once the run is created, which is typically after
+                // this page has already loaded (RUN_ID was baked in as null
+                // at that point) - re-resolve the download link now that
+                // it's known, without requiring a page reload.
+                const data = JSON.parse(e.data);
+                RUN_ID = data.run_id;
+                updateDownloadLink();
             }});
 
             eventSource.addEventListener('log', function(e) {{

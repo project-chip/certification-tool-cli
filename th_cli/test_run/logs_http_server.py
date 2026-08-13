@@ -76,20 +76,30 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
                 try:
                     # Get log entry from queue with timeout
                     log_entry = log_queue.get(timeout=1.0)
-                    
+
                     if log_entry is None:  # Signal to stop
                         logger.info("Received end-of-stream signal for logs")
                         self._send_sse_event("end", {"message": "Log stream ended"})
                         break
+
+                    if isinstance(log_entry, dict) and log_entry.get("__event__") == "run_id":
+                        # Control message, not a log line - lets an already-
+                        # connected viewer pick up the run id once it's
+                        # known, instead of only a fresh page load.
+                        if not self._send_sse_event("run_id", {"run_id": log_entry["run_id"]}):
+                            logger.debug("Client disconnected while streaming")
+                            client_disconnected = True
+                            break
+                        continue
 
                     # Send log entry as SSE event
                     if not self._send_sse_event("log", log_entry):
                         logger.debug("Client disconnected while streaming")
                         client_disconnected = True
                         break
-                        
+
                     sent_count += 1
-                    
+
                     if sent_count % 100 == 0:
                         logger.debug(f"Sent {sent_count} log entries to client")
 
