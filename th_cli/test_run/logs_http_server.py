@@ -147,6 +147,13 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
                     if not self._send_sse_event("tree_update", entry):
                         client_disconnected = True
 
+                elif entry_type == "run_id":
+                    # Control message, not a log line - lets an already-
+                    # connected viewer pick up the run id once it's known,
+                    # instead of only a fresh page load.
+                    if not self._send_sse_event("run_id", {"run_id": entry.get("run_id")}):
+                        client_disconnected = True
+
                 else:
                     # Regular log entry (no "type" key, or type=="log").
                     if not self._send_sse_event("log", entry):

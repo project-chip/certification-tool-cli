@@ -86,9 +86,17 @@ class LogStreamHandler:
         once the run has been created (its id isn't known when the server
         starts).
         """
-        if self.is_running:
-            self.http_server.set_run_id(run_id)
+        if not self.is_running:
+            return
 
+        self.http_server.set_run_id(run_id)
+
+        # A viewer may already be connected (the run_id is typically set
+        # only *after* the viewer URL was printed and likely opened), so
+        # also push it through the existing SSE stream as a control message
+        # - a future/refreshed page load will pick it up from the HTTP
+        # server attribute above, but an already-open one only sees this.
+        self._broadcast({"type": "run_id", "run_id": run_id})
 
     def stop(self):
         """Stop the log streaming HTTP server."""
