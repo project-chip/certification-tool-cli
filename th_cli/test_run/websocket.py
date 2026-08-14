@@ -39,7 +39,7 @@ from th_cli.colorize import (
     colorize_state,
 )
 from th_cli.config import config
-from th_cli.shared_constants import MessageTypeEnum
+from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
 
 from .logging import get_log_stream_handler
 from .prompt_manager import handle_file_upload_request, handle_prompt
@@ -71,6 +71,12 @@ DRAIN_TIMEOUT_S = 5.0
 # a very large batch doesn't block the websocket read loop for its entire
 # duration.
 LOG_RECORD_YIELD_INTERVAL = 200
+
+# TestRun states that are not yet finished, mirroring the backend's own
+# TestRun.completed() contract (state not in [PENDING, EXECUTING]). Anything
+# else is terminal - checked explicitly rather than negating "executing" so
+# this can't misclassify a non-terminal state (e.g. PENDING) as terminal.
+NON_TERMINAL_RUN_STATES = (TestStateEnum.PENDING, TestStateEnum.EXECUTING)
 
 
 class TestRunSocket:
@@ -181,7 +187,7 @@ class TestRunSocket:
             self.__log_test_suite_update(update.body)
         elif isinstance(update.body, TestRunUpdate):
             await self.__log_test_run_update(update.body)
-            if update.body.state != "executing":
+            if update.body.state not in NON_TERMINAL_RUN_STATES:
                 # Test run ended. Don't close immediately - the backend may
                 # still be flushing/broadcasting a trailing batch of log
                 # entries after this message; let the read loop keep
