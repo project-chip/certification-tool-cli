@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import asyncio
+
 import click
 import websockets
 from loguru import logger
@@ -37,7 +39,7 @@ from th_cli.colorize import (
     colorize_state,
 )
 from th_cli.config import config
-from th_cli.shared_constants import MessageTypeEnum
+from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
 
 from .prompt_manager import handle_file_upload_request, handle_prompt
 from .socket_schemas import (
@@ -56,6 +58,25 @@ WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
 WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
 
+# After the test run reaches a terminal state, the backend may still have a
+# trailing batch of log records queued/in-flight (it flushes and broadcasts
+# any pending log entries *after* sending the terminal state update - see
+# TestLogHandler.finish()/TestUIObserver.complete_tasks() on the backend).
+# Keep draining for a short grace period instead of closing immediately, so
+# that trailing batch isn't dropped by a socket we already hung up on.
+DRAIN_TIMEOUT_S = 5.0
+
+# Yield to the event loop every N log records while processing one batch, so
+# a very large batch doesn't block the websocket read loop for its entire
+# duration.
+LOG_RECORD_YIELD_INTERVAL = 200
+
+# TestRun states that are not yet finished, mirroring the backend's own
+# TestRun.completed() contract (state not in [PENDING, EXECUTING]). Anything
+# else is terminal - checked explicitly rather than negating "executing" so
+# this can't misclassify a non-terminal state (e.g. PENDING) as terminal.
+NON_TERMINAL_RUN_STATES = (TestStateEnum.PENDING, TestStateEnum.EXECUTING)
+
 
 class TestRunSocket:
     def __init__(
@@ -68,6 +89,7 @@ class TestRunSocket:
         self.project_config_dict = project_config_dict or {}
         self.two_way_talk_handler = two_way_talk_handler
         self._chip_server_info_displayed = False
+        self._run_finished = False
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -85,8 +107,18 @@ class TestRunSocket:
                 try:
                     while True:
                         try:
-                            message = await socket.recv()
+                            if self._run_finished:
+                                # Drain any trailing messages for a short grace
+                                # period instead of closing the instant the
+                                # terminal state update arrives.
+                                message = await asyncio.wait_for(socket.recv(), timeout=DRAIN_TIMEOUT_S)
+                            else:
+                                message = await socket.recv()
                         except websockets.exceptions.ConnectionClosedOK:
+                            break
+                        except asyncio.TimeoutError:
+                            # No more trailing messages arrived during the
+                            # drain grace period - safe to close now.
                             break
 
                         # skip messages that are bytes, as we're expecting a string.\
@@ -103,7 +135,13 @@ class TestRunSocket:
                             click.echo(colorize_error(f"Received invalid socket message: {message}"), err=True)
                             click.echo(colorize_error(e.json()), err=True)
                 finally:
-                    pass  # Cleanup if needed
+                    if self._run_finished:
+                        try:
+                            await socket.close()
+                        except websockets.exceptions.ConnectionClosedError:
+                            # Backend closed connection without completing handshake
+                            # This is acceptable as test run completed successfully
+                            pass
         except websockets.exceptions.ConnectionClosed:
             # Handle case where backend doesn't complete close handshake properly
             # This can happen with long-running test executions
@@ -112,7 +150,7 @@ class TestRunSocket:
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
-            await self.__handle_test_update(socket=socket, update=message.payload)
+            await self.__handle_test_update(update=message.payload)
         elif isinstance(message.payload, PromptRequest):
             # Debug: log the message type
             logger.debug(f"Received prompt with type: {message.type}")
@@ -129,7 +167,7 @@ class TestRunSocket:
                     two_way_talk_handler=self.two_way_talk_handler,
                 )
         elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
-            self.__handle_log_record(message.payload)
+            await self.__handle_log_record(message.payload)
         elif isinstance(message.payload, TimeOutNotification):
             # ignore time_out_notification as we handle timeout our selves
             pass
@@ -139,7 +177,7 @@ class TestRunSocket:
                 err=True,
             )
 
-    async def __handle_test_update(self, socket: WebSocketClientProtocol, update: TestUpdate) -> None:
+    async def __handle_test_update(self, update: TestUpdate) -> None:
         if isinstance(update.body, TestStepUpdate):
             self.__log_test_step_update(update.body)
         elif isinstance(update.body, TestCaseUpdate):
@@ -148,14 +186,13 @@ class TestRunSocket:
             self.__log_test_suite_update(update.body)
         elif isinstance(update.body, TestRunUpdate):
             await self.__log_test_run_update(update.body)
-            if update.body.state != "executing":
-                # Test run ended disconnect.
-                try:
-                    await socket.close()
-                except websockets.exceptions.ConnectionClosedError:
-                    # Backend closed connection without completing handshake
-                    # This is acceptable as test run completed successfully
-                    pass
+            if update.body.state not in NON_TERMINAL_RUN_STATES:
+                # Test run ended. Don't close immediately - the backend may
+                # still be flushing/broadcasting a trailing batch of log
+                # entries after this message; let the read loop keep
+                # draining for a short grace period (see DRAIN_TIMEOUT_S)
+                # before actually closing.
+                self._run_finished = True
 
     async def __log_test_run_update(self, update: TestRunUpdate) -> None:
         # Display CHIP server info when test run starts executing (SDK container already running)
@@ -284,9 +321,16 @@ class TestRunSocket:
             self.test_case_step_errors.setdefault(case_key, []).extend(update.errors)
             logger.debug(f"Tracked {len(update.errors)} error(s) for test case {case_key}: {update.errors}")
 
-    def __handle_log_record(self, records: list[TestLogRecord]) -> None:
-        for record in records:
+    async def __handle_log_record(self, records: list[TestLogRecord]) -> None:
+        # Batches can contain tens of thousands of entries after a large test
+        # case run. Yield periodically instead of logging the whole batch in
+        # one uninterrupted stretch, so the websocket read loop (and any
+        # other pending work, e.g. prompt handling) doesn't stall for the
+        # entire duration of processing one message.
+        for i, record in enumerate(records):
             logger.log(record.level, record.message)
+            if (i + 1) % LOG_RECORD_YIELD_INTERVAL == 0:
+                await asyncio.sleep(0)
 
     def __suite(self, index: int) -> TestSuiteExecution:
         return self.run.test_suite_executions[index]

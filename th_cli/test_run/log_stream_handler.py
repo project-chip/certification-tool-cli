@@ -28,7 +28,7 @@ class LogStreamHandler:
 
     def __init__(self, port: int = 8998):
         """Initialize the log stream handler.
-        
+
         Args:
             port: Port number for the HTTP server (default: 8998)
         """
@@ -36,48 +36,64 @@ class LogStreamHandler:
         self.http_server = LogsHTTPServer(port=port)
         self.log_queue: queue.Queue = queue.Queue(maxsize=1000)
         self.is_running = False
-        self.log_file_path: Optional[str] = None
-        
-    def start(self, test_run_title: str = "Test Execution", log_file_path: Optional[str] = None) -> str:
+
+    def start(self, test_run_title: str = "Test Execution") -> str:
         """Start the log streaming HTTP server.
-        
+
         Args:
             test_run_title: Title of the test run for display
-            log_file_path: Path to the log file for download functionality
-            
+
         Returns:
             URL where logs can be viewed
         """
         if self.is_running:
             logger.warning("Log stream handler already running")
             return self._get_log_viewer_url()
-        
+
         try:
-            # Store log file path for download functionality
-            self.log_file_path = log_file_path
-            
             # Get local IP address
             local_ip = self._get_local_ip()
-            
+
             # Start HTTP server
             self.http_server.start(
                 log_queue=self.log_queue,
                 test_run_title=test_run_title,
                 local_ip=local_ip,
-                log_file_path=log_file_path,
             )
-            
+
             self.is_running = True
-            
+
             viewer_url = f"http://{local_ip}:{self.port}"
             logger.info(f"Log stream viewer started: {viewer_url}")
-            
+
             return viewer_url
-            
+
         except Exception as e:
             logger.error(f"Failed to start log stream handler: {e}")
             raise
-    
+
+    def set_run_id(self, run_id: int) -> None:
+        """Tell the HTTP server which run's log to link "Download Logs" to,
+        once the run has been created (its id isn't known when the server
+        starts).
+        """
+        if not self.is_running:
+            return
+
+        self.http_server.set_run_id(run_id)
+
+        # A viewer may already be connected (the run_id is typically set
+        # only *after* the viewer URL was printed and likely opened), so
+        # also push it through the existing SSE stream as a control message
+        # - a future/refreshed page load will pick it up from the HTTP
+        # server attribute above, but an already-open one only sees this.
+        try:
+            self.log_queue.put_nowait({"__event__": "run_id", "run_id": run_id})
+        except queue.Full:
+            # Best-effort: a future page load/refresh will still pick up
+            # the run id via the HTTP server attribute set above.
+            pass
+
     def stop(self):
         """Stop the log streaming HTTP server."""
         if not self.is_running:
