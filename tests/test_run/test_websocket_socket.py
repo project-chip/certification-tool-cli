@@ -365,6 +365,21 @@ class TestHandleTestUpdate:
         assert s._run_finished is True
 
     @pytest.mark.asyncio
+    async def test_run_update_pending_leaves_run_not_finished(self):
+        # Regression test: "pending" is non-terminal (backend's TestRun.completed()
+        # excludes both PENDING and EXECUTING), so it must not close the socket.
+        # A prior implementation used a negation check (`state != "executing"`)
+        # that misclassified any non-"executing" state, including "pending", as
+        # terminal.
+        s = _make_socket()
+
+        update = TestUpdate(test_type="test_run", body=TestRunUpdate(state="pending", test_run_execution_id=1))
+        with patch.object(s, "_TestRunSocket__log_test_run_update", new_callable=AsyncMock):
+            await s._TestRunSocket__handle_test_update(update=update)
+
+        assert s._run_finished is False
+
+    @pytest.mark.asyncio
     async def test_handle_log_record_logs_every_record(self):
         s = _make_socket()
         records = [
