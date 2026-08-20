@@ -689,6 +689,103 @@ class TestRunTestsCommand:
         assert "dut_config" in result.output
         assert "network" in result.output
 
+    def test_run_tests_prompt_timeout_merges_into_execution_config(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """--prompt-timeout should merge th_config.prompt_timeout_seconds into the
+        execution config submitted for the run, without requiring --config."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+        with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
+                with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
+                        mock_socket = Mock()
+                        mock_socket.connect_websocket = AsyncMock()
+                        mock_socket_class.return_value = mock_socket
+
+                        # Act
+                        result = cli_runner.invoke(
+                            run_tests,
+                            ["--tests-list", "TC-ACE-1.1", "--prompt-timeout", "300"],
+                        )
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Prompt Timeout Used (Execution Only)" in result.output
+        submitted_body = cli_api.call_args[0][0]
+        assert submitted_body.execution_config["th_config"]["prompt_timeout_seconds"] == 300
+
+    def test_run_tests_prompt_timeout_wins_over_config_file(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+        mock_json_config_file: Path,
+    ) -> None:
+        """--prompt-timeout takes precedence over any prompt_timeout_seconds already
+        present in a --config file, since it's applied after the config merge."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions_id_start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+        with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
+                with patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class:
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
+                        mock_socket = Mock()
+                        mock_socket.connect_websocket = AsyncMock()
+                        mock_socket_class.return_value = mock_socket
+
+                        # Act
+                        result = cli_runner.invoke(
+                            run_tests,
+                            [
+                                "--tests-list",
+                                "TC-ACE-1.1",
+                                "--config",
+                                str(mock_json_config_file),
+                                "--prompt-timeout",
+                                "45",
+                            ],
+                        )
+
+        # Assert
+        assert result.exit_code == 0
+        submitted_body = cli_api.call_args[0][0]
+        assert submitted_body.execution_config["th_config"]["prompt_timeout_seconds"] == 45
+
     @pytest.mark.parametrize(
         "invalid_test_id",
         [

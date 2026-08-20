@@ -127,6 +127,14 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     is_flag=True,
     help=colorize_help("Disable real-time log streaming via web browser (enabled by default)."),
 )
+@click.option(
+    "--prompt-timeout",
+    type=int,
+    help=colorize_help(
+        "Override the user-prompt response timeout in seconds for this run only "
+        "(th_config.prompt_timeout_seconds)."
+    ),
+)
 @async_cmd
 @click.pass_context
 async def run_tests(
@@ -139,6 +147,7 @@ async def run_tests(
     project_id: int | None = None,
     no_color: bool = False,
     no_streaming: bool = False,
+    prompt_timeout: int | None = None,
 ) -> None:
     """Execute a CLI test run from selected test cases.
 
@@ -151,6 +160,7 @@ async def run_tests(
         tc_params_file: Optional path to TC parameters mapping JSON file
         project_id: Optional project ID for the test run
         no_color: Flag to disable colored output
+        prompt_timeout: Optional override for the user-prompt response timeout (seconds)
 
     Raises:
         CLIError: If there are validation or execution errors
@@ -270,6 +280,13 @@ async def run_tests(
             if "test_parameters" not in test_run_config or test_run_config["test_parameters"] is None:
                 test_run_config["test_parameters"] = {}
             test_run_config["test_parameters"].update(extra_test_params)
+
+        # Override the user-prompt timeout if provided (execution-only, not persisted)
+        if prompt_timeout is not None:
+            click.echo(colorize_key_value("Prompt Timeout Used (Execution Only)", f"{prompt_timeout}s"))
+            test_run_config = merge_configs(
+                test_run_config, {"th_config": {"prompt_timeout_seconds": prompt_timeout}}
+            )
 
         # Retrieve available test collections to build test selection
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections__get()

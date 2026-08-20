@@ -573,6 +573,23 @@ class TestMergeConfigs:
         assert result["network"]["thread"]["channel"] == 15  # Preserved
         assert result["dut_config"]["pairing_mode"] == "onnetwork"  # Preserved
 
+    def test_merge_configs_th_config_override(self) -> None:
+        """Test merging a partial th_config override, as used by --prompt-timeout."""
+        # Arrange
+        base = {
+            "network": {"wifi": {"ssid": "default", "password": "default"}},
+            "th_config": {"prompt_timeout_seconds": 60, "enable_realtime_python_test_logs": None},
+        }
+        override = {"th_config": {"prompt_timeout_seconds": 300}}
+
+        # Act
+        result = merge_configs(base, override)
+
+        # Assert
+        assert result["th_config"]["prompt_timeout_seconds"] == 300
+        assert result["th_config"]["enable_realtime_python_test_logs"] is None  # Preserved
+        assert result["network"]["wifi"]["ssid"] == "default"  # Preserved
+
     def test_merge_configs_deep_nesting(self) -> None:
         """Test deeply nested configuration merging."""
         # Arrange
