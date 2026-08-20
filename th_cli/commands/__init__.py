@@ -16,6 +16,7 @@
 from .abort_testing import abort_testing
 from .available_tests import available_tests
 from .project import project
+from .rescan_tests import rescan_tests
 from .run_tests import run_tests
 from .test_run_execution import test_run_execution
 from .test_runner_status import test_runner_status
@@ -24,6 +25,7 @@ __all__ = [
     "abort_testing",
     "available_tests",
     "project",
+    "rescan_tests",
     "run_tests",
     "test_run_execution",
     "test_runner_status",
