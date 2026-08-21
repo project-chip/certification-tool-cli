@@ -42,7 +42,14 @@ from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
-from th_cli.utils import DEFAULT_CLI_PROJECT_NAME, build_test_selection, convert_nested_to_dict, load_json_config, merge_configs, read_pics_config
+from th_cli.utils import (
+    DEFAULT_CLI_PROJECT_NAME,
+    build_test_selection,
+    convert_nested_to_dict,
+    load_json_config,
+    merge_configs,
+    read_pics_config,
+)
 from th_cli.validation import validate_directory_path, validate_file_path, validate_test_ids
 
 # Constants

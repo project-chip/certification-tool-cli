@@ -25,7 +25,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-import th_cli.test_run.camera.two_way_talk_handler as _module
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler, TwoWayTalkHTTPHandler
 
 # ---------------------------------------------------------------------------
