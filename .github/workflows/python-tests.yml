@@ -36,7 +36,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Run tests
-        run: ./scripts/run_pytest.sh
+        run: ./scripts/run_pytest.sh --junitxml=report.xml
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -45,4 +45,5 @@ jobs:
           name: coverage-report
           path: |
             coverage.xml
+            report.xml
             htmlcov/
