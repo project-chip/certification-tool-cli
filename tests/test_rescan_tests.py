@@ -119,4 +119,8 @@ class TestRescanTestsCommand:
         result = cli_runner.invoke(rescan_tests, ["--help"])
 
         assert result.exit_code == 0
-        assert "Re-run test collection discovery on the backend" in result.output
+        # Click wraps the help text at a terminal-width-dependent column, so
+        # collapse whitespace/newlines before checking for the substring —
+        # otherwise the wrap point can land inside the expected text.
+        normalized_output = " ".join(result.output.split())
+        assert "Re-run test collection discovery on the backend" in normalized_output
