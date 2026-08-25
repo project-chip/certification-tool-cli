@@ -19,9 +19,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from httpx import ConnectError, ReadTimeout
 
 from th_cli.api_lib_autogen import models as api_models
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.commands.rescan_tests import rescan_tests
 from th_cli.exceptions import ConfigurationError
 
@@ -97,6 +98,35 @@ class TestRescanTestsCommand:
 
         assert result.exit_code == 1
         assert "Error: Failed to rescan test collections (Status: 409) - Test Engine is busy." in result.output
+        mock_api_client.close.assert_called_once()
+
+    def test_rescan_tests_timeout(self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock) -> None:
+        """A client-side timeout should not be reported as a failure: rescanning can
+        outlast the CLI's timeout while the backend keeps running it to completion."""
+        api = mock_sync_apis.test_collections_api.rescan_test_collections_api_v1_test_collections_rescan_post
+        api.side_effect = ResponseHandlingException(ReadTimeout("timed out"))
+
+        with patch("th_cli.commands.rescan_tests.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.rescan_tests.SyncApis", return_value=mock_sync_apis):
+                result = cli_runner.invoke(rescan_tests)
+
+        assert result.exit_code == 0
+        assert "Rescan request sent (backend may still be processing)" in result.output
+        mock_api_client.close.assert_called_once()
+
+    def test_rescan_tests_response_handling_error_non_timeout(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
+    ) -> None:
+        """A non-timeout response-handling error should still be reported as a failure."""
+        api = mock_sync_apis.test_collections_api.rescan_test_collections_api_v1_test_collections_rescan_post
+        api.side_effect = ResponseHandlingException(ConnectError("connection refused"))
+
+        with patch("th_cli.commands.rescan_tests.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.rescan_tests.SyncApis", return_value=mock_sync_apis):
+                result = cli_runner.invoke(rescan_tests)
+
+        assert result.exit_code == 1
+        assert "Could not rescan test collections" in result.output
         mock_api_client.close.assert_called_once()
 
     def test_rescan_tests_generic_exception(

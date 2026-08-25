@@ -15,12 +15,17 @@
 #
 
 import click
+from httpx import Timeout, TimeoutException
 
 from th_cli.api_lib_autogen.api_client import SyncApis
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.client import get_client
 from th_cli.colorize import colorize_cmd_help, colorize_help, colorize_success
 from th_cli.exceptions import CLIError, handle_api_error
+
+# Rescanning regenerates the Python test JSON files via the SDK container,
+# which can take significantly longer than httpx's 5s default read timeout.
+RESCAN_TIMEOUT = Timeout(120.0, connect=10.0)  # 120s total, 10s connect
 
 
 @click.command(
@@ -36,6 +41,7 @@ def rescan_tests() -> None:
     client = None
     try:
         client = get_client()
+        client._async_client.timeout = RESCAN_TIMEOUT
         sync_apis: SyncApis = SyncApis(client)
         test_collections = sync_apis.test_collections_api.rescan_test_collections_api_v1_test_collections_rescan_post()
 
@@ -46,6 +52,16 @@ def rescan_tests() -> None:
         click.echo(colorize_success(f"Rescanned test collections successfully ({collection_count} found)"))
     except CLIError:
         raise  # Re-raise CLI Errors as-is
+    except ResponseHandlingException as e:
+        # Rescanning can outlast even the extended timeout above (e.g. a
+        # slow SDK container pull). The backend keeps running the rescan to
+        # completion regardless of whether the CLI is still waiting on it.
+        if isinstance(e.error, TimeoutException):
+            click.echo(colorize_success("Rescan request sent (backend may still be processing)"))
+        else:
+            raise CLIError(
+                f"Could not rescan test collections: {e}. Please check if the API server is running and accessible."
+            )
     except UnexpectedResponse as e:
         handle_api_error(e, "rescan test collections")
     except Exception as e:
