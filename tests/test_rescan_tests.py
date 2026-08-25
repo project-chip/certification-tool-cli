@@ -54,6 +54,24 @@ class TestRescanTestsCommand:
         api.assert_called_once()
         mock_api_client.close.assert_called_once()
 
+    def test_rescan_tests_no_response(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+    ) -> None:
+        """Test handling of a None response from the server."""
+        api = mock_sync_apis.test_collections_api.rescan_test_collections_api_v1_test_collections_rescan_post
+        api.return_value = None
+
+        with patch("th_cli.commands.rescan_tests.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.rescan_tests.SyncApis", return_value=mock_sync_apis):
+                result = cli_runner.invoke(rescan_tests)
+
+        assert result.exit_code == 1
+        assert "Error: Server did not return test_collections" in result.output
+        mock_api_client.close.assert_called_once()
+
     def test_rescan_tests_configuration_error(self, cli_runner: CliRunner) -> None:
         """Test rescan_tests with configuration error."""
         with patch(
