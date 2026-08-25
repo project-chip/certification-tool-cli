@@ -101,4 +101,4 @@ class TestRescanTestsCommand:
         result = cli_runner.invoke(rescan_tests, ["--help"])
 
         assert result.exit_code == 0
-        assert "Rescan available test collections" in result.output
+        assert "Re-run test collection discovery on the backend" in result.output
