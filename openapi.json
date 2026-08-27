@@ -1598,6 +1598,59 @@
                 }
             }
         },
+        "/api/v1/test_run_executions/{id}/pics_export": {
+            "get": {
+                "tags": [
+                    "test_run_executions"
+                ],
+                "summary": "Pics Export",
+                "description": "Export the PICS actually used by a test run execution.\n\nReturns the PICS that were in effect when the execution ran (the\nexecution's own execution_pics override when set, otherwise the\nproject's PICS at the time of the request), as a zip archive containing\none PICS XML file per cluster. The XML format matches what is already\naccepted by the PUT /projects/{id}/upload_pics endpoint, so the exported\nfiles can be re-imported as-is.\n\nArgs:\n    id (int): ID of the TestRunExecution the PICS export is requested for\n\nRaises:\n    HTTPException: If there's no TestRunExecution with the given ID\n\nReturns:\n    StreamingResponse: .zip file containing one PICS XML file per cluster",
+                "operationId": "pics_export_api_v1_test_run_executions__id__pics_export_get",
+                "parameters": [
+                    {
+                        "required": true,
+                        "schema": {
+                            "title": "Id",
+                            "type": "integer"
+                        },
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/zip": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "description": "Suggests a filename for the downloaded ZIP file",
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "example": "attachment; filename=\"archive.zip\""
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test_run_executions/file_upload/": {
             "post": {
                 "tags": [
