@@ -524,6 +524,346 @@ class TestUpdateProjectCommand:
 
 @pytest.mark.unit
 @pytest.mark.cli
+class TestEditProjectCommand:
+    """Test cases for the edit_project command."""
+
+    def test_edit_project_success(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test successful project edit with a single field changed."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value=json.dumps(edited_config, indent=2)):
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Project 'Test Project' was updated." in result.output
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
+        _, kwargs = mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.call_args
+        assert kwargs["body"].config["dut_config"]["setup_code"] == "99999999"
+
+    def test_edit_project_no_changes_made_aborts(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that returning None from click.edit (no save) aborts cleanly."""
+        # Arrange
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value=None):
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "No changes made" in result.output
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_not_called()
+
+    def test_edit_project_identical_content_aborts(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that saving unchanged content aborts without calling the API."""
+        # Arrange
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        unchanged_text = json.dumps(sample_project.config, indent=2)
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value=unchanged_text):
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "No changes detected" in result.output
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_not_called()
+
+    def test_edit_project_invalid_json_retries_then_succeeds(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that invalid JSON reopens the editor and a subsequent valid save succeeds."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                side_effect=["{ invalid json", json.dumps(edited_config, indent=2)],
+            ) as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Invalid JSON" in result.output
+        assert mock_edit.call_count == 2
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
+
+    def test_edit_project_invalid_json_exceeds_retries_aborts(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that persistently invalid JSON exhausts retries and aborts."""
+        # Arrange
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value="{ still invalid") as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 1
+        assert "Exceeded maximum retry attempts" in result.output
+        assert mock_edit.call_count == 3
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_not_called()
+
+    def test_edit_project_new_key_prompts_confirm_accept(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a new top-level key triggers a confirmation prompt, and accepting proceeds."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["new_field"] = "value"
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value=json.dumps(edited_config, indent=2)):
+                with patch("th_cli.commands.project.click.confirm", return_value=True) as mock_confirm:
+                    # Act
+                    result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "new_field" in result.output
+        mock_confirm.assert_called_once()
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
+
+    def test_edit_project_new_key_prompts_confirm_decline_retries(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that declining the new-key confirmation reopens the editor for another attempt."""
+        # Arrange
+        config_with_new_key = json.loads(json.dumps(sample_project.config))
+        config_with_new_key["new_field"] = "value"
+
+        fixed_config = json.loads(json.dumps(sample_project.config))
+        fixed_config["dut_config"]["setup_code"] = "99999999"
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                side_effect=[
+                    json.dumps(config_with_new_key, indent=2),
+                    json.dumps(fixed_config, indent=2),
+                ],
+            ) as mock_edit:
+                with patch("th_cli.commands.project.click.confirm", return_value=False):
+                    # Act
+                    result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert mock_edit.call_count == 2
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.assert_called_once()
+
+    def test_edit_project_nested_new_key_detected(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a new key nested below the top level is detected via the dotted-path diff."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["network"]["wifi"]["new_nested_key"] = "value"
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.return_value = sample_project
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit", return_value=json.dumps(edited_config, indent=2)):
+                with patch("th_cli.commands.project.click.confirm", return_value=True):
+                    # Act
+                    result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "network.wifi.new_nested_key" in result.output
+
+    def test_edit_project_backend_422_string_detail_retries(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a string-shaped 422 detail is surfaced and the editor reopens to retry."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        api_exception = UnexpectedResponse(status_code=422, content={"detail": "some validation error message"})
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = [
+            api_exception,
+            sample_project,
+        ]
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                return_value=json.dumps(edited_config, indent=2),
+            ) as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "some validation error message" in result.output
+        assert mock_edit.call_count == 2
+        assert mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.call_count == 2
+
+    def test_edit_project_backend_422_list_detail_formats_locs(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a list-shaped 422 detail (FastAPI request validation) is formatted readably."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        api_exception = UnexpectedResponse(
+            status_code=422,
+            content={
+                "detail": [
+                    {
+                        "loc": ["body", "config", "th_config", "prompt_timeout_seconds"],
+                        "msg": "value is not a valid integer",
+                        "type": "type_error.integer",
+                    }
+                ]
+            },
+        )
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = [
+            api_exception,
+            sample_project,
+        ]
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                return_value=json.dumps(edited_config, indent=2),
+            ):
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "config.th_config.prompt_timeout_seconds: value is not a valid integer" in result.output
+
+    def test_edit_project_backend_422_exceeds_retries_aborts(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a persistent 422 exhausts retries and aborts without saving."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        api_exception = UnexpectedResponse(status_code=422, content={"detail": "always invalid"})
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = api_exception
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                return_value=json.dumps(edited_config, indent=2),
+            ) as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 1
+        assert "Exceeded maximum retry attempts" in result.output
+        assert mock_edit.call_count == 3
+        assert mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.call_count == 3
+
+    def test_edit_project_backend_404_does_not_retry(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, sample_project: api_models.Project
+    ) -> None:
+        """Test that a non-422 error (e.g. 404) fails immediately without retrying."""
+        # Arrange
+        edited_config = json.loads(json.dumps(sample_project.config))
+        edited_config["dut_config"]["setup_code"] = "99999999"
+
+        api_exception = UnexpectedResponse(status_code=404, content=b"Not Found")
+
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.return_value = sample_project
+        mock_sync_apis.projects_api.update_project_api_v1_projects__id__put.side_effect = api_exception
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch(
+                "th_cli.commands.project.click.edit",
+                return_value=json.dumps(edited_config, indent=2),
+            ) as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 1
+        assert "Error: Failed to update project with '1' (Status: 404) - Not Found" in result.output
+        assert mock_edit.call_count == 1
+
+    def test_edit_project_read_project_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """Test that a failure fetching the project aborts before opening the editor."""
+        # Arrange
+        api_exception = UnexpectedResponse(status_code=404, content=b"Not Found")
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.side_effect = api_exception
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            with patch("th_cli.commands.project.click.edit") as mock_edit:
+                # Act
+                result = cli_runner.invoke(project, ["edit", "--id", "1"])
+
+        # Assert
+        assert result.exit_code == 1
+        assert "Error: Failed to fetch project with ID '1'" in result.output
+        mock_edit.assert_not_called()
+
+    def test_edit_project_help_message(self, cli_runner: CliRunner) -> None:
+        """Test the help message for the edit_project command."""
+        # Act
+        result = cli_runner.invoke(project, ["edit", "--help"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "edit" in result.output
+        assert "--id" in result.output
+
+    def test_edit_project_missing_required_id(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """Test that omitting the required --id option fails without making API calls."""
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            # Act
+            result = cli_runner.invoke(project, ["edit"])
+
+        # Assert
+        assert result.exit_code != 0
+        mock_sync_apis.projects_api.read_project_api_v1_projects__id__get.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.cli
 class TestExportProjectCommand:
     """Test cases for the project export command."""
 

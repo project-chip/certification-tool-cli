@@ -165,6 +165,15 @@ Run `th-cli delete-project --id {id}` to delete a project.
 
 Run `th-cli update-project --id {id} --config {config file}` to update a project. Both parameters are required. Config must be a full test environment config file.
 
+### edit-project
+
+Run `th-cli project edit --id {id}` to interactively edit a project's config in your
+local editor ($EDITOR/$VISUAL). Only the `config` portion is editable. On save, the
+CLI checks for new/unknown keys not present in the original config (the backend does
+not reject all unknown fields) and asks for confirmation before persisting. If the
+JSON is invalid or the server rejects the change, the editor reopens with your last
+edit preserved so nothing is lost.
+
 ## Command Colors
 By default, the CLI application presents colored texts for all the available commands, specially for the log of test run executions from the `th-cli run-tests` command.
 If the users need to disable the colors from the tool's output, they may use one of the options presented below:
