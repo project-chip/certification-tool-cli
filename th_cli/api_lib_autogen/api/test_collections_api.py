@@ -33,6 +33,14 @@ class _TestCollectionsApi:
         """
         return self.api_client.request(type_=m.TestCollections, method="GET", url="/api/v1/test_collections/")
 
+    def _build_for_rescan_test_collections_api_v1_test_collections_rescan_post(
+        self,
+    ) -> Coroutine[Any, Any, m.TestCollections]:
+        """
+        Rescan Test Collections
+        """
+        return self.api_client.request(type_=m.TestCollections, method="POST", url="/api/v1/test_collections/rescan")
+
 
 class AsyncTestCollectionsApi(_TestCollectionsApi):
     async def read_test_collections_api_v1_test_collections__get(self) -> m.TestCollections:
@@ -41,6 +49,12 @@ class AsyncTestCollectionsApi(_TestCollectionsApi):
         """
         return await self._build_for_read_test_collections_api_v1_test_collections__get()
 
+    async def rescan_test_collections_api_v1_test_collections_rescan_post(self) -> m.TestCollections:
+        """
+        Rescan Test Collections
+        """
+        return await self._build_for_rescan_test_collections_api_v1_test_collections_rescan_post()
+
 
 class SyncTestCollectionsApi(_TestCollectionsApi):
     def read_test_collections_api_v1_test_collections__get(self) -> m.TestCollections:
@@ -48,4 +62,11 @@ class SyncTestCollectionsApi(_TestCollectionsApi):
         Read Test Collections
         """
         coroutine = self._build_for_read_test_collections_api_v1_test_collections__get()
+        return get_event_loop().run_until_complete(coroutine)
+
+    def rescan_test_collections_api_v1_test_collections_rescan_post(self) -> m.TestCollections:
+        """
+        Rescan Test Collections
+        """
+        coroutine = self._build_for_rescan_test_collections_api_v1_test_collections_rescan_post()
         return get_event_loop().run_until_complete(coroutine)

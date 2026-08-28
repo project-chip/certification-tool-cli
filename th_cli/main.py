@@ -18,7 +18,15 @@
 import click
 
 from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_key_value
-from th_cli.commands import abort_testing, available_tests, project, run_tests, test_run_execution, test_runner_status
+from th_cli.commands import (
+    abort_testing,
+    available_tests,
+    project,
+    rescan_tests,
+    run_tests,
+    test_run_execution,
+    test_runner_status,
+)
 from th_cli.utils import get_cli_sha, get_cli_version, get_versions
 
 
@@ -52,6 +60,7 @@ def root() -> None:
 root.add_command(abort_testing)
 root.add_command(available_tests)
 root.add_command(project)
+root.add_command(rescan_tests)
 root.add_command(run_tests)
 root.add_command(test_run_execution)
 root.add_command(test_runner_status)
