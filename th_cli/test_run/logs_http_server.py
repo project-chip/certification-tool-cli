@@ -26,10 +26,11 @@ from typing import Optional
 
 from loguru import logger
 
+from th_cli.config import config
+
 # HTTP Endpoints
 ENDPOINT_ROOT = "/"
 ENDPOINT_LOGS_STREAM = "/api/logs/stream"
-ENDPOINT_DOWNLOAD_LOGS = "/download_logs"
 ENDPOINT_STATUS = "/api/status"
 
 
@@ -42,8 +43,6 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
             self.serve_log_viewer()
         elif self.path == ENDPOINT_LOGS_STREAM:
             self.stream_logs()
-        elif self.path == ENDPOINT_DOWNLOAD_LOGS:
-            self.download_logs()
         elif self.path == ENDPOINT_STATUS:
             self.serve_status()
         else:
@@ -64,41 +63,6 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
-
-    def download_logs(self):
-        """Serve the log file for download using chunked streaming."""
-        log_file_path = getattr(self.server, "log_file_path", None)
-
-        if not log_file_path or not Path(log_file_path).exists():
-            self.send_error(404, "Log file not found")
-            return
-
-        try:
-            file_path = Path(log_file_path)
-            filename = file_path.name
-            file_size = file_path.stat().st_size
-
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-            self.send_header("Content-Length", str(file_size))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-
-            CHUNK_SIZE = 65536  # 64 KB
-            bytes_sent = 0
-            with open(log_file_path, "rb") as f:
-                while chunk := f.read(CHUNK_SIZE):
-                    self.wfile.write(chunk)
-                    bytes_sent += len(chunk)
-
-            logger.info(f"Log file downloaded: {filename} ({bytes_sent} bytes)")
-
-        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
-            # Client disconnected during download - normal, not an error
-            logger.debug("Client disconnected during log file download")
-        except Exception as e:
-            logger.error(f"Error serving log file: {e}")
 
     def stream_logs(self):
         """Stream logs (and tree events) using Server-Sent Events (SSE)."""
@@ -183,6 +147,13 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
                     if not self._send_sse_event("tree_update", entry):
                         client_disconnected = True
 
+                elif entry_type == "run_id":
+                    # Control message, not a log line - lets an already-
+                    # connected viewer pick up the run id once it's known,
+                    # instead of only a fresh page load.
+                    if not self._send_sse_event("run_id", {"run_id": entry.get("run_id")}):
+                        client_disconnected = True
+
                 else:
                     # Regular log entry (no "type" key, or type=="log").
                     if not self._send_sse_event("log", entry):
@@ -222,14 +193,34 @@ class LogStreamingHandler(BaseHTTPRequestHandler):
         """Serve the log viewer HTML page."""
         # Get configuration from server
         test_run_title = getattr(self.server, "test_run_title", "Test Execution")
-        
+        run_id = getattr(self.server, "run_id", None)
+
+        # config.hostname is only meaningful to the download link when it's a
+        # real, routable address. This page can be opened from a different
+        # device than the one running the CLI (that's why this server binds
+        # to the LAN IP in the first place) - if config.hostname is just
+        # "localhost" (the common case when the CLI and backend run on the
+        # same machine as each other), embedding it here would tell a remote
+        # browser to download from *itself*. Leave it unset in that case so
+        # the page falls back to whatever host the browser actually used to
+        # reach it (correct whenever the CLI and backend share a machine,
+        # which is the common case); keep it when it's a real configured
+        # address (correct when the CLI talks to a genuinely separate
+        # backend host).
+        backend_host = None if config.hostname in ("localhost", "127.0.0.1") else config.hostname
+
         # Read HTML template from file
         try:
             template_path = Path(__file__).parent / "log_viewer.html"
             with open(template_path, "r", encoding="utf-8") as f:
                 html_template = f.read()
 
-            html_content = html_template.format(test_run_title=html.escape(test_run_title))
+            # Replace placeholders
+            html_content = html_template.format(
+                test_run_title=html.escape(test_run_title),
+                run_id=json.dumps(run_id),
+                backend_host=json.dumps(backend_host),
+            )
         except Exception as e:
             logger.error(f"Failed to load HTML template: {e}")
             html_content = f"""
@@ -271,7 +262,6 @@ class LogsHTTPServer:
         tree_state: dict,
         test_run_title: str = "Test Execution",
         local_ip: Optional[str] = None,
-        log_file_path: Optional[str] = None,
         tree_lock: Optional[threading.Lock] = None,
     ):
         """Start the HTTP server for log streaming.
@@ -283,7 +273,6 @@ class LogsHTTPServer:
                 so clients connecting after init_tree() receive a current snapshot.
             test_run_title: Title shown in the browser UI.
             local_ip: LAN IP used for display purposes.
-            log_file_path: Path to the on-disk log file for download.
             tree_lock: Lock protecting tree_state reads/writes.
         """
         try:
@@ -296,8 +285,8 @@ class LogsHTTPServer:
             self.server.tree_lock = tree_lock
             self.server.test_run_title = test_run_title
             self.server.local_ip = local_ip or "localhost"
-            self.server.log_file_path = log_file_path
             self.server.start_time = datetime.datetime.now().isoformat()
+            self.server.run_id = None
 
             logger.info(f"Logs HTTP server configured for test run: {test_run_title}")
 
@@ -315,6 +304,13 @@ class LogsHTTPServer:
         except Exception as e:
             logger.error(f"Failed to start logs HTTP server: {e}")
             raise
+
+    def set_run_id(self, run_id: int) -> None:
+        """Set the run id the "Download Logs" link should point to, once the
+        run has been created (it doesn't exist yet when the server starts).
+        """
+        if self.server is not None:
+            self.server.run_id = run_id
 
     def stop(self):
         """Stop the HTTP server."""

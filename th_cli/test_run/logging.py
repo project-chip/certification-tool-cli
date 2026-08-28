@@ -62,8 +62,7 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
             from th_cli.test_run.log_stream_handler import LogStreamHandler
 
             _log_stream_handler = LogStreamHandler(port=8998)
-            viewer_url = _log_stream_handler.start(test_run_title=title, log_file_path=log_path)
-
+            viewer_url = _log_stream_handler.start(test_run_title=title)
             # Add custom sink that forwards logs to the stream handler
             def stream_sink(message):
                 """Custom sink that forwards logs to the HTTP stream."""
@@ -99,6 +98,15 @@ def stop_log_streaming():
             logger.warning(f"Error stopping log streaming: {e}")
         finally:
             _log_stream_handler = None
+
+
+def set_download_run_id(run_id: int) -> None:
+    """Tell the log viewer which run's log to link the "Download Logs" button
+    to, once the run has been created and its id is known (the log-streaming
+    server starts before the run exists, so this can't be known up front).
+    """
+    if _log_stream_handler:
+        _log_stream_handler.set_run_id(run_id)
 
 
 def get_log_stream_url() -> Optional[str]:

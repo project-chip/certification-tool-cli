@@ -316,6 +316,7 @@ async def run_tests(
             execution_pics=execution_pics,
             project_id=project_id,
         )
+        test_logging.set_download_run_id(new_test_run.id)
         if _contains_webrtc_two_way_talk(selected_tests_dict):
             _webrtc_handler = TwoWayTalkHandler(port=8999)
             _webrtc_handler.start_waiting()

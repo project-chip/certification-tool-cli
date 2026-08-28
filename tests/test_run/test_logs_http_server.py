@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from th_cli.test_run.logs_http_server import (
-    ENDPOINT_DOWNLOAD_LOGS,
     ENDPOINT_LOGS_STREAM,
     ENDPOINT_ROOT,
     ENDPOINT_STATUS,
@@ -98,71 +97,11 @@ class TestLogStreamingHandlerRouting:
             h.do_GET()
         mock_fn.assert_called_once()
 
-    def test_download_endpoint_calls_download_logs(self):
-        h = _make_handler(path=ENDPOINT_DOWNLOAD_LOGS)
-        with patch.object(h, "download_logs") as mock_fn:
-            h.do_GET()
-        mock_fn.assert_called_once()
-
     def test_unknown_path_sends_404(self):
         h = _make_handler(path="/nonexistent")
         with patch("th_cli.test_run.logs_http_server.logger"):
             h.do_GET()
         assert h._error_code == 404
-
-
-# ---------------------------------------------------------------------------
-# download_logs()
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestDownloadLogs:
-    def test_404_when_no_log_file_path(self):
-        h = _make_handler(server_attrs={"log_file_path": None})
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.download_logs()
-        assert h._error_code == 404
-
-    def test_404_when_file_does_not_exist(self, tmp_path):
-        h = _make_handler(server_attrs={"log_file_path": str(tmp_path / "missing.log")})
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.download_logs()
-        assert h._error_code == 404
-
-    def test_200_and_correct_headers_for_existing_file(self, tmp_path):
-        log_file = tmp_path / "test.log"
-        log_file.write_bytes(b"log content here")
-        h = _make_handler(server_attrs={"log_file_path": str(log_file)})
-
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.download_logs()
-
-        assert h._response_code == 200
-        assert h._headers_sent.get("Content-Type") == "text/plain; charset=utf-8"
-        assert "Content-Disposition" in h._headers_sent
-
-    def test_file_content_written_to_wfile(self, tmp_path):
-        content = b"line 1\nline 2\n"
-        log_file = tmp_path / "run.log"
-        log_file.write_bytes(content)
-        h = _make_handler(server_attrs={"log_file_path": str(log_file)})
-
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.download_logs()
-
-        assert h.wfile.getvalue() == content
-
-    def test_handles_broken_pipe_gracefully(self, tmp_path):
-        log_file = tmp_path / "run.log"
-        log_file.write_bytes(b"data")
-        h = _make_handler(server_attrs={"log_file_path": str(log_file)})
-        # Make wfile.write raise BrokenPipeError
-        h.wfile = MagicMock()
-        h.wfile.write.side_effect = BrokenPipeError
-
-        with patch("th_cli.test_run.logs_http_server.logger"):
-            h.download_logs()  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -419,14 +358,13 @@ class TestLogsHTTPServerStart:
                         tree_state={},
                         test_run_title="MyTitle",
                         local_ip="1.2.3.4",
-                        log_file_path="/tmp/f.log",
                     )
 
         assert mock_ths.active_clients is clients
         assert mock_ths.clients_lock is lock
         assert mock_ths.test_run_title == "MyTitle"
         assert mock_ths.local_ip == "1.2.3.4"
-        assert mock_ths.log_file_path == "/tmp/f.log"
+        assert mock_ths.run_id is None
 
     def test_propagates_oserror(self):
         srv = LogsHTTPServer(port=0)
@@ -496,24 +434,6 @@ class TestServeStatus:
         body = json.loads(h.wfile.getvalue())
         assert body["run_title"] == "RunTitle"
         assert body["start_time"] == "2025-06-01"
-
-
-# ---------------------------------------------------------------------------
-# download_logs() — generic exception path
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestDownloadLogsExceptions:
-    def test_handles_generic_exception_gracefully(self, tmp_path):
-        log_file = tmp_path / "test.log"
-        log_file.write_bytes(b"data")
-        h = _make_handler(server_attrs={"log_file_path": str(log_file)})
-        h.wfile = MagicMock()
-        h.wfile.write.side_effect = RuntimeError("unexpected write error")
-        with patch("th_cli.test_run.logs_http_server.logger") as mock_logger:
-            h.download_logs()
-        mock_logger.error.assert_called_once_with("Error serving log file: unexpected write error")
 
 
 # ---------------------------------------------------------------------------
