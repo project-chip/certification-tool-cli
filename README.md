@@ -174,6 +174,10 @@ not reject all unknown fields) and asks for confirmation before persisting. If t
 JSON is invalid or the server rejects the change, the editor reopens with your last
 edit preserved so nothing is lost.
 
+The editor used is picked from the `$VISUAL` environment variable first, then `$EDITOR`,
+falling back to `vim`/`nano`/`vi` if neither is set. To use a different editor, set one
+of these before running the command, e.g. `EDITOR=nano th-cli project edit --id {id}`.
+
 ## Command Colors
 By default, the CLI application presents colored texts for all the available commands, specially for the log of test run executions from the `th-cli run-tests` command.
 If the users need to disable the colors from the tool's output, they may use one of the options presented below:
