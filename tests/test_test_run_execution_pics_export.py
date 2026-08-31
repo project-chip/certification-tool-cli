@@ -67,7 +67,9 @@ class TestPicsExportCommand:
         api.read_test_run_execution_api_v1_test_run_executions__id__get.assert_not_called()
 
     def test_pics_export_no_content(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
-        """When the export has no content, a message is printed and no file is written."""
+        """If the API ever returns an empty-but-successful response, a message is
+        printed and no file is written (the backend normally 404s instead, see
+        test_pics_export_no_pics_used_api_error)."""
         api = mock_sync_apis.test_run_executions_api
         api.pics_export_api_v1_test_run_executions__id__pics_export_get.return_value = None
 
@@ -75,7 +77,25 @@ class TestPicsExportCommand:
             result = cli_runner.invoke(test_run_execution, ["pics-export", "--id", "1"])
 
         assert result.exit_code == 0
-        assert "No PICS were used for this test run execution." in result.output
+        assert "No PICS content was returned for this test run execution." in result.output
+
+    def test_pics_export_no_pics_used_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """When the execution used no PICS, the backend 404s and the CLI surfaces it."""
+        api = mock_sync_apis.test_run_executions_api
+        api.pics_export_api_v1_test_run_executions__id__pics_export_get.side_effect = UnexpectedResponse(
+            status_code=404,
+            content=b"No PICS were used by this test run execution",
+        )
+
+        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(test_run_execution, ["pics-export", "--id", "1"])
+
+        error_text = (
+            "Error: Failed to fetch test run execution PICS export (Status: 404)"
+            " - No PICS were used by this test run execution"
+        )
+        assert result.exit_code == 1
+        assert error_text in result.output
 
     def test_pics_export_configuration_error(self, cli_runner: CliRunner) -> None:
         """A ConfigurationError from get_client is surfaced to the user."""

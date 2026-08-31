@@ -435,7 +435,10 @@ def __fetch_test_run_execution_pics_export(sync_apis: SyncApis, id: int, output_
 
             click.echo(f"PICS used for test run execution {id} exported to '{output_file}'")
         else:
-            click.echo("No PICS were used for this test run execution.")
+            # The backend returns 404 (raised as UnexpectedResponse, handled below) when no
+            # PICS were used, so this only guards against an unexpected empty-but-successful
+            # response.
+            click.echo("No PICS content was returned for this test run execution.")
 
     except UnexpectedResponse as e:
         handle_api_error(e, "fetch test run execution PICS export")
