@@ -45,6 +45,7 @@ from th_cli.utils import __print_config, __print_json, read_pics_config
 from th_cli.validation import validate_directory_path
 
 TABLE_FORMAT = "{:<5} {:25} {:28}"
+MAX_EDIT_RETRIES = 3
 
 
 # Click command group for project management
@@ -188,6 +189,24 @@ def update(id: int, config: str | None, name: str | None, pics_config_folder: st
     """Update an existing project"""
     with get_sync_apis("update") as sync_apis:
         _update_project(sync_apis, id, name, config, pics_config_folder)
+
+
+# Click command to interactively edit an existing project's config
+@project.command(
+    "edit",
+    short_help=colorize_help("Edit a project's config interactively"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID to edit"),
+)
+def edit(id: int) -> None:
+    """Edit a project's config interactively in your local editor"""
+    with get_sync_apis("edit") as sync_apis:
+        _edit_project(sync_apis, id)
 
 
 # Click command to delete an existing project
@@ -452,6 +471,171 @@ def _update_project(
             handle_api_error(e, f"fetch project with ID '{id}'")
         else:
             handle_api_error(e, f"update project with '{id}'")
+
+
+def _collect_dotted_keys(config: dict, prefix: str = "") -> set:
+    """Recursively collect dotted-path key names from a nested config dict.
+
+    Includes keys at every nesting level (not just leaves), and indexes into
+    lists of dicts (e.g. "some_list[0].field"), so a newly introduced
+    intermediate section is caught even if its own contents aren't compared.
+    """
+    keys: set = set()
+    for key, value in config.items():
+        dotted = f"{prefix}.{key}" if prefix else key
+        keys.add(dotted)
+        if isinstance(value, dict):
+            keys |= _collect_dotted_keys(value, dotted)
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                if isinstance(item, dict):
+                    keys |= _collect_dotted_keys(item, f"{dotted}[{i}]")
+    return keys
+
+
+def _strip_error_banner(text: str) -> str:
+    """Strip a leading block of '//'-prefixed error-banner lines before parsing as JSON."""
+    lines = text.splitlines(keepends=True)
+    stripped = []
+    banner_done = False
+    for line in lines:
+        if not banner_done and line.lstrip().startswith("//"):
+            continue
+        banner_done = True
+        stripped.append(line)
+    return "".join(stripped)
+
+
+def _build_json_error_banner(e: json.JSONDecodeError) -> str:
+    return (
+        f"// Error: Invalid JSON - {e.msg} (line {e.lineno}, column {e.colno}).\n"
+        "// Fix the issue below and save again, or make no changes to abort.\n"
+    )
+
+
+def _build_backend_error_banner(message: str) -> str:
+    return (
+        f"// Error: Server rejected the update - {message}\n"
+        "// Fix the issue below and save again, or make no changes to abort.\n"
+    )
+
+
+def _format_422_detail(e: UnexpectedResponse) -> str:
+    """Format an UnexpectedResponse's 422 body, which may take one of two shapes:
+    a plain string (from TestEnvironmentConfigError) or a list of FastAPI
+    request-validation error dicts (from the ProjectUpdate envelope itself).
+    """
+    content = e.content
+    if isinstance(content, bytes):
+        try:
+            content = json.loads(content.decode("utf-8", errors="ignore"))
+        except json.JSONDecodeError:
+            return content.decode("utf-8", errors="ignore")
+
+    if isinstance(content, dict):
+        detail = content.get("detail")
+        if isinstance(detail, str):
+            return detail
+        if isinstance(detail, list):
+            lines = []
+            for err in detail:
+                loc = ".".join(str(part) for part in err.get("loc", []) if part != "body")
+                msg = err.get("msg", "")
+                lines.append(f"{loc}: {msg}" if loc else msg)
+            return "; ".join(lines) if lines else str(detail)
+        return str(content)
+
+    return str(content)
+
+
+def _edit_project(sync_apis: SyncApis, id: int) -> None:
+    """Edit a project's config interactively in the user's local editor"""
+    try:
+        existing_project = sync_apis.projects_api.read_project_api_v1_projects__id__get(id=id)
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"fetch project with ID '{id}'")
+        return
+
+    original_config = existing_project.config or {}
+    original_keys = _collect_dotted_keys(original_config)
+
+    text = json.dumps(original_config, indent=2)
+    error_banner = ""
+
+    for attempt in range(MAX_EDIT_RETRIES):
+        edited_text = click.edit(text=error_banner + text, extension=".json")
+
+        if edited_text is None:
+            click.echo(colorize_warning("No changes made. Aborting edit."))
+            return
+
+        json_candidate = _strip_error_banner(edited_text)
+        last_attempt = attempt == MAX_EDIT_RETRIES - 1
+
+        try:
+            edited_config = json.loads(json_candidate)
+        except json.JSONDecodeError as e:
+            click.echo(colorize_error(f"Invalid JSON: {e.msg} (line {e.lineno}, col {e.colno})"))
+            if last_attempt:
+                raise CLIError("Exceeded maximum retry attempts to fix invalid JSON. Aborting edit.")
+            click.echo(colorize_warning("Reopening editor so you can fix the JSON..."))
+            text = json_candidate
+            error_banner = _build_json_error_banner(e)
+            continue
+
+        if not isinstance(edited_config, dict):
+            click.echo(colorize_error("Config must be a JSON object (dict) at the top level."))
+            if last_attempt:
+                raise CLIError("Exceeded maximum retry attempts. Aborting edit.")
+            text = json_candidate
+            error_banner = "// Error: top-level JSON must be an object, not a list/scalar.\n"
+            continue
+
+        if edited_config == original_config:
+            click.echo(colorize_warning("No changes detected. Aborting edit."))
+            return
+
+        edited_keys = _collect_dotted_keys(edited_config)
+        new_keys = sorted(edited_keys - original_keys)
+        if new_keys:
+            click.echo(colorize_warning("The following new/unknown keys were introduced that did not exist before:"))
+            for key in new_keys:
+                click.echo(f"  - {key}")
+            click.echo(
+                colorize_warning(
+                    "Note: the backend silently ignores unknown fields outside 'dut_config', "
+                    "so a typo here may be dropped rather than rejected."
+                )
+            )
+            if not click.confirm("Continue anyway?", default=False):
+                if last_attempt:
+                    raise CLIError("Exceeded maximum retry attempts. Aborting edit without saving.")
+                click.echo(colorize_warning("Reopening editor so you can fix the keys..."))
+                text = json_candidate
+                error_banner = ""
+                continue
+
+        project_update = ProjectUpdate(
+            name=existing_project.name,
+            config=edited_config,
+            pics=existing_project.pics,
+        )
+        try:
+            response = sync_apis.projects_api.update_project_api_v1_projects__id__put(id=id, body=project_update)
+            click.echo(colorize_success(f"Project '{response.name}' was updated."))
+            return
+        except UnexpectedResponse as e:
+            if e.status_code != 422:
+                handle_api_error(e, f"update project with '{id}'")
+                return
+            message = _format_422_detail(e)
+            click.echo(colorize_error(f"Server rejected the update: {message}"))
+            if last_attempt:
+                raise CLIError("Exceeded maximum retry attempts. Aborting edit without saving.")
+            click.echo(colorize_warning("Reopening editor so you can fix the config..."))
+            text = json_candidate
+            error_banner = _build_backend_error_banner(message)
+            continue
 
 
 def _delete_project(sync_apis: SyncApis, id: int) -> None:
