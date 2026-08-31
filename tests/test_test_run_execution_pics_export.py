@@ -134,3 +134,19 @@ class TestPicsExportCommand:
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "--id" in result.output
+
+    def test_pics_export_write_failure_raises_cli_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """A file-write failure (e.g. unwritable directory) after a successful export
+        request is surfaced as a clean CLIError, not a raw traceback."""
+        api = mock_sync_apis.test_run_executions_api
+        api.pics_export_api_v1_test_run_executions__id__pics_export_get.return_value = b"zip-bytes"
+
+        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+            with patch("builtins.open", side_effect=OSError("Permission denied")):
+                result = cli_runner.invoke(
+                    test_run_execution, ["pics-export", "--id", "1", "--output-file", "/no/such/dir/out.zip"]
+                )
+
+        assert result.exit_code == 1
+        assert "Failed to write PICS export file '/no/such/dir/out.zip'" in result.output
+        assert "Permission denied" in result.output

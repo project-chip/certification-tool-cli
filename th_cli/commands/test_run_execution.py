@@ -430,8 +430,11 @@ def __fetch_test_run_execution_pics_export(sync_apis: SyncApis, id: int, output_
                 else:
                     output_file = f"test_run_execution_{id}_pics.zip"
 
-            with open(output_file, "wb") as outfile:
-                outfile.write(pics_export_content)
+            try:
+                with open(output_file, "wb") as outfile:
+                    outfile.write(pics_export_content)
+            except OSError as e:
+                raise CLIError(f"Failed to write PICS export file '{output_file}': {e}")
 
             click.echo(f"PICS used for test run execution {id} exported to '{output_file}'")
         else:
