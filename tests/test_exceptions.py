@@ -20,15 +20,8 @@ from unittest.mock import MagicMock, patch
 import click
 import pytest
 
-from th_cli.exceptions import (
-    APIError,
-    CLIError,
-    ConfigurationError,
-    handle_api_error,
-    handle_file_error,
-)
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-
+from th_cli.exceptions import APIError, CLIError, ConfigurationError, handle_api_error, handle_file_error
 
 # ---------------------------------------------------------------------------
 # CLIError
@@ -181,6 +174,36 @@ class TestHandleApiError:
         with pytest.raises(APIError) as exc_info:
             handle_api_error(e, "op")
         assert exc_info.value.status_code == 422
+
+    def test_dict_content_with_detail_string_is_unwrapped(self):
+        """FastAPI's {"detail": "..."} bodies should surface just the message,
+        not the raw dict repr."""
+        e = self._make_unexpected_response(404, {"detail": "No PICS were used by this test run execution"})
+        with pytest.raises(APIError) as exc_info:
+            handle_api_error(e, "op")
+        assert exc_info.value.content == "No PICS were used by this test run execution"
+        assert "{" not in exc_info.value.format_message()
+
+    def test_dict_content_with_validation_error_list_is_joined(self):
+        """FastAPI 422 validation errors have detail as a list of error objects."""
+        e = self._make_unexpected_response(
+            422,
+            {
+                "detail": [
+                    {"loc": ["query", "id"], "msg": "field required", "type": "value_error.missing"},
+                    {"loc": ["query", "limit"], "msg": "value is not a valid integer", "type": "type_error.integer"},
+                ]
+            },
+        )
+        with pytest.raises(APIError) as exc_info:
+            handle_api_error(e, "op")
+        assert exc_info.value.content == "field required; value is not a valid integer"
+
+    def test_dict_content_without_detail_key_falls_back_to_dict(self):
+        e = self._make_unexpected_response(500, {"error": "something else"})
+        with pytest.raises(APIError) as exc_info:
+            handle_api_error(e, "op")
+        assert exc_info.value.content == {"error": "something else"}
 
 
 # ---------------------------------------------------------------------------

@@ -80,11 +80,13 @@ class TestPicsExportCommand:
         assert "No PICS content was returned for this test run execution." in result.output
 
     def test_pics_export_no_pics_used_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
-        """When the execution used no PICS, the backend 404s and the CLI surfaces it."""
+        """When the execution used no PICS, the backend 404s with a JSON body
+        (as FastAPI does) and the CLI surfaces the plain detail message,
+        not the raw dict repr."""
         api = mock_sync_apis.test_run_executions_api
         api.pics_export_api_v1_test_run_executions__id__pics_export_get.side_effect = UnexpectedResponse(
             status_code=404,
-            content=b"No PICS were used by this test run execution",
+            content={"detail": "No PICS were used by this test run execution"},
         )
 
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
@@ -96,6 +98,7 @@ class TestPicsExportCommand:
         )
         assert result.exit_code == 1
         assert error_text in result.output
+        assert "{" not in result.output
 
     def test_pics_export_configuration_error(self, cli_runner: CliRunner) -> None:
         """A ConfigurationError from get_client is surfaced to the user."""

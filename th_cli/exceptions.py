@@ -15,6 +15,8 @@
 #
 """Custom exceptions and error handling for the CLI."""
 
+from typing import Any
+
 import click
 
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -58,12 +60,30 @@ class ConfigurationError(CLIError):
     pass
 
 
+def _format_api_error_content(content: Any) -> Any:
+    """Turn a decoded API error response body into a human-readable string.
+
+    FastAPI error responses are JSON objects, typically {"detail": "..."}
+    for a plain error or {"detail": [{"loc": [...], "msg": "...", ...}, ...]}
+    for request validation errors. Fall back to the raw content unchanged
+    for anything else (e.g. plain text bodies).
+    """
+    if not isinstance(content, dict):
+        return content
+
+    detail = content.get("detail", content)
+    if isinstance(detail, list):
+        messages = [item.get("msg", str(item)) if isinstance(item, dict) else str(item) for item in detail]
+        return "; ".join(messages)
+    return detail
+
+
 def handle_api_error(e: UnexpectedResponse, operation: str) -> None:
     """Convert API errors to CLI errors."""
-    # Decode bytes content if necessary
     content = e.content
     if isinstance(content, bytes):
         content = content.decode("utf-8", errors="ignore")
+    content = _format_api_error_content(content)
     raise APIError(f"Failed to {operation}", status_code=e.status_code, content=content)
 
 
