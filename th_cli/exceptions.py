@@ -65,16 +65,29 @@ def _format_api_error_content(content: Any) -> Any:
 
     FastAPI error responses are JSON objects, typically {"detail": "..."}
     for a plain error or {"detail": [{"loc": [...], "msg": "...", ...}, ...]}
-    for request validation errors. Fall back to the raw content unchanged
-    for anything else (e.g. plain text bodies).
+    for request validation errors. Each list entry is rendered as
+    "<field path>: <message>" (e.g. "config.th_config.timeout: value is not
+    a valid integer") so which field failed isn't lost when there are
+    multiple errors. Falls back to the raw content unchanged for anything
+    else (e.g. plain text bodies).
     """
     if not isinstance(content, dict):
         return content
 
     detail = content.get("detail", content)
     if isinstance(detail, list):
-        messages = [item.get("msg", str(item)) if isinstance(item, dict) else str(item) for item in detail]
-        return "; ".join(messages)
+        lines = []
+        for error in detail:
+            if not isinstance(error, dict):
+                lines.append(str(error))
+                continue
+            # "body" is FastAPI's marker for the request body root; drop it
+            # so paths read as e.g. "config.th_config.timeout" rather than
+            # "body.config.th_config.timeout".
+            loc = ".".join(str(part) for part in error.get("loc", []) if part != "body")
+            msg = error.get("msg", "")
+            lines.append(f"{loc}: {msg}" if loc else msg)
+        return "; ".join(lines) if lines else str(detail)
     return detail
 
 

@@ -185,7 +185,8 @@ class TestHandleApiError:
         assert "{" not in exc_info.value.format_message()
 
     def test_dict_content_with_validation_error_list_is_joined(self):
-        """FastAPI 422 validation errors have detail as a list of error objects."""
+        """FastAPI 422 validation errors have detail as a list of error objects,
+        rendered as "<field path>: <message>" per entry."""
         e = self._make_unexpected_response(
             422,
             {
@@ -197,7 +198,27 @@ class TestHandleApiError:
         )
         with pytest.raises(APIError) as exc_info:
             handle_api_error(e, "op")
-        assert exc_info.value.content == "field required; value is not a valid integer"
+        assert exc_info.value.content == "query.id: field required; query.limit: value is not a valid integer"
+
+    def test_dict_content_with_validation_error_list_distinguishes_same_message(self):
+        """Two different fields failing with the SAME message must still be
+        distinguishable by field path - joining bare msgs alone would collapse
+        them into an ambiguous, indistinguishable string."""
+        e = self._make_unexpected_response(
+            422,
+            {
+                "detail": [
+                    {"loc": ["body", "config", "th_config", "timeout"], "msg": "field required"},
+                    {"loc": ["body", "config", "network", "wifi", "ssid"], "msg": "field required"},
+                ]
+            },
+        )
+        with pytest.raises(APIError) as exc_info:
+            handle_api_error(e, "op")
+        assert (
+            exc_info.value.content
+            == "config.th_config.timeout: field required; config.network.wifi.ssid: field required"
+        )
 
     def test_dict_content_without_detail_key_falls_back_to_dict(self):
         e = self._make_unexpected_response(500, {"error": "something else"})
