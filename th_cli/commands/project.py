@@ -608,6 +608,8 @@ def _edit_project(sync_apis: SyncApis, id: int) -> None:
                 )
             )
             if not click.confirm("Continue anyway?", default=False):
+                if last_attempt:
+                    raise CLIError("Exceeded maximum retry attempts. Aborting edit without saving.")
                 click.echo(colorize_warning("Reopening editor so you can fix the keys..."))
                 text = json_candidate
                 error_banner = ""
