@@ -137,38 +137,38 @@ Common SDK test arguments you might want to use for example:
 
 **Note:** These extra arguments are applied to ALL Test Cases in the test run. Invalid arguments could cause test failures, so ensure the arguments are valid for the SDK test framework.
 
-### test-run-execution-history
+### Test Run Execution
 
-Run `th-cli test-run-execution-history` to fetch the history of test runs. Use `--skip` and `--limit` for pagination
+Run `th-cli test-run-execution` to fetch the history of test runs. Use `--skip` and `--limit` for pagination
 
-Run `th-cli test-run-execution-history --id {id}` with a test run execution id to fetch the information for that test run.
+Run `th-cli test-run-execution --id {id}` with a test run execution id to fetch the information for that test run.
 
 For JSON respond, add `--json` to the command.
 
-### create-project
+### Project Create
 
-Run `th-cli create-project --name {project name} --config {config file}` to create a new project. Project name is required.
+Run `th-cli project create --name {project name} --config {config file}` to create a new project. Project name is required.
 
-### list-projects
+### Project List
 
-Run `th-cli list-projects` to fetch projects. Use `--skip` and `--limit` for pagination. Use `--archived` to fetch archived projects only.
+Run `th-cli projects list` to fetch projects. Use `--skip` and `--limit` for pagination. Use `--archived` to fetch archived projects only.
 
 Run `th-cli list-projects --id {id}` with a project id to fetch the information for that specific project.
 
 For JSON respond, add `--json` to the command.
 
-### delete-project
+### Project Delete
 
-Run `th-cli delete-project --id {id}` to delete a project.
+Run `th-cli project delete --id {id}` to delete a project.
 
-### update-project
+### Project Udpdate
 
-Run `th-cli update-project --id {id} --config {config file}` to update a project. Both parameters are required. Config must be a full test environment config file.
+Run `th-cli project update --id {id} --config {config file}` to update a project. Both parameters are required. Config must be a full test environment config file.
 
-### edit-project
+### Project Edit
 
 Run `th-cli project edit --id {id}` to interactively edit a project's config in your
-local editor ($EDITOR/$VISUAL). Only the `config` portion is editable. On save, the
+local editor ($VISUAL/$EDITOR). Only the `config` portion is editable. On save, the
 CLI checks for new/unknown keys not present in the original config (the backend does
 not reject all unknown fields) and asks for confirmation before persisting. If the
 JSON is invalid or the server rejects the change, the editor reopens with your last
