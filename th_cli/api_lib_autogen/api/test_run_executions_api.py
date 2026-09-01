@@ -287,6 +287,18 @@ class _TestRunExecutionsApi:
             type_=bytes, method="GET", url="/api/v1/test_run_executions/{id}/grouped-log", path_params=path_params
         )
 
+    def _build_for_pics_export_api_v1_test_run_executions__id__pics_export_get(
+        self, id: int
+    ) -> Coroutine[Any, Any, bytes]:
+        """
+        Pics Export
+        """
+        path_params = {"id": str(id)}
+
+        return self.api_client.request(
+            type_=bytes, method="GET", url="/api/v1/test_run_executions/{id}/pics_export", path_params=path_params
+        )
+
     def _build_for_upload_file_api_v1_test_run_executions_file_upload__post(
         self, body: m.BodyUploadFileApiV1TestRunExecutionsFileUploadPost
     ) -> Coroutine[Any, Any, dict[str, Any]]:
@@ -502,6 +514,12 @@ class AsyncTestRunExecutionsApi(_TestRunExecutionsApi):
         """
         return await self._build_for_download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(id=id)
 
+    async def pics_export_api_v1_test_run_executions__id__pics_export_get(self, id: int) -> bytes:
+        """
+        Pics Export
+        """
+        return await self._build_for_pics_export_api_v1_test_run_executions__id__pics_export_get(id=id)
+
     async def upload_file_api_v1_test_run_executions_file_upload__post(
         self, body: m.BodyUploadFileApiV1TestRunExecutionsFileUploadPost
     ) -> dict[str, Any]:
@@ -683,6 +701,13 @@ class SyncTestRunExecutionsApi(_TestRunExecutionsApi):
         Download Grouped Log
         """
         coroutine = self._build_for_download_grouped_log_api_v1_test_run_executions__id__grouped_log_get(id=id)
+        return get_event_loop().run_until_complete(coroutine)
+
+    def pics_export_api_v1_test_run_executions__id__pics_export_get(self, id: int) -> bytes:
+        """
+        Pics Export
+        """
+        coroutine = self._build_for_pics_export_api_v1_test_run_executions__id__pics_export_get(id=id)
         return get_event_loop().run_until_complete(coroutine)
 
     def upload_file_api_v1_test_run_executions_file_upload__post(

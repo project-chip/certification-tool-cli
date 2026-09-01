@@ -219,6 +219,35 @@ def log(id: int, output_file: str, grouped: bool) -> None:
         raise  # Re-raise CLI Errors as-is
 
 
+@test_run_execution.command(
+    name="pics-export",
+    short_help=colorize_help("Export the PICS used by a test run execution"),
+    help=colorize_cmd_help("pics-export", "Export the PICS actually used by a specific execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Export PICS for the Test Run Execution with this ID"),
+)
+@click.option(
+    "--output-file",
+    "-o",
+    required=False,
+    type=str,
+    help=colorize_help("Output zip file. Test run execution title will be used by default"),
+)
+def pics_export(id: int, output_file: str) -> None:
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __fetch_test_run_execution_pics_export(sync_apis, id, output_file)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
@@ -382,6 +411,40 @@ def __fetch_grouped_test_run_execution_log(sync_apis: SyncApis, id: int, output_
 
     except UnexpectedResponse as e:
         handle_api_error(e, "fetch grouped test run execution log")
+
+
+def __fetch_test_run_execution_pics_export(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        pics_export_content = test_run_execution_api.pics_export_api_v1_test_run_executions__id__pics_export_get(id=id)
+
+        if pics_export_content:
+            if not output_file:
+                execution_data = test_run_execution_api.read_test_run_execution_api_v1_test_run_executions__id__get(
+                    id=id
+                )
+                if execution_data:
+                    import re
+
+                    output_file = re.sub(r"[^\w]", "", execution_data.title) + "-pics.zip"
+                else:
+                    output_file = f"test_run_execution_{id}_pics.zip"
+
+            try:
+                with open(output_file, "wb") as outfile:
+                    outfile.write(pics_export_content)
+            except OSError as e:
+                raise CLIError(f"Failed to write PICS export file '{output_file}': {e}")
+
+            click.echo(f"PICS used for test run execution {id} exported to '{output_file}'")
+        else:
+            # The backend returns 404 (raised as UnexpectedResponse, handled below) when no
+            # PICS were used, so this only guards against an unexpected empty-but-successful
+            # response.
+            click.echo("No PICS content was returned for this test run execution.")
+
+    except UnexpectedResponse as e:
+        handle_api_error(e, "fetch test run execution PICS export")
 
 
 def __print_table_test_executions(test_execution: list) -> None:

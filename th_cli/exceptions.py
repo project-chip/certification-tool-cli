@@ -15,6 +15,8 @@
 #
 """Custom exceptions and error handling for the CLI."""
 
+from typing import Any
+
 import click
 
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -58,12 +60,43 @@ class ConfigurationError(CLIError):
     pass
 
 
+def _format_api_error_content(content: Any) -> Any:
+    """Turn a decoded API error response body into a human-readable string.
+
+    FastAPI error responses are JSON objects, typically {"detail": "..."}
+    for a plain error or {"detail": [{"loc": [...], "msg": "...", ...}, ...]}
+    for request validation errors. Each list entry is rendered as
+    "<field path>: <message>" (e.g. "config.th_config.timeout: value is not
+    a valid integer") so which field failed isn't lost when there are
+    multiple errors. Falls back to the raw content unchanged for anything
+    else (e.g. plain text bodies).
+    """
+    if not isinstance(content, dict):
+        return content
+
+    detail = content.get("detail", content)
+    if isinstance(detail, list):
+        lines = []
+        for error in detail:
+            if not isinstance(error, dict):
+                lines.append(str(error))
+                continue
+            # "body" is FastAPI's marker for the request body root; drop it
+            # so paths read as e.g. "config.th_config.timeout" rather than
+            # "body.config.th_config.timeout".
+            loc = ".".join(str(part) for part in error.get("loc", []) if part != "body")
+            msg = error.get("msg", "")
+            lines.append(f"{loc}: {msg}" if loc else msg)
+        return "; ".join(lines) if lines else str(detail)
+    return detail
+
+
 def handle_api_error(e: UnexpectedResponse, operation: str) -> None:
     """Convert API errors to CLI errors."""
-    # Decode bytes content if necessary
     content = e.content
     if isinstance(content, bytes):
         content = content.decode("utf-8", errors="ignore")
+    content = _format_api_error_content(content)
     raise APIError(f"Failed to {operation}", status_code=e.status_code, content=content)
 
 
