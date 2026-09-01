@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import asyncio
+from collections import Counter
 
 import click
 import websockets
@@ -59,6 +60,30 @@ WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
 WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
 
+# Test case states that represent a final outcome (as opposed to in-progress
+# states like "pending"/"executing"/"pending_actuation").
+TERMINAL_TEST_CASE_STATES: frozenset[str] = frozenset(
+    {
+        TestStateEnum.PASSED.value,
+        TestStateEnum.FAILED.value,
+        TestStateEnum.ERROR.value,
+        TestStateEnum.NOT_APPLICABLE.value,
+        TestStateEnum.CANCELLED.value,
+    }
+)
+
+# Terminal states that should be treated as a test-case failure for exit code purposes.
+FAILURE_TEST_CASE_STATES: frozenset[str] = frozenset({TestStateEnum.FAILED.value, TestStateEnum.ERROR.value})
+
+# Display order and labels for the end-of-run results summary.
+_SUMMARY_STATE_LABELS: list[tuple[str, str]] = [
+    (TestStateEnum.PASSED.value, "passed"),
+    (TestStateEnum.FAILED.value, "failed"),
+    (TestStateEnum.ERROR.value, "error"),
+    (TestStateEnum.NOT_APPLICABLE.value, "not applicable"),
+    (TestStateEnum.CANCELLED.value, "cancelled"),
+]
+
 # After the test run reaches a terminal state, the backend may still have a
 # trailing batch of log records queued/in-flight (it flushes and broadcasts
 # any pending log entries *after* sending the terminal state update - see
@@ -94,6 +119,25 @@ class TestRunSocket:
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
+        # Track the final state of each test case for the end-of-run summary.
+        # Key: (suite_index, case_index), Value: final TestStateEnum value.
+        # A dict (rather than a running counter) so a case that is updated more
+        # than once with a terminal state is only counted once, in its latest state.
+        self.test_case_final_states: dict[tuple[int, int], str] = {}
+
+    def test_case_result_counts(self) -> Counter[str]:
+        """Return a count of test cases by final state (passed/failed/error/...)."""
+        return Counter(self.test_case_final_states.values())
+
+    def has_test_failures(self) -> bool:
+        """Return True if any test case ended in FAILED or ERROR."""
+        return any(state in FAILURE_TEST_CASE_STATES for state in self.test_case_final_states.values())
+
+    def format_results_summary(self) -> str:
+        """Format the end-of-run test case tally, e.g. '12 passed, 2 failed, 1 error'."""
+        counts = self.test_case_result_counts()
+        parts = [f"{counts[state]} {label}" for state, label in _SUMMARY_STATE_LABELS if counts[state]]
+        return ", ".join(parts) if parts else "0 test cases executed"
 
     async def connect_websocket(self) -> None:
         try:
@@ -278,6 +322,11 @@ class TestRunSocket:
         colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_CASE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
+
+        # Tally the case's final state for the end-of-run results summary.
+        if update.state.value in TERMINAL_TEST_CASE_STATES:
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            self.test_case_final_states[case_key] = update.state.value
 
         # Log any errors when a test case fails
         if update.state.value in ("failed", "error"):

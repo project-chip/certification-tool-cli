@@ -31,9 +31,11 @@ from th_cli.async_cmd import async_cmd
 from th_cli.client import get_client
 from th_cli.colorize import (
     colorize_cmd_help,
+    colorize_error,
     colorize_header,
     colorize_help,
     colorize_key_value,
+    colorize_success,
     colorize_warning,
     italic,
     set_colors_enabled,
@@ -163,7 +165,9 @@ async def run_tests(
         prompt_timeout: Optional override for the user-prompt response timeout (seconds)
 
     Raises:
-        CLIError: If there are validation or execution errors
+        CLIError: If there are validation or execution errors (e.g. bad config, API/connection
+            failures). This is distinct from individual test case failures, which are reported
+            via the results summary and a non-zero process exit code instead.
     """
     # Extract and parse extra arguments from context (args after --)
     extra_test_params = _parse_extra_args(list(ctx.args)) if ctx.args else {}
@@ -189,6 +193,11 @@ async def run_tests(
 
     client = None
     _webrtc_handler = None
+    # Set when at least one test case ended in FAILED/ERROR, so run-tests can be used as a
+    # CI gate. Checked and acted on after the try/except/finally below so that a test-case
+    # failure is never mistaken for (or reported through) the CLIError/infrastructure-failure
+    # path.
+    exit_code = 0
     try:
         client = get_client()
         async_apis = AsyncApis(client)
@@ -328,6 +337,14 @@ async def run_tests(
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
+
+        results_summary = socket.format_results_summary()
+        click.echo("")
+        if socket.has_test_failures():
+            click.echo(colorize_error(f"Results: {results_summary}"))
+            exit_code = 1
+        else:
+            click.echo(colorize_success(f"Results: {results_summary}"))
         click.echo(colorize_key_value("Log output in", italic(log_path)))
     except CLIError:
         raise  # Re-raise CLI errors
@@ -341,6 +358,9 @@ async def run_tests(
             await client.aclose()
         if _webrtc_handler:
             _webrtc_handler.stop()
+
+    if exit_code:
+        ctx.exit(exit_code)
 
 
 async def _get_cli_project(async_apis: AsyncApis, project_id: int | None = None) -> m.Project:
