@@ -800,7 +800,7 @@ class ApiClient:
         """
         return get_event_loop().run_until_complete(self.request(type_=type_, **kwargs))
 
-    async def send(self, request: Request, type_: Type[T]) -> T | str:
+    async def send(self, request: Request, type_: Type[T]) -> T | str | None:
         response = await self.middleware(request, self.send_inner)
         if response.status_code in [200, 201, 204]:
             try:
