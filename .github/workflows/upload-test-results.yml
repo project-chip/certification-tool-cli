@@ -1,0 +1,20 @@
+name: 'Test Report'
+on:
+  workflow_run:
+    workflows: ['Python Tests']
+    types:
+      - completed
+permissions:
+  contents: read
+  actions: read
+  checks: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: dorny/test-reporter@v3
+      with:
+        artifact: coverage-report
+        name: Python Tests
+        path: 'report.xml'
+        reporter: python-xunit
