@@ -145,6 +145,28 @@ Run `th-cli test-run-execution --id {id}` with a test run execution id to fetch 
 
 For JSON respond, add `--json` to the command.
 
+### Test Run Execution Repeat
+
+Run `th-cli test-run-execution repeat --id {id}` to create a new test run execution with
+the same selected tests and config as an existing one. Use `--title` to override the
+generated title (defaults to the original title with an updated timestamp; the backend
+always appends a timestamp regardless). Add `--start` to start the repeated execution
+right away without waiting for it to complete (unlike `run-tests`, it does not stream
+live progress).
+
+### Test Run Execution Export
+
+Run `th-cli test-run-execution export --id {id}` to export a test run execution's config
+and results to a JSON file. Use `--output-file` to override the default filename
+(`<execution-title>-execution.json`).
+
+### Test Run Execution Import
+
+Run `th-cli test-run-execution import --file {file} --project-id {id}` to import a test
+run execution previously written by `test-run-execution export` into the given project.
+The backend rejects the import if the file's `db_revision` doesn't match the destination
+instance's current database revision.
+
 ### Project Create
 
 Run `th-cli project create --name {project name} --config {config file}` to create a new project. Project name is required.
