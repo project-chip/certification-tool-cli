@@ -104,6 +104,18 @@ LOG_RECORD_YIELD_INTERVAL = 200
 NON_TERMINAL_RUN_STATES = (TestStateEnum.PENDING, TestStateEnum.EXECUTING)
 
 
+class IncompleteTestRunError(RuntimeError):
+    """Raised when the test run ends without confirmed, complete results.
+
+    Covers two cases: the websocket connection closed (cleanly or not) before
+    a terminal TestRunUpdate was received, and the terminal update arrived but
+    fewer test case results were tallied than the run selected - e.g. because
+    individual case updates were dropped. Either way, run_tests() should treat
+    this as an infrastructure failure (CLIError) rather than trust whatever
+    partial results were collected as a genuine pass/fail summary.
+    """
+
+
 class TestRunSocket:
     def __init__(
         self,
@@ -129,6 +141,16 @@ class TestRunSocket:
         """Return a count of test cases by final state (passed/failed/error/...)."""
         return Counter(self.test_case_final_states.values())
 
+    def expected_test_case_count(self) -> int:
+        """Return the total number of test cases selected for this run.
+
+        Used as a sanity check against len(test_case_final_states): if the
+        run reports a terminal state but fewer case results were tallied
+        than were selected, some test_case updates were dropped and the
+        results summary can't be trusted as complete.
+        """
+        return sum(len(suite.test_case_executions or []) for suite in self.run.test_suite_executions or [])
+
     def has_test_failures(self) -> bool:
         """Return True if any test case ended in FAILED or ERROR."""
         return any(state in FAILURE_TEST_CASE_STATES for state in self.test_case_final_states.values())
@@ -140,6 +162,11 @@ class TestRunSocket:
         return ", ".join(parts) if parts else "0 test cases executed"
 
     async def connect_websocket(self) -> None:
+        # Set when the connection closes (cleanly or not) before self._run_finished
+        # is True, i.e. before a terminal TestRunUpdate was ever received. Checked
+        # once at the end so we still run the existing cleanup (socket.close(),
+        # ConnectionClosed suppression) unchanged before deciding whether to raise.
+        incomplete_closure = False
         try:
             async with websocket_connect(
                 WEBSOCKET_URL,
@@ -160,6 +187,11 @@ class TestRunSocket:
                             else:
                                 message = await socket.recv()
                         except websockets.exceptions.ConnectionClosedOK:
+                            if not self._run_finished:
+                                # Connection closed cleanly, but before the run
+                                # reached a terminal state - the run itself was
+                                # interrupted, not just the drain period.
+                                incomplete_closure = True
                             break
                         except asyncio.TimeoutError:
                             # No more trailing messages arrived during the
@@ -188,10 +220,20 @@ class TestRunSocket:
                             # This is acceptable as test run completed successfully
                             pass
         except websockets.exceptions.ConnectionClosed:
-            # Handle case where backend doesn't complete close handshake properly
+            # Handle case where backend doesn't complete close handshake properly.
             # This can happen with long-running test executions
             # Error: "sent 1000 (OK); no close frame received"
-            pass
+            # But if it happened before the run finished, the connection was
+            # actually dropped mid-run - flag it instead of treating it as a
+            # benign handshake quirk.
+            if not self._run_finished:
+                incomplete_closure = True
+
+        if incomplete_closure:
+            raise IncompleteTestRunError(
+                "Websocket connection closed before the test run reached a terminal state; "
+                "results may be incomplete."
+            )
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):

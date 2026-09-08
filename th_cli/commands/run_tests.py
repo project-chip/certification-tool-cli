@@ -43,7 +43,7 @@ from th_cli.colorize import (
 from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
-from th_cli.test_run.websocket import TestRunSocket
+from th_cli.test_run.websocket import IncompleteTestRunError, TestRunSocket
 from th_cli.utils import (
     DEFAULT_CLI_PROJECT_NAME,
     build_test_selection,
@@ -337,6 +337,20 @@ async def run_tests(
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
+
+        # Defense in depth: connect_websocket() already raises IncompleteTestRunError
+        # if the connection dropped before the run reached a terminal state. This
+        # covers the other way results can be incomplete - the terminal TestRunUpdate
+        # arrived, but fewer test_case updates were tallied than were selected (e.g.
+        # a case update was dropped in transit). Either way, don't trust a partial
+        # tally as a genuine pass/fail summary.
+        expected_count = socket.expected_test_case_count()
+        actual_count = len(socket.test_case_final_states)
+        if actual_count < expected_count:
+            raise IncompleteTestRunError(
+                f"Test run finished, but only {actual_count} of {expected_count} selected "
+                "test case(s) have results; the run may have been interrupted."
+            )
 
         results_summary = socket.format_results_summary()
         click.echo("")
