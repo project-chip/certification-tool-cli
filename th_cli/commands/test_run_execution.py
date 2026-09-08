@@ -14,14 +14,23 @@
 # limitations under the License.
 #
 from contextlib import closing
+from pathlib import Path
 
 import click
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.models import BodyImportTestRunExecutionApiV1TestRunExecutionsImportPost
 from th_cli.client import get_client
-from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, colorize_state, italic
-from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.colorize import (
+    colorize_cmd_help,
+    colorize_header,
+    colorize_help,
+    colorize_state,
+    colorize_success,
+    italic,
+)
+from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.utils import __print_json
 
 table_format_header = "{:<6} {:<55} {}"
@@ -248,6 +257,102 @@ def pics_export(id: int, output_file: str) -> None:
         raise  # Re-raise CLI Errors as-is
 
 
+@test_run_execution.command(
+    name="repeat",
+    short_help=colorize_help("Repeat a test run execution"),
+    help=colorize_cmd_help("repeat", "Create a new execution with the same selected tests/config as an existing one"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("ID of the Test Run Execution to repeat"),
+)
+@click.option(
+    "--title",
+    "-n",
+    required=False,
+    type=str,
+    help=colorize_help(
+        "Title for the new execution. Defaults to the original title; the backend always "
+        "appends an updated timestamp regardless"
+    ),
+)
+@click.option(
+    "--start",
+    is_flag=True,
+    default=False,
+    help=colorize_help("Start the repeated execution right away (does not wait for completion or stream progress)"),
+)
+def repeat(id: int, title: str | None, start: bool) -> None:
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __repeat_test_run_execution(sync_apis, id, title, start)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+@test_run_execution.command(
+    name="export",
+    short_help=colorize_help("Export a test run execution to a JSON file"),
+    help=colorize_cmd_help("export", "Export a test run execution's config and results to a JSON file"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("ID of the Test Run Execution to export"),
+)
+@click.option(
+    "--output-file",
+    "-o",
+    required=False,
+    type=click.Path(file_okay=True, dir_okay=False),
+    help=colorize_help("Output JSON file path (defaults to <execution-title>-execution.json)"),
+)
+def export(id: int, output_file: str | None) -> None:
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __export_test_run_execution(sync_apis, id, output_file)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+@test_run_execution.command(
+    name="import",
+    short_help=colorize_help("Import a test run execution from a JSON file"),
+    help=colorize_cmd_help("import", "Import a test run execution previously exported with 'export'"),
+)
+@click.option(
+    "--file",
+    "-f",
+    required=True,
+    type=click.Path(file_okay=True, dir_okay=False, exists=True),
+    help=colorize_help("JSON file previously exported with 'test-run-execution export'"),
+)
+@click.option(
+    "--project-id",
+    "-p",
+    required=True,
+    type=int,
+    help=colorize_help("Project ID to import the execution into"),
+)
+def import_execution(file: str, project_id: int) -> None:
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __import_test_run_execution(sync_apis, file, project_id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
@@ -445,6 +550,94 @@ def __fetch_test_run_execution_pics_export(sync_apis: SyncApis, id: int, output_
 
     except UnexpectedResponse as e:
         handle_api_error(e, "fetch test run execution PICS export")
+
+
+def _extract_error_detail(e: UnexpectedResponse) -> str:
+    """Pull a plain-text 'detail' message out of an UnexpectedResponse's content, if present."""
+    content = e.content
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="ignore")
+    if isinstance(content, dict):
+        detail = content.get("detail")
+        if isinstance(detail, str):
+            return detail
+    return str(content)
+
+
+def __repeat_test_run_execution(sync_apis: SyncApis, id: int, title: str | None, start: bool) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        new_execution = test_run_execution_api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post(
+            id=id, title=title
+        )
+        click.echo(
+            colorize_success(f"Test run execution {id} repeated as new execution {new_execution.id}")
+            + f" ('{new_execution.title}')"
+        )
+    except UnexpectedResponse as e:
+        if e.status_code == 404:
+            raise CLIError(f"Test run execution with ID '{id}' not found.")
+        handle_api_error(e, f"repeat test run execution '{id}'")
+
+    if start:
+        try:
+            test_run_execution_api.start_test_run_execution_api_v1_test_run_executions__id__start_post(
+                id=new_execution.id
+            )
+            click.echo(colorize_success(f"Test run execution {new_execution.id} started."))
+        except UnexpectedResponse as e:
+            if e.status_code == 409:
+                raise CLIError(
+                    f"Execution {new_execution.id} was created but could not be started: "
+                    f"{_extract_error_detail(e)}"
+                )
+            handle_api_error(e, f"start repeated test run execution '{new_execution.id}'")
+
+
+def __export_test_run_execution(sync_apis: SyncApis, id: int, output_file: str | None) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        exported = test_run_execution_api.export_test_run_execution_api_v1_test_run_executions__id__export_get(id=id)
+    except UnexpectedResponse as e:
+        if e.status_code == 404:
+            raise CLIError(f"Test run execution with ID '{id}' not found.")
+        handle_api_error(e, f"export test run execution '{id}'")
+
+    if not output_file:
+        if exported.test_run_execution.title:
+            import re
+
+            output_file = re.sub(r"[^\w]", "", exported.test_run_execution.title) + "-execution.json"
+        else:
+            output_file = f"test_run_execution_{id}_export.json"
+
+    try:
+        Path(output_file).write_text(exported.model_dump_json(indent=2))
+        click.echo(colorize_success(f"Test run execution {id} exported to '{output_file}'"))
+    except OSError as e:
+        raise CLIError(f"Failed to write export file '{output_file}': {e}")
+
+
+def __import_test_run_execution(sync_apis: SyncApis, file: str, project_id: int) -> None:
+    try:
+        file_bytes = Path(file).read_bytes()
+    except FileNotFoundError as e:
+        handle_file_error(e, "import file")
+    except OSError as e:
+        raise CLIError(f"Failed to read import file '{file}': {e}")
+
+    body = BodyImportTestRunExecutionApiV1TestRunExecutionsImportPost(import_file=file_bytes)
+
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        response = test_run_execution_api.import_test_run_execution_api_v1_test_run_executions_import_post(
+            body=body, project_id=project_id
+        )
+        click.echo(
+            colorize_success(f"Test run execution imported as execution {response.id}") + f" ('{response.title}')"
+        )
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"import test run execution from '{file}'")
 
 
 def __print_table_test_executions(test_execution: list) -> None:
