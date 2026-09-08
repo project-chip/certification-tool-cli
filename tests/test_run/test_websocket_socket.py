@@ -288,6 +288,85 @@ class TestLogTestCaseUpdate:
         echoed = " ".join(str(c) for call in mock_echo.call_args_list for c in call[0])
         assert "BROWSER TAB REQUIRED" not in echoed
 
+    def test_terminal_state_recorded_in_final_states(self):
+        case = _make_case()
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
+        self._call(s, self._update(state="passed"))
+        assert s.test_case_final_states[(0, 0)] == "passed"
+
+    def test_later_update_overwrites_earlier_final_state_for_same_case(self):
+        case = _make_case()
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
+        self._call(s, self._update(state="error"))
+        self._call(s, self._update(state="passed"))
+        assert s.test_case_final_states[(0, 0)] == "passed"
+
+    def test_non_terminal_state_not_recorded(self):
+        case = _make_case()
+        suite = _make_suite(cases=[case])
+        s = _make_socket(suites=[suite])
+        self._call(s, self._update(state="executing"))
+        assert (0, 0) not in s.test_case_final_states
+
+
+# ---------------------------------------------------------------------------
+# Results summary / exit code tallying (issue #1095)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestResultsSummary:
+
+    def _call(self, socket: TestRunSocket, update: TestCaseUpdate):
+        socket._TestRunSocket__log_test_case_update(update)
+
+    def _update(self, case_idx=0, suite_idx=0, state="passed") -> TestCaseUpdate:
+        return TestCaseUpdate(
+            state=state,
+            test_case_execution_index=case_idx,
+            test_suite_execution_index=suite_idx,
+            errors=None,
+        )
+
+    def _socket_with_cases(self, states: list[str]) -> TestRunSocket:
+        cases = [_make_case(idx=i) for i in range(len(states))]
+        suite = _make_suite(cases=cases)
+        s = _make_socket(suites=[suite])
+        for i, state in enumerate(states):
+            self._call(s, self._update(case_idx=i, state=state))
+        return s
+
+    def test_no_cases_executed_summary(self):
+        s = _make_socket()
+        assert s.format_results_summary() == "0 test cases executed"
+        assert s.has_test_failures() is False
+        assert s.test_case_result_counts() == {}
+
+    def test_all_passed_no_failures(self):
+        s = self._socket_with_cases(["passed", "passed", "passed"])
+        assert s.has_test_failures() is False
+        assert s.format_results_summary() == "3 passed"
+
+    def test_mixed_states_counted_and_ordered(self):
+        s = self._socket_with_cases(["passed", "failed", "error", "not_applicable", "cancelled"])
+        assert s.has_test_failures() is True
+        assert s.format_results_summary() == "1 passed, 1 failed, 1 error, 1 not applicable, 1 cancelled"
+
+    def test_not_applicable_and_cancelled_do_not_count_as_failures(self):
+        s = self._socket_with_cases(["passed", "not_applicable", "cancelled"])
+        assert s.has_test_failures() is False
+
+    def test_error_state_counts_as_failure(self):
+        s = self._socket_with_cases(["passed", "error"])
+        assert s.has_test_failures() is True
+
+    def test_case_updated_more_than_once_counted_once(self):
+        s = self._socket_with_cases(["executing"])
+        self._call(s, self._update(case_idx=0, state="passed"))
+        assert s.test_case_result_counts() == {"passed": 1}
+
 
 # ---------------------------------------------------------------------------
 # __handle_test_update — dispatch

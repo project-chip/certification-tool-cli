@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import asyncio
+from collections import Counter
 
 import click
 import websockets
@@ -59,6 +60,30 @@ WEBSOCKET_URL = f"ws://{config.hostname}/api/v1/ws"
 
 WEBSOCKET_MAX_MESSAGE_SIZE = 32 * 1024 * 1024  # 32MB
 
+# Test case states that represent a final outcome (as opposed to in-progress
+# states like "pending"/"executing"/"pending_actuation").
+TERMINAL_TEST_CASE_STATES: frozenset[str] = frozenset(
+    {
+        TestStateEnum.PASSED.value,
+        TestStateEnum.FAILED.value,
+        TestStateEnum.ERROR.value,
+        TestStateEnum.NOT_APPLICABLE.value,
+        TestStateEnum.CANCELLED.value,
+    }
+)
+
+# Terminal states that should be treated as a test-case failure for exit code purposes.
+FAILURE_TEST_CASE_STATES: frozenset[str] = frozenset({TestStateEnum.FAILED.value, TestStateEnum.ERROR.value})
+
+# Display order and labels for the end-of-run results summary.
+_SUMMARY_STATE_LABELS: list[tuple[str, str]] = [
+    (TestStateEnum.PASSED.value, "passed"),
+    (TestStateEnum.FAILED.value, "failed"),
+    (TestStateEnum.ERROR.value, "error"),
+    (TestStateEnum.NOT_APPLICABLE.value, "not applicable"),
+    (TestStateEnum.CANCELLED.value, "cancelled"),
+]
+
 # After the test run reaches a terminal state, the backend may still have a
 # trailing batch of log records queued/in-flight (it flushes and broadcasts
 # any pending log entries *after* sending the terminal state update - see
@@ -79,6 +104,18 @@ LOG_RECORD_YIELD_INTERVAL = 200
 NON_TERMINAL_RUN_STATES = (TestStateEnum.PENDING, TestStateEnum.EXECUTING)
 
 
+class IncompleteTestRunError(RuntimeError):
+    """Raised when the test run ends without confirmed, complete results.
+
+    Covers two cases: the websocket connection closed (cleanly or not) before
+    a terminal TestRunUpdate was received, and the terminal update arrived but
+    fewer test case results were tallied than the run selected - e.g. because
+    individual case updates were dropped. Either way, run_tests() should treat
+    this as an infrastructure failure (CLIError) rather than trust whatever
+    partial results were collected as a genuine pass/fail summary.
+    """
+
+
 class TestRunSocket:
     def __init__(
         self,
@@ -94,8 +131,42 @@ class TestRunSocket:
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
+        # Track the final state of each test case for the end-of-run summary.
+        # Key: (suite_index, case_index), Value: final TestStateEnum value.
+        # A dict (rather than a running counter) so a case that is updated more
+        # than once with a terminal state is only counted once, in its latest state.
+        self.test_case_final_states: dict[tuple[int, int], str] = {}
+
+    def test_case_result_counts(self) -> Counter[str]:
+        """Return a count of test cases by final state (passed/failed/error/...)."""
+        return Counter(self.test_case_final_states.values())
+
+    def expected_test_case_count(self) -> int:
+        """Return the total number of test cases selected for this run.
+
+        Used as a sanity check against len(test_case_final_states): if the
+        run reports a terminal state but fewer case results were tallied
+        than were selected, some test_case updates were dropped and the
+        results summary can't be trusted as complete.
+        """
+        return sum(len(suite.test_case_executions or []) for suite in self.run.test_suite_executions or [])
+
+    def has_test_failures(self) -> bool:
+        """Return True if any test case ended in FAILED or ERROR."""
+        return any(state in FAILURE_TEST_CASE_STATES for state in self.test_case_final_states.values())
+
+    def format_results_summary(self) -> str:
+        """Format the end-of-run test case tally, e.g. '12 passed, 2 failed, 1 error'."""
+        counts = self.test_case_result_counts()
+        parts = [f"{counts[state]} {label}" for state, label in _SUMMARY_STATE_LABELS if counts[state]]
+        return ", ".join(parts) if parts else "0 test cases executed"
 
     async def connect_websocket(self) -> None:
+        # Set when the connection closes (cleanly or not) before self._run_finished
+        # is True, i.e. before a terminal TestRunUpdate was ever received. Checked
+        # once at the end so we still run the existing cleanup (socket.close(),
+        # ConnectionClosed suppression) unchanged before deciding whether to raise.
+        incomplete_closure = False
         try:
             async with websocket_connect(
                 WEBSOCKET_URL,
@@ -116,6 +187,11 @@ class TestRunSocket:
                             else:
                                 message = await socket.recv()
                         except websockets.exceptions.ConnectionClosedOK:
+                            if not self._run_finished:
+                                # Connection closed cleanly, but before the run
+                                # reached a terminal state - the run itself was
+                                # interrupted, not just the drain period.
+                                incomplete_closure = True
                             break
                         except asyncio.TimeoutError:
                             # No more trailing messages arrived during the
@@ -144,10 +220,20 @@ class TestRunSocket:
                             # This is acceptable as test run completed successfully
                             pass
         except websockets.exceptions.ConnectionClosed:
-            # Handle case where backend doesn't complete close handshake properly
+            # Handle case where backend doesn't complete close handshake properly.
             # This can happen with long-running test executions
             # Error: "sent 1000 (OK); no close frame received"
-            pass
+            # But if it happened before the run finished, the connection was
+            # actually dropped mid-run - flag it instead of treating it as a
+            # benign handshake quirk.
+            if not self._run_finished:
+                incomplete_closure = True
+
+        if incomplete_closure:
+            raise IncompleteTestRunError(
+                "Websocket connection closed before the test run reached a terminal state; "
+                "results may be incomplete."
+            )
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -278,6 +364,11 @@ class TestRunSocket:
         colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_CASE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"      - {colored_title} {colored_state}")
+
+        # Tally the case's final state for the end-of-run results summary.
+        if update.state.value in TERMINAL_TEST_CASE_STATES:
+            case_key = (update.test_suite_execution_index, update.test_case_execution_index)
+            self.test_case_final_states[case_key] = update.state.value
 
         # Log any errors when a test case fails
         if update.state.value in ("failed", "error"):

@@ -34,6 +34,7 @@ from th_cli.commands.run_tests import (
     run_tests,
 )
 from th_cli.exceptions import ConfigurationError
+from th_cli.test_run.websocket import IncompleteTestRunError
 
 
 @pytest.mark.unit
@@ -73,6 +74,10 @@ class TestRunTestsCommand:
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
@@ -116,6 +121,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -166,6 +175,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -210,6 +223,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -249,6 +266,10 @@ class TestRunTestsCommand:
                         ):
                             mock_socket = Mock()
                             mock_socket.connect_websocket = AsyncMock()
+                            mock_socket.expected_test_case_count.return_value = 0
+                            mock_socket.test_case_final_states = {}
+                            mock_socket.has_test_failures.return_value = False
+                            mock_socket.format_results_summary.return_value = "0 test cases executed"
                             mock_socket_class.return_value = mock_socket
 
                             # Act
@@ -426,6 +447,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -503,6 +528,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -544,6 +573,10 @@ class TestRunTestsCommand:
                             mock_build_test_selection.return_value = {"mock_collection": {"mock_suite": {"mock": 1}}}
                             mock_socket = Mock()
                             mock_socket.connect_websocket = AsyncMock()
+                            mock_socket.expected_test_case_count.return_value = 0
+                            mock_socket.test_case_final_states = {}
+                            mock_socket.has_test_failures.return_value = False
+                            mock_socket.format_results_summary.return_value = "0 test cases executed"
                             mock_socket_class.return_value = mock_socket
 
                             # Act
@@ -584,6 +617,10 @@ class TestRunTestsCommand:
                         mock_configure_logger.return_value = "/path/to/test_logs/custom_run.log"
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -626,6 +663,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -675,6 +716,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -720,6 +765,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -766,6 +815,10 @@ class TestRunTestsCommand:
                     ):
                         mock_socket = Mock()
                         mock_socket.connect_websocket = AsyncMock()
+                        mock_socket.expected_test_case_count.return_value = 0
+                        mock_socket.test_case_final_states = {}
+                        mock_socket.has_test_failures.return_value = False
+                        mock_socket.format_results_summary.return_value = "0 test cases executed"
                         mock_socket_class.return_value = mock_socket
 
                         # Act
@@ -817,6 +870,216 @@ class TestRunTestsCommand:
         assert result.exit_code == 1
         assert "API creation failed" in result.output
         mock_api_client.aclose.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestRunTestsExitCodeAndSummary:
+    """Test cases for the run-tests results summary and exit code contract (issue #1095)."""
+
+    def _invoke(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+        has_test_failures: bool,
+        results_summary: str,
+    ):
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = has_test_failures
+            mock_socket.format_results_summary.return_value = results_summary
+            mock_socket_class.return_value = mock_socket
+
+            return cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-ACE-1.2"])
+
+    def test_all_passed_exits_zero_with_summary(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """[Test Case 1] All tests pass: exit code 0, summary reflects the pass count."""
+        result = self._invoke(
+            cli_runner,
+            mock_async_apis,
+            mock_api_client,
+            sample_test_collections,
+            sample_test_run_execution,
+            sample_default_config_dict,
+            has_test_failures=False,
+            results_summary="2 passed",
+        )
+
+        assert result.exit_code == 0
+        assert "Results: 2 passed" in result.output
+
+    def test_failures_present_exit_nonzero_with_summary(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """[Test Case 2] At least one test fails: non-zero exit code, summary reflects the failure."""
+        result = self._invoke(
+            cli_runner,
+            mock_async_apis,
+            mock_api_client,
+            sample_test_collections,
+            sample_test_run_execution,
+            sample_default_config_dict,
+            has_test_failures=True,
+            results_summary="1 passed, 1 failed",
+        )
+
+        assert result.exit_code != 0
+        assert "Results: 1 passed, 1 failed" in result.output
+
+    def test_not_applicable_and_cancelled_do_not_force_nonzero_exit(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """[Test Case 3] PICS-inapplicable/cancelled cases alone should not trigger a non-zero exit."""
+        result = self._invoke(
+            cli_runner,
+            mock_async_apis,
+            mock_api_client,
+            sample_test_collections,
+            sample_test_run_execution,
+            sample_default_config_dict,
+            has_test_failures=False,
+            results_summary="2 passed, 1 not applicable, 1 cancelled",
+        )
+
+        assert result.exit_code == 0
+        assert "Results: 2 passed, 1 not applicable, 1 cancelled" in result.output
+
+    def test_infrastructure_failure_keeps_cli_error_path(self, cli_runner: CliRunner, mock_api_client: Mock) -> None:
+        """[Test Case 4] Infrastructure failures still surface as CLIError, not the results summary."""
+        with patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.run_tests.AsyncApis", side_effect=Exception("connection refused")):
+                result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1"])
+
+        assert result.exit_code == 1
+        assert "connection refused" in result.output
+        assert "Results:" not in result.output
+
+    def test_incomplete_test_run_error_surfaces_as_cli_error(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """[Test Case 5] A dropped websocket mid-run must not be reported as a completed run."""
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock(
+                side_effect=IncompleteTestRunError("Websocket connection closed before the test run finished")
+            )
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-ACE-1.2"])
+
+        assert result.exit_code == 1
+        assert "Results:" not in result.output
+        assert "Websocket connection closed before the test run finished" in result.output
+
+    def test_case_count_mismatch_after_finished_run_raises_cli_error(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """[Test Case 6] Run reports finished, but fewer case results were tallied than were selected."""
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        id_start = test_run_executions_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+        cli_api.return_value = sample_test_run_execution
+        id_start.return_value = sample_test_run_execution
+        with (
+            patch("th_cli.commands.run_tests.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis),
+            patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ),
+            patch("th_cli.commands.run_tests.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict),
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 2
+            mock_socket.test_case_final_states = {(0, 0): "passed"}
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-ACE-1.2"])
+
+        assert result.exit_code == 1
+        assert "Results:" not in result.output
+        assert "only 1 of 2 selected" in result.output
 
 
 @pytest.mark.unit
@@ -971,6 +1234,10 @@ class TestRunTestsWithExtraArgs:
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
@@ -1012,6 +1279,10 @@ class TestRunTestsWithExtraArgs:
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
@@ -1067,6 +1338,10 @@ class TestRunTestsWithExtraArgs:
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
@@ -1109,6 +1384,10 @@ class TestRunTestsWithExtraArgs:
         ):
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
@@ -1158,6 +1437,10 @@ class TestRunTestsWithExtraArgs:
 
             mock_socket = Mock()
             mock_socket.connect_websocket = AsyncMock()
+            mock_socket.expected_test_case_count.return_value = 0
+            mock_socket.test_case_final_states = {}
+            mock_socket.has_test_failures.return_value = False
+            mock_socket.format_results_summary.return_value = "0 test cases executed"
             mock_socket_class.return_value = mock_socket
 
             # Act
