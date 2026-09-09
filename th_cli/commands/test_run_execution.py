@@ -612,7 +612,7 @@ def __export_test_run_execution(sync_apis: SyncApis, id: int, output_file: str |
             output_file = f"test_run_execution_{id}_export.json"
 
     try:
-        Path(output_file).write_text(exported.model_dump_json(indent=2))
+        Path(output_file).write_text(exported.model_dump_json(indent=2), encoding="utf-8")
         click.echo(colorize_success(f"Test run execution {id} exported to '{output_file}'"))
     except OSError as e:
         raise CLIError(f"Failed to write export file '{output_file}': {e}")
