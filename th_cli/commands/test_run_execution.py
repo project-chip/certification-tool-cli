@@ -295,17 +295,6 @@ def pics_export(id: int, output_file: str) -> None:
     ),
 )
 @click.option(
-    "--no-start",
-    is_flag=True,
-    default=False,
-    help=colorize_help(
-        "Only create the repeated execution without starting it. By default, 'repeat' starts "
-        "the new execution right away and attaches to it the same way 'run-tests' does (and "
-        "the frontend's 'Repeat' action does): streaming live progress and forwarding any "
-        "user prompts to this terminal"
-    ),
-)
-@click.option(
     "--no-color",
     is_flag=True,
     help=colorize_help("Disable colored output for test execution status."),
@@ -316,7 +305,7 @@ def pics_export(id: int, output_file: str) -> None:
     help=colorize_help("Disable real-time log streaming via web browser (enabled by default)."),
 )
 @async_cmd
-async def repeat(id: int, title: str | None, no_start: bool, no_color: bool, no_streaming: bool) -> None:
+async def repeat(id: int, title: str | None, no_color: bool, no_streaming: bool) -> None:
     if no_color:
         set_colors_enabled(False)
 
@@ -326,9 +315,7 @@ async def repeat(id: int, title: str | None, no_start: bool, no_color: bool, no_
         client._async_client.timeout = TEST_RUN_EXECUTION_IO_TIMEOUT
         async_apis = AsyncApis(client)
         new_execution = await __repeat_test_run_execution(async_apis, id, title)
-
-        if not no_start:
-            await __start_and_stream_repeated_execution(async_apis, new_execution, enable_streaming=not no_streaming)
+        await __start_and_stream_repeated_execution(async_apis, new_execution, enable_streaming=not no_streaming)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     finally:

@@ -125,29 +125,6 @@ class TestRepeatCommand:
             id=1, title="Custom Title"
         )
 
-    def test_repeat_no_start(
-        self,
-        cli_runner: CliRunner,
-        mock_async_apis: Mock,
-        mock_api_client: Mock,
-        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-    ) -> None:
-        """--no-start only creates the repeated execution, without starting or attaching to it."""
-        api = mock_async_apis.test_run_executions_api
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
-            sample_test_run_execution
-        )
-
-        with (
-            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
-            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
-        ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--no-start"])
-
-        assert result.exit_code == 0
-        assert "Starting Test run" not in result.output
-        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
-
     def test_repeat_start_api_error(
         self,
         cli_runner: CliRunner,
@@ -323,7 +300,8 @@ class TestRepeatCommand:
         assert result.exit_code == 0
         assert "--id" in result.output
         assert "--title" in result.output
-        assert "--no-start" in result.output
+        assert "--no-color" in result.output
+        assert "--no-streaming" in result.output
 
 
 @pytest.mark.unit

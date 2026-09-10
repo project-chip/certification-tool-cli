@@ -152,10 +152,9 @@ the same selected tests and config as an existing one, then start it and attach 
 same way `run-tests` does (and the frontend's "Repeat" action does): streaming live test
 progress and forwarding any user prompts to this terminal. Use `--title` to override the
 generated title (defaults to the original title with an updated timestamp; the backend
-always appends a timestamp regardless). Add `--no-start` to only create the repeated
-execution without starting it. As with `run-tests`, `--no-color` disables colored output
-and `--no-streaming` disables the real-time web log viewer (enabled by default) for the
-new execution.
+always appends a timestamp regardless). As with `run-tests`, `--no-color` disables colored
+output and `--no-streaming` disables the real-time web log viewer (enabled by default) for
+the new execution.
 
 ### Test Run Execution Export
 
