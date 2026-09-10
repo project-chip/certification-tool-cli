@@ -36,8 +36,10 @@ from th_cli.colorize import (
     colorize_state,
     colorize_success,
     italic,
+    set_colors_enabled,
 )
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from th_cli.test_run import logging as test_logging
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import __print_json
 
@@ -303,8 +305,21 @@ def pics_export(id: int, output_file: str) -> None:
         "user prompts to this terminal"
     ),
 )
+@click.option(
+    "--no-color",
+    is_flag=True,
+    help=colorize_help("Disable colored output for test execution status."),
+)
+@click.option(
+    "--no-streaming",
+    is_flag=True,
+    help=colorize_help("Disable real-time log streaming via web browser (enabled by default)."),
+)
 @async_cmd
-async def repeat(id: int, title: str | None, no_start: bool) -> None:
+async def repeat(id: int, title: str | None, no_start: bool, no_color: bool, no_streaming: bool) -> None:
+    if no_color:
+        set_colors_enabled(False)
+
     client = None
     try:
         client = get_client()
@@ -313,7 +328,7 @@ async def repeat(id: int, title: str | None, no_start: bool) -> None:
         new_execution = await __repeat_test_run_execution(async_apis, id, title)
 
         if not no_start:
-            await __start_and_stream_repeated_execution(async_apis, new_execution)
+            await __start_and_stream_repeated_execution(async_apis, new_execution, enable_streaming=not no_streaming)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     finally:
@@ -624,17 +639,36 @@ async def __repeat_test_run_execution(
 
 
 async def __start_and_stream_repeated_execution(
-    async_apis: AsyncApis, new_execution: TestRunExecutionWithChildren
+    async_apis: AsyncApis, new_execution: TestRunExecutionWithChildren, enable_streaming: bool = True
 ) -> None:
     """Start a repeated execution and attach to it the same way 'run-tests' does:
     streaming live test progress and forwarding any user prompts to this terminal."""
     test_run_execution_api = async_apis.test_run_executions_api
+
+    # Configure log output for this run before the websocket starts receiving log
+    # records. Without this, loguru's default stderr sink stays active and every
+    # raw log record gets printed straight to the terminal instead of being routed
+    # to the log file / streaming viewer, interleaving with the tree output below.
+    log_path = test_logging.configure_logger_for_run(title=new_execution.title, enable_log_streaming=enable_streaming)
+    test_logging.set_download_run_id(new_execution.id)
 
     header = colorize_header("Starting Test run")
     title = colorize_key_value("Title", new_execution.title)
     test_run_id = colorize_key_value("ID", str(new_execution.id))
     click.echo("")
     click.echo(f"{header}:\n- {title}\n- {test_run_id}\n")
+
+    log_stream_url = test_logging.get_log_stream_url()
+    if log_stream_url:
+        border = click.style("═" * 60, fg="cyan", bold=True)
+        click.echo(border)
+        click.echo(click.style("  📋 Real-Time Log Viewer Available", fg="cyan", bold=True))
+        click.echo(border)
+        click.echo(click.style("  View logs in real-time at:", fg="bright_white", bold=True))
+        click.echo("  " + click.style(f"{log_stream_url}", fg="cyan", bold=True, underline=True))
+        click.echo(click.style("  Logs will stream automatically as tests execute", fg="bright_white"))
+        click.echo(border)
+        click.echo("")
 
     socket = TestRunSocket(new_execution)
     socket_task = asyncio.create_task(socket.connect_websocket())
@@ -653,8 +687,12 @@ async def __start_and_stream_repeated_execution(
         await _cancel_socket_task(socket_task)
         raise CLIError(_timeout_or_connection_error(e, f"start repeated test run execution '{new_execution.id}'"))
 
-    socket.run = started_execution
-    await socket_task
+    try:
+        socket.run = started_execution
+        await socket_task
+        click.echo(colorize_key_value("Log output in", italic(log_path)))
+    finally:
+        test_logging.stop_log_streaming()
 
 
 async def _cancel_socket_task(socket_task: "asyncio.Task[None]") -> None:
