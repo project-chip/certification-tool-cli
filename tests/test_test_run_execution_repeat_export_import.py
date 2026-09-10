@@ -56,59 +56,9 @@ class TestRepeatCommand:
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
-        """A successful repeat reports the new execution's ID and title."""
-        api = mock_async_apis.test_run_executions_api
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
-            sample_test_run_execution
-        )
-
-        with (
-            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
-            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
-        ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
-
-        assert result.exit_code == 0
-        assert f"repeated as new execution {sample_test_run_execution.id}" in result.output
-        assert sample_test_run_execution.title in result.output
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.assert_called_once_with(
-            id=1, title=None
-        )
-        mock_api_client.aclose.assert_called_once()
-
-    def test_repeat_with_custom_title(
-        self,
-        cli_runner: CliRunner,
-        mock_async_apis: Mock,
-        mock_api_client: Mock,
-        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-    ) -> None:
-        """--title is forwarded to the API call."""
-        api = mock_async_apis.test_run_executions_api
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
-            sample_test_run_execution
-        )
-
-        with (
-            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
-            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
-        ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--title", "Custom Title"])
-
-        assert result.exit_code == 0
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.assert_called_once_with(
-            id=1, title="Custom Title"
-        )
-
-    def test_repeat_with_start(
-        self,
-        cli_runner: CliRunner,
-        mock_async_apis: Mock,
-        mock_api_client: Mock,
-        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
-    ) -> None:
-        """--start also starts the repeated execution and attaches to it the same way
-        `run-tests` does, streaming live progress instead of just reporting a static message."""
+        """By default, repeat creates the new execution, starts it, and attaches to it the
+        same way `run-tests` does (and the frontend's 'Repeat' action does): streaming live
+        progress instead of just reporting a static message."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
@@ -126,26 +76,63 @@ class TestRepeatCommand:
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 0
+        assert f"repeated as new execution {sample_test_run_execution.id}" in result.output
+        assert sample_test_run_execution.title in result.output
         assert "Starting Test run" in result.output
-        assert str(sample_test_run_execution.id) in result.output
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.assert_called_once_with(
+            id=1, title=None
+        )
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_called_once_with(
             id=sample_test_run_execution.id
         )
         mock_socket_class.assert_called_once_with(sample_test_run_execution)
         mock_socket.connect_websocket.assert_called_once()
         assert mock_socket.run == sample_test_run_execution
+        mock_api_client.aclose.assert_called_once()
 
-    def test_repeat_without_start_does_not_start(
+    def test_repeat_with_custom_title(
         self,
         cli_runner: CliRunner,
         mock_async_apis: Mock,
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
-        """Without --start, the repeated execution is created but not started."""
+        """--title is forwarded to the API call."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            sample_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.return_value = (
+            sample_test_run_execution
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--title", "Custom Title"])
+
+        assert result.exit_code == 0
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.assert_called_once_with(
+            id=1, title="Custom Title"
+        )
+
+    def test_repeat_no_start(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+    ) -> None:
+        """--no-start only creates the repeated execution, without starting or attaching to it."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
@@ -155,12 +142,13 @@ class TestRepeatCommand:
             patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
             patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
         ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--no-start"])
 
         assert result.exit_code == 0
+        assert "Starting Test run" not in result.output
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
 
-    def test_repeat_with_start_api_error(
+    def test_repeat_start_api_error(
         self,
         cli_runner: CliRunner,
         mock_async_apis: Mock,
@@ -185,7 +173,7 @@ class TestRepeatCommand:
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 1
         assert (
@@ -193,7 +181,7 @@ class TestRepeatCommand:
             "(Status: 500) - Internal Server Error" in result.output
         )
 
-    def test_repeat_with_start_conflict(
+    def test_repeat_start_conflict(
         self,
         cli_runner: CliRunner,
         mock_async_apis: Mock,
@@ -218,13 +206,13 @@ class TestRepeatCommand:
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 1
         assert f"Execution {sample_test_run_execution.id} was created but could not be started" in result.output
         assert "Test Engine is busy." in result.output
 
-    def test_repeat_with_start_timeout(
+    def test_repeat_start_timeout(
         self,
         cli_runner: CliRunner,
         mock_async_apis: Mock,
@@ -250,13 +238,13 @@ class TestRepeatCommand:
             mock_socket.connect_websocket = AsyncMock()
             mock_socket_class.return_value = mock_socket
 
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 1
         assert "Timed out waiting for the server" in result.output
 
     def test_repeat_not_found(self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock) -> None:
-        """A 404 from the API is surfaced as a clear 'not found' error."""
+        """A 404 from the API is surfaced as a clear 'not found' error, and nothing is started."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=404, content={"detail": "TestRunExecution not found"}
@@ -270,29 +258,12 @@ class TestRepeatCommand:
 
         assert result.exit_code == 1
         assert "Test run execution with ID '999' not found." in result.output
-
-    def test_repeat_not_found_does_not_start(
-        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
-    ) -> None:
-        """A failed repeat (404) must not attempt to start anything, even with --start."""
-        api = mock_async_apis.test_run_executions_api
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
-            status_code=404, content={"detail": "TestRunExecution not found"}
-        )
-
-        with (
-            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
-            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
-        ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "999", "--start"])
-
-        assert result.exit_code == 1
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
 
     def test_repeat_other_api_error(
         self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
     ) -> None:
-        """A non-404 API error is surfaced via the standard error-handling path."""
+        """A non-404 API error is surfaced via the standard error-handling path, and nothing is started."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=500, content=b"Internal Server Error"
@@ -306,23 +277,6 @@ class TestRepeatCommand:
 
         assert result.exit_code == 1
         assert "Failed to repeat test run execution '1' (Status: 500) - Internal Server Error" in result.output
-
-    def test_repeat_other_api_error_does_not_start(
-        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
-    ) -> None:
-        """A failed repeat (non-404) must not attempt to start anything, even with --start."""
-        api = mock_async_apis.test_run_executions_api
-        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
-            status_code=500, content=b"Internal Server Error"
-        )
-
-        with (
-            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
-            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
-        ):
-            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
-
-        assert result.exit_code == 1
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
 
     def test_repeat_timeout_error(
@@ -369,7 +323,7 @@ class TestRepeatCommand:
         assert result.exit_code == 0
         assert "--id" in result.output
         assert "--title" in result.output
-        assert "--start" in result.output
+        assert "--no-start" in result.output
 
 
 @pytest.mark.unit
