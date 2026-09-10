@@ -148,11 +148,12 @@ For JSON respond, add `--json` to the command.
 ### Test Run Execution Repeat
 
 Run `th-cli test-run-execution repeat --id {id}` to create a new test run execution with
-the same selected tests and config as an existing one. Use `--title` to override the
+the same selected tests and config as an existing one, then start it and attach to it the
+same way `run-tests` does (and the frontend's "Repeat" action does): streaming live test
+progress and forwarding any user prompts to this terminal. Use `--title` to override the
 generated title (defaults to the original title with an updated timestamp; the backend
-always appends a timestamp regardless). Add `--start` to start the repeated execution
-and attach to it the same way `run-tests` does: streaming live test progress and
-forwarding any user prompts to this terminal.
+always appends a timestamp regardless). Add `--no-start` to only create the repeated
+execution without starting it.
 
 ### Test Run Execution Export
 

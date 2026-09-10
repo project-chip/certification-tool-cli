@@ -293,16 +293,18 @@ def pics_export(id: int, output_file: str) -> None:
     ),
 )
 @click.option(
-    "--start",
+    "--no-start",
     is_flag=True,
     default=False,
     help=colorize_help(
-        "Start the repeated execution right away, attaching to it the same way 'run-tests' "
-        "does: streaming live progress and forwarding any user prompts to this terminal"
+        "Only create the repeated execution without starting it. By default, 'repeat' starts "
+        "the new execution right away and attaches to it the same way 'run-tests' does (and "
+        "the frontend's 'Repeat' action does): streaming live progress and forwarding any "
+        "user prompts to this terminal"
     ),
 )
 @async_cmd
-async def repeat(id: int, title: str | None, start: bool) -> None:
+async def repeat(id: int, title: str | None, no_start: bool) -> None:
     client = None
     try:
         client = get_client()
@@ -310,7 +312,7 @@ async def repeat(id: int, title: str | None, start: bool) -> None:
         async_apis = AsyncApis(client)
         new_execution = await __repeat_test_run_execution(async_apis, id, title)
 
-        if start:
+        if not no_start:
             await __start_and_stream_repeated_execution(async_apis, new_execution)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
