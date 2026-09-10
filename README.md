@@ -151,8 +151,8 @@ Run `th-cli test-run-execution repeat --id {id}` to create a new test run execut
 the same selected tests and config as an existing one. Use `--title` to override the
 generated title (defaults to the original title with an updated timestamp; the backend
 always appends a timestamp regardless). Add `--start` to start the repeated execution
-right away without waiting for it to complete (unlike `run-tests`, it does not stream
-live progress).
+and attach to it the same way `run-tests` does: streaming live test progress and
+forwarding any user prompts to this terminal.
 
 ### Test Run Execution Export
 
