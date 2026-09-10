@@ -17,13 +17,14 @@
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from httpx import ReadTimeout
 
 from th_cli.api_lib_autogen import models as api_models
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.commands.test_run_execution import test_run_execution
 from th_cli.exceptions import ConfigurationError
 
@@ -51,16 +52,20 @@ class TestRepeatCommand:
     def test_repeat_success(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
         """A successful repeat reports the new execution's ID and title."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 0
@@ -69,20 +74,25 @@ class TestRepeatCommand:
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.assert_called_once_with(
             id=1, title=None
         )
+        mock_api_client.aclose.assert_called_once()
 
     def test_repeat_with_custom_title(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
         """--title is forwarded to the API call."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--title", "Custom Title"])
 
         assert result.exit_code == 0
@@ -93,11 +103,13 @@ class TestRepeatCommand:
     def test_repeat_with_start(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
-        """--start also calls the start endpoint for the newly created execution."""
-        api = mock_sync_apis.test_run_executions_api
+        """--start also starts the repeated execution and attaches to it the same way
+        `run-tests` does, streaming live progress instead of just reporting a static message."""
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
@@ -105,28 +117,44 @@ class TestRepeatCommand:
             sample_test_run_execution
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
 
         assert result.exit_code == 0
-        assert f"Test run execution {sample_test_run_execution.id} started." in result.output
+        assert "Starting Test run" in result.output
+        assert str(sample_test_run_execution.id) in result.output
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_called_once_with(
             id=sample_test_run_execution.id
         )
+        mock_socket_class.assert_called_once_with(sample_test_run_execution)
+        mock_socket.connect_websocket.assert_called_once()
+        assert mock_socket.run == sample_test_run_execution
 
     def test_repeat_without_start_does_not_start(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
         """Without --start, the repeated execution is created but not started."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 0
@@ -135,11 +163,12 @@ class TestRepeatCommand:
     def test_repeat_with_start_api_error(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
         """A failure to start the repeated execution is surfaced via the standard error-handling path."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
@@ -147,7 +176,15 @@ class TestRepeatCommand:
             status_code=500, content=b"Internal Server Error"
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
 
         assert result.exit_code == 1
@@ -159,11 +196,12 @@ class TestRepeatCommand:
     def test_repeat_with_start_conflict(
         self,
         cli_runner: CliRunner,
-        mock_sync_apis: Mock,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
     ) -> None:
         """A 409 (e.g. test engine busy) makes clear the execution was still created."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
         )
@@ -171,64 +209,140 @@ class TestRepeatCommand:
             status_code=409, content={"detail": "Test Engine is busy."}
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
 
         assert result.exit_code == 1
         assert f"Execution {sample_test_run_execution.id} was created but could not be started" in result.output
         assert "Test Engine is busy." in result.output
 
-    def test_repeat_not_found(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+    def test_repeat_with_start_timeout(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+    ) -> None:
+        """A timeout while starting the repeated execution is surfaced as a clean, readable
+        error instead of a raw traceback."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            sample_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.side_effect = (
+            ResponseHandlingException(ReadTimeout("timed out"))
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
+
+        assert result.exit_code == 1
+        assert "Timed out waiting for the server" in result.output
+
+    def test_repeat_not_found(self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock) -> None:
         """A 404 from the API is surfaced as a clear 'not found' error."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=404, content={"detail": "TestRunExecution not found"}
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "999"])
 
         assert result.exit_code == 1
         assert "Test run execution with ID '999' not found." in result.output
 
-    def test_repeat_not_found_does_not_start(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+    def test_repeat_not_found_does_not_start(
+        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
+    ) -> None:
         """A failed repeat (404) must not attempt to start anything, even with --start."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=404, content={"detail": "TestRunExecution not found"}
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "999", "--start"])
 
         assert result.exit_code == 1
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
 
-    def test_repeat_other_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+    def test_repeat_other_api_error(
+        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
+    ) -> None:
         """A non-404 API error is surfaced via the standard error-handling path."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=500, content=b"Internal Server Error"
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
 
         assert result.exit_code == 1
         assert "Failed to repeat test run execution '1' (Status: 500) - Internal Server Error" in result.output
 
-    def test_repeat_other_api_error_does_not_start(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+    def test_repeat_other_api_error_does_not_start(
+        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
+    ) -> None:
         """A failed repeat (non-404) must not attempt to start anything, even with --start."""
-        api = mock_sync_apis.test_run_executions_api
+        api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = UnexpectedResponse(
             status_code=500, content=b"Internal Server Error"
         )
 
-        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
             result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--start"])
 
         assert result.exit_code == 1
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_not_called()
+
+    def test_repeat_timeout_error(
+        self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock
+    ) -> None:
+        """A timeout while repeating the execution is surfaced as a clean, readable error
+        instead of a raw traceback (the original bug report for this command)."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.side_effect = (
+            ResponseHandlingException(ReadTimeout("timed out"))
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+        ):
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
+
+        assert result.exit_code == 1
+        assert "Timed out waiting for the server" in result.output
 
     def test_repeat_configuration_error(self, cli_runner: CliRunner) -> None:
         """A ConfigurationError from get_client is surfaced to the user."""
@@ -323,6 +437,20 @@ class TestExportExecutionCommand:
         assert "Failed to write export file '/no/such/dir/out.json'" in result.output
         assert "Permission denied" in result.output
 
+    def test_export_timeout_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """A timeout while exporting is surfaced as a clean, readable error instead of a raw
+        traceback (the original bug report for this command)."""
+        api = mock_sync_apis.test_run_executions_api
+        api.export_test_run_execution_api_v1_test_run_executions__id__export_get.side_effect = (
+            ResponseHandlingException(ReadTimeout("timed out"))
+        )
+
+        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(test_run_execution, ["export", "--id", "1"])
+
+        assert result.exit_code == 1
+        assert "Timed out waiting for the server" in result.output
+
     def test_export_help_message(self, cli_runner: CliRunner) -> None:
         """Test the help message for the export command."""
         result = cli_runner.invoke(test_run_execution, ["export", "--help"])
@@ -399,6 +527,23 @@ class TestImportExecutionCommand:
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "--project-id" in result.output
+
+    def test_import_timeout_error(self, cli_runner: CliRunner, mock_sync_apis: Mock, temp_dir: Path) -> None:
+        """A timeout while importing is surfaced as a clean, readable error instead of a raw
+        traceback (the original bug report for this command)."""
+        import_file = temp_dir / "run.json"
+        import_file.write_text(_make_exported_execution().model_dump_json())
+
+        api = mock_sync_apis.test_run_executions_api
+        api.import_test_run_execution_api_v1_test_run_executions_import_post.side_effect = (
+            ResponseHandlingException(ReadTimeout("timed out"))
+        )
+
+        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(test_run_execution, ["import", "--file", str(import_file), "--project-id", "1"])
+
+        assert result.exit_code == 1
+        assert "Timed out waiting for the server" in result.output
 
     def test_import_help_message(self, cli_runner: CliRunner) -> None:
         """Test the help message for the import command."""
