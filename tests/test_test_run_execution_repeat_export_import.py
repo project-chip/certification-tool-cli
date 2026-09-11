@@ -245,6 +245,42 @@ class TestRepeatCommand:
         assert "Timed out waiting for the server" in result.output
         mock_test_logging.stop_log_streaming.assert_called_once()
 
+    def test_repeat_websocket_connect_failure(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
+    ) -> None:
+        """An unexpected failure while connecting the websocket (e.g. the backend refuses the
+        connection) is surfaced as a clean CLIError instead of a raw Python traceback, and the
+        log streaming server started for the run is still stopped."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            sample_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.return_value = (
+            sample_test_run_execution
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock(side_effect=ConnectionRefusedError("connection refused"))
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
+
+        assert result.exit_code == 1
+        assert "Unexpected error during repeated test execution" in result.output
+        assert "Traceback" not in result.output
+        mock_test_logging.stop_log_streaming.assert_called_once()
+        mock_api_client.aclose.assert_called_once()
+
     def test_repeat_not_found(self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock) -> None:
         """A 404 from the API is surfaced as a clear 'not found' error, and nothing is started."""
         api = mock_async_apis.test_run_executions_api

@@ -311,13 +311,14 @@ async def repeat(id: int, title: str | None, no_color: bool, no_streaming: bool)
 
     client = None
     try:
-        client = get_client()
-        client._async_client.timeout = TEST_RUN_EXECUTION_IO_TIMEOUT
+        client = get_client(timeout=TEST_RUN_EXECUTION_IO_TIMEOUT)
         async_apis = AsyncApis(client)
         new_execution = await __repeat_test_run_execution(async_apis, id, title)
         await __start_and_stream_repeated_execution(async_apis, new_execution, enable_streaming=not no_streaming)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
+    except Exception as e:
+        raise CLIError(f"Unexpected error during repeated test execution: {e}")
     finally:
         if client:
             await client.aclose()
@@ -344,8 +345,7 @@ async def repeat(id: int, title: str | None, no_color: bool, no_streaming: bool)
 )
 def export(id: int, output_file: str | None) -> None:
     try:
-        with closing(get_client()) as client:
-            client._async_client.timeout = TEST_RUN_EXECUTION_IO_TIMEOUT
+        with closing(get_client(timeout=TEST_RUN_EXECUTION_IO_TIMEOUT)) as client:
             sync_apis = SyncApis(client)
             __export_test_run_execution(sync_apis, id, output_file)
 
@@ -374,8 +374,7 @@ def export(id: int, output_file: str | None) -> None:
 )
 def import_execution(file: str, project_id: int) -> None:
     try:
-        with closing(get_client()) as client:
-            client._async_client.timeout = TEST_RUN_EXECUTION_IO_TIMEOUT
+        with closing(get_client(timeout=TEST_RUN_EXECUTION_IO_TIMEOUT)) as client:
             sync_apis = SyncApis(client)
             __import_test_run_execution(sync_apis, file, project_id)
 
