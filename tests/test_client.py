@@ -86,6 +86,33 @@ class TestGetClient:
 
         assert captured_host[0].startswith("http://")
 
+    def test_timeout_not_passed_when_omitted(self):
+        """When no timeout is given, ApiClient is not passed a 'timeout' kwarg (httpx's
+        own default applies)."""
+        from th_cli.client import get_client
+
+        with patch("th_cli.client.ApiClient") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            get_client()
+
+        assert "timeout" not in mock_cls.call_args.kwargs
+
+    def test_timeout_forwarded_to_api_client(self):
+        """An explicit timeout is forwarded to ApiClient (and from there to the
+        underlying httpx.AsyncClient), instead of callers having to poke
+        client._async_client.timeout after construction."""
+        from httpx import Timeout
+
+        from th_cli.client import get_client
+
+        custom_timeout = Timeout(120.0, connect=10.0)
+
+        with patch("th_cli.client.ApiClient") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            get_client(timeout=custom_timeout)
+
+        assert mock_cls.call_args.kwargs.get("timeout") == custom_timeout
+
 
 # ---------------------------------------------------------------------------
 # Module-level client fallback

@@ -13,15 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from httpx import Timeout
+
 from th_cli.api_lib_autogen.api_client import ApiClient
 from th_cli.config import config
 from th_cli.exceptions import ConfigurationError
 
 
-def get_client() -> ApiClient:
-    """Get API client with proper error handling."""
+def get_client(timeout: Timeout | float | None = None) -> ApiClient:
+    """Get API client with proper error handling.
+
+    Args:
+        timeout: Optional httpx timeout to use for this client's requests,
+            forwarded to the underlying httpx.AsyncClient. Defaults to
+            httpx's own default if not provided.
+    """
     try:
-        return ApiClient(host=f"http://{config.hostname}")
+        kwargs = {} if timeout is None else {"timeout": timeout}
+        return ApiClient(host=f"http://{config.hostname}", **kwargs)
     except Exception as e:
         raise ConfigurationError(
             f"Could not connect to API server at {config.hostname}. "
