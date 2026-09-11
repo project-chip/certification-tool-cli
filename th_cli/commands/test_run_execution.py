@@ -657,24 +657,26 @@ async def __start_and_stream_repeated_execution(
         click.echo(border)
         click.echo("")
 
-    socket = TestRunSocket(new_execution)
+    socket = TestRunSocket(new_execution, project_config_dict=new_execution.execution_config or {})
     socket_task = asyncio.create_task(socket.connect_websocket())
     try:
-        start_call = test_run_execution_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
-        started_execution = await start_call(id=new_execution.id)
-    except UnexpectedResponse as e:
-        await _cancel_socket_task(socket_task)
-        if e.status_code == 409:
+        try:
+            start_call = test_run_execution_api.start_test_run_execution_api_v1_test_run_executions__id__start_post
+            started_execution = await start_call(id=new_execution.id)
+        except UnexpectedResponse as e:
+            await _cancel_socket_task(socket_task)
+            if e.status_code == 409:
+                raise CLIError(
+                    f"Execution {new_execution.id} was created but could not be started: "
+                    f"{_extract_error_detail(e)}"
+                ) from e
+            handle_api_error(e, f"start repeated test run execution '{new_execution.id}'")
+        except ResponseHandlingException as e:
+            await _cancel_socket_task(socket_task)
             raise CLIError(
-                f"Execution {new_execution.id} was created but could not be started: "
-                f"{_extract_error_detail(e)}"
-            )
-        handle_api_error(e, f"start repeated test run execution '{new_execution.id}'")
-    except ResponseHandlingException as e:
-        await _cancel_socket_task(socket_task)
-        raise CLIError(_timeout_or_connection_error(e, f"start repeated test run execution '{new_execution.id}'"))
+                _timeout_or_connection_error(e, f"start repeated test run execution '{new_execution.id}'")
+            ) from e
 
-    try:
         socket.run = started_execution
         await socket_task
         click.echo(colorize_key_value("Log output in", italic(log_path)))
