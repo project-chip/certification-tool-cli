@@ -49,12 +49,22 @@ def _make_exported_execution(title: str = "My Execution!") -> api_models.Exporte
 class TestRepeatCommand:
     """Test cases for the `test-run-execution repeat` command."""
 
+    @pytest.fixture(autouse=True)
+    def mock_test_logging(self):
+        """Patch th_cli.test_run.logging so tests don't start a real LogStreamHandler
+        (and its daemon HTTP server) for every invocation."""
+        with patch("th_cli.commands.test_run_execution.test_logging") as mock_logging:
+            mock_logging.configure_logger_for_run.return_value = "/tmp/test_run.log"
+            mock_logging.get_log_stream_url.return_value = None
+            yield mock_logging
+
     def test_repeat_success(
         self,
         cli_runner: CliRunner,
         mock_async_apis: Mock,
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
     ) -> None:
         """By default, repeat creates the new execution, starts it, and attaches to it the
         same way `run-tests` does (and the frontend's 'Repeat' action does): streaming live
@@ -88,9 +98,15 @@ class TestRepeatCommand:
         api.start_test_run_execution_api_v1_test_run_executions__id__start_post.assert_called_once_with(
             id=sample_test_run_execution.id
         )
-        mock_socket_class.assert_called_once_with(sample_test_run_execution)
+        mock_test_logging.configure_logger_for_run.assert_called_once_with(
+            title=sample_test_run_execution.title, enable_log_streaming=True
+        )
+        mock_socket_class.assert_called_once_with(
+            sample_test_run_execution, project_config_dict=sample_test_run_execution.execution_config or {}
+        )
         mock_socket.connect_websocket.assert_called_once()
         assert mock_socket.run == sample_test_run_execution
+        mock_test_logging.stop_log_streaming.assert_called_once()
         mock_api_client.aclose.assert_called_once()
 
     def test_repeat_with_custom_title(
@@ -131,8 +147,10 @@ class TestRepeatCommand:
         mock_async_apis: Mock,
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
     ) -> None:
-        """A failure to start the repeated execution is surfaced via the standard error-handling path."""
+        """A failure to start the repeated execution is surfaced via the standard error-handling path,
+        and the log streaming server started for the run is still stopped."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
@@ -157,6 +175,7 @@ class TestRepeatCommand:
             f"Failed to start repeated test run execution '{sample_test_run_execution.id}' "
             "(Status: 500) - Internal Server Error" in result.output
         )
+        mock_test_logging.stop_log_streaming.assert_called_once()
 
     def test_repeat_start_conflict(
         self,
@@ -164,8 +183,10 @@ class TestRepeatCommand:
         mock_async_apis: Mock,
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
     ) -> None:
-        """A 409 (e.g. test engine busy) makes clear the execution was still created."""
+        """A 409 (e.g. test engine busy) makes clear the execution was still created, and the
+        log streaming server started for the run is still stopped."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
@@ -188,6 +209,7 @@ class TestRepeatCommand:
         assert result.exit_code == 1
         assert f"Execution {sample_test_run_execution.id} was created but could not be started" in result.output
         assert "Test Engine is busy." in result.output
+        mock_test_logging.stop_log_streaming.assert_called_once()
 
     def test_repeat_start_timeout(
         self,
@@ -195,9 +217,11 @@ class TestRepeatCommand:
         mock_async_apis: Mock,
         mock_api_client: Mock,
         sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
     ) -> None:
         """A timeout while starting the repeated execution is surfaced as a clean, readable
-        error instead of a raw traceback."""
+        error instead of a raw traceback, and the log streaming server started for the run
+        is still stopped."""
         api = mock_async_apis.test_run_executions_api
         api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
             sample_test_run_execution
@@ -219,6 +243,7 @@ class TestRepeatCommand:
 
         assert result.exit_code == 1
         assert "Timed out waiting for the server" in result.output
+        mock_test_logging.stop_log_streaming.assert_called_once()
 
     def test_repeat_not_found(self, cli_runner: CliRunner, mock_async_apis: Mock, mock_api_client: Mock) -> None:
         """A 404 from the API is surfaced as a clear 'not found' error, and nothing is started."""
@@ -292,6 +317,39 @@ class TestRepeatCommand:
 
         assert result.exit_code != 0
         assert "Missing option" in result.output or "--id" in result.output
+
+    def test_repeat_no_streaming_disables_log_viewer(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
+    ) -> None:
+        """--no-streaming disables the real-time web log viewer for the new execution."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            sample_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.return_value = (
+            sample_test_run_execution
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1", "--no-streaming"])
+
+        assert result.exit_code == 0
+        mock_test_logging.configure_logger_for_run.assert_called_once_with(
+            title=sample_test_run_execution.title, enable_log_streaming=False
+        )
 
     def test_repeat_help_message(self, cli_runner: CliRunner) -> None:
         """Test the help message for the repeat command."""
