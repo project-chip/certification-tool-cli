@@ -20,7 +20,15 @@ import click
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_cmd_help, colorize_header, colorize_help, colorize_state, italic
+from th_cli.colorize import (
+    colorize_cmd_help,
+    colorize_error,
+    colorize_header,
+    colorize_help,
+    colorize_state,
+    colorize_success,
+    italic,
+)
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.utils import __print_json
 
@@ -246,6 +254,49 @@ def pics_export(id: int, output_file: str) -> None:
 
     except CLIError:
         raise  # Re-raise CLI Errors as-is
+
+
+@test_run_execution.command(
+    name="delete",
+    short_help=colorize_help("Delete a test run execution"),
+    help=colorize_cmd_help("delete", "Delete a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to delete"),
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help=colorize_help("Delete the test run execution without confirmation"),
+)
+def delete(id: int, yes: bool) -> None:
+    """Delete a test run execution"""
+    if not yes:
+        if not click.confirm(colorize_error("Are you sure you want to delete the test run execution?")):
+            click.echo("Operation cancelled.")
+            return
+
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __delete_test_run_execution(sync_apis, id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __delete_test_run_execution(sync_apis: SyncApis, id: int) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution_api.remove_test_run_execution_api_v1_test_run_executions__id__delete(id=id)
+        click.echo(colorize_success(f"Test run execution {id} was deleted."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"delete test run execution ID '{id}'")
 
 
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
