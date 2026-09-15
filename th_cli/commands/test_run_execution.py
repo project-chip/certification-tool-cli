@@ -299,6 +299,47 @@ def __delete_test_run_execution(sync_apis: SyncApis, id: int) -> None:
         handle_api_error(e, f"delete test run execution ID '{id}'")
 
 
+@test_run_execution.command(
+    name="rename",
+    short_help=colorize_help("Rename a test run execution"),
+    help=colorize_cmd_help("rename", "Rename a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to rename"),
+)
+@click.option(
+    "--name",
+    "-n",
+    required=True,
+    type=str,
+    help=colorize_help("New name for the test run execution"),
+)
+def rename(id: int, name: str) -> None:
+    """Rename a test run execution"""
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __rename_test_run_execution(sync_apis, id, name)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __rename_test_run_execution(sync_apis: SyncApis, id: int, name: str) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        response = test_run_execution_api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put(
+            id=id, new_execution_name=name
+        )
+        click.echo(colorize_success(f"Test run execution {id} was renamed to '{response.title}'."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"rename test run execution ID '{id}'")
+
+
 def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
