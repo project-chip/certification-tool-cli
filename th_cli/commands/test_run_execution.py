@@ -332,10 +332,10 @@ def rename(id: int, name: str) -> None:
 def __rename_test_run_execution(sync_apis: SyncApis, id: int, name: str) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
-        test_run_execution_api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put(
+        response = test_run_execution_api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put(
             id=id, new_execution_name=name
         )
-        click.echo(colorize_success(f"Test run execution {id} was renamed to '{name}'."))
+        click.echo(colorize_success(f"Test run execution {id} was renamed to '{response.title}'."))
     except UnexpectedResponse as e:
         handle_api_error(e, f"rename test run execution ID '{id}'")
 

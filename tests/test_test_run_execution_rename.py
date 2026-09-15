@@ -20,6 +20,7 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 
+from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.commands.test_run_execution import test_run_execution
 
@@ -32,7 +33,9 @@ class TestRenameTestRunExecutionCommand:
     def test_rename_success(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
         """Test successful rename."""
         api = mock_sync_apis.test_run_executions_api
-        api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put.return_value = None
+        api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put.return_value = (
+            api_models.TestRunExecutionWithChildren(id=1, title="New Name", state=api_models.TestStateEnum.pending)
+        )
 
         with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
             result = cli_runner.invoke(test_run_execution, ["rename", "--id", "1", "--name", "New Name"])
@@ -42,6 +45,22 @@ class TestRenameTestRunExecutionCommand:
         api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put.assert_called_once_with(
             id=1, new_execution_name="New Name"
         )
+
+    def test_rename_echoes_stripped_title_from_response(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """The backend strips whitespace from new_execution_name before persisting; the
+        success message must echo the response's title, not the raw --name input, so it
+        reflects what was actually saved."""
+        api = mock_sync_apis.test_run_executions_api
+        api.rename_test_run_execution_api_v1_test_run_executions__id__rename_put.return_value = (
+            api_models.TestRunExecutionWithChildren(id=1, title="New Name", state=api_models.TestStateEnum.pending)
+        )
+
+        with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(test_run_execution, ["rename", "--id", "1", "--name", "  New Name  "])
+
+        assert result.exit_code == 0
+        assert "Test run execution 1 was renamed to 'New Name'." in result.output
+        assert "'  New Name  '" not in result.output
 
     def test_rename_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
         """Test that an API error is surfaced to the user."""
