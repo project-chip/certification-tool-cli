@@ -102,7 +102,9 @@ class TestRepeatCommand:
             title=sample_test_run_execution.title, enable_log_streaming=True
         )
         mock_socket_class.assert_called_once_with(
-            sample_test_run_execution, project_config_dict=sample_test_run_execution.execution_config or {}
+            sample_test_run_execution,
+            project_config_dict=sample_test_run_execution.execution_config or {},
+            two_way_talk_handler=None,
         )
         mock_socket.connect_websocket.assert_called_once()
         assert mock_socket.run == sample_test_run_execution
@@ -397,6 +399,88 @@ class TestRepeatCommand:
         assert "--no-color" in result.output
         assert "--no-streaming" in result.output
 
+    def test_repeat_starts_two_way_talk_handler_for_webrtc_test(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        two_way_talk_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
+    ) -> None:
+        """Repeating an execution that includes TC_WEBRTC_1_6 should stand up the same
+        two-way-talk pre-flight (handler + banner/wait) as `run-tests`, and tear it down
+        afterwards, instead of silently falling back to a handler-less server later."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            two_way_talk_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.return_value = (
+            two_way_talk_test_run_execution
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.test_run_execution.TwoWayTalkHandler") as mock_handler_class,
+            patch("th_cli.commands.test_run_execution._print_webrtc_banner_and_wait", new=AsyncMock()) as mock_banner,
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+            mock_handler = Mock()
+            mock_handler_class.return_value = mock_handler
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
+
+        assert result.exit_code == 0
+        mock_handler_class.assert_called_once_with(port=8999)
+        mock_handler.start_waiting.assert_called_once()
+        mock_banner.assert_called_once()
+        mock_socket_class.assert_called_once_with(
+            two_way_talk_test_run_execution,
+            project_config_dict=two_way_talk_test_run_execution.execution_config or {},
+            two_way_talk_handler=mock_handler,
+        )
+        mock_handler.stop.assert_called_once()
+
+    def test_repeat_stops_two_way_talk_handler_on_start_failure(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        mock_api_client: Mock,
+        two_way_talk_test_run_execution: api_models.TestRunExecutionWithChildren,
+        mock_test_logging: Mock,
+        mock_unexpected_response: UnexpectedResponse,
+    ) -> None:
+        """The two-way-talk handler must be stopped even if starting the repeated
+        execution fails, so a failed 'repeat' doesn't leave port 8999 bound."""
+        api = mock_async_apis.test_run_executions_api
+        api.repeat_test_run_execution_api_v1_test_run_executions__id__repeat_post.return_value = (
+            two_way_talk_test_run_execution
+        )
+        api.start_test_run_execution_api_v1_test_run_executions__id__start_post.side_effect = (
+            mock_unexpected_response
+        )
+
+        with (
+            patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client),
+            patch("th_cli.commands.test_run_execution.AsyncApis", return_value=mock_async_apis),
+            patch("th_cli.commands.test_run_execution.TestRunSocket") as mock_socket_class,
+            patch("th_cli.commands.test_run_execution.TwoWayTalkHandler") as mock_handler_class,
+            patch("th_cli.commands.test_run_execution._print_webrtc_banner_and_wait", new=AsyncMock()),
+        ):
+            mock_socket = Mock()
+            mock_socket.connect_websocket = AsyncMock()
+            mock_socket_class.return_value = mock_socket
+            mock_handler = Mock()
+            mock_handler_class.return_value = mock_handler
+
+            result = cli_runner.invoke(test_run_execution, ["repeat", "--id", "1"])
+
+        assert result.exit_code != 0
+        mock_handler.stop.assert_called_once()
+
 
 @pytest.mark.unit
 @pytest.mark.cli
@@ -578,3 +662,36 @@ class TestImportExecutionCommand:
         assert result.exit_code == 0
         assert "--file" in result.output
         assert "--project-id" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestRepeatedExecutionContainsTwoWayTalk:
+    """Tests for `_repeated_execution_contains_two_way_talk`, which decides whether `repeat`
+    needs to stand up the same WebRTC two-way-talk pre-flight as `run-tests`."""
+
+    def test_true_when_execution_has_webrtc_test(
+        self, two_way_talk_test_run_execution: api_models.TestRunExecutionWithChildren
+    ) -> None:
+        from th_cli.commands.test_run_execution import _repeated_execution_contains_two_way_talk
+
+        assert _repeated_execution_contains_two_way_talk(two_way_talk_test_run_execution) is True
+
+    def test_false_when_execution_has_no_webrtc_test(
+        self, sample_test_run_execution: api_models.TestRunExecutionWithChildren
+    ) -> None:
+        from th_cli.commands.test_run_execution import _repeated_execution_contains_two_way_talk
+
+        assert _repeated_execution_contains_two_way_talk(sample_test_run_execution) is False
+
+    def test_false_when_no_test_suite_executions(self) -> None:
+        from th_cli.commands.test_run_execution import _repeated_execution_contains_two_way_talk
+
+        execution = api_models.TestRunExecutionWithChildren(
+            id=3,
+            title="Empty Run",
+            state=api_models.TestStateEnum.pending,
+            project_id=1,
+            test_suite_executions=None,
+        )
+        assert _repeated_execution_contains_two_way_talk(execution) is False

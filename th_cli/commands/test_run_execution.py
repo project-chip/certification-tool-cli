@@ -39,8 +39,11 @@ from th_cli.colorize import (
     italic,
     set_colors_enabled,
 )
+from th_cli.commands.run_tests import TWO_WAY_TALK_TEST_IDS, _print_webrtc_banner_and_wait
+from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.test_run import logging as test_logging
+from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import __print_json
 
@@ -709,6 +712,15 @@ async def __repeat_test_run_execution(
         raise CLIError(_timeout_or_connection_error(e, f"repeat test run execution '{id}'"))
 
 
+def _repeated_execution_contains_two_way_talk(new_execution: TestRunExecutionWithChildren) -> bool:
+    """Return True if the repeated execution includes a two-way-talk test (e.g. TC_WEBRTC_1_6)."""
+    for suite in new_execution.test_suite_executions or []:
+        for case in suite.test_case_executions:
+            if case.public_id in TWO_WAY_TALK_TEST_IDS:
+                return True
+    return False
+
+
 async def __start_and_stream_repeated_execution(
     async_apis: AsyncApis, new_execution: TestRunExecutionWithChildren, enable_streaming: bool = True
 ) -> None:
@@ -741,7 +753,17 @@ async def __start_and_stream_repeated_execution(
         click.echo(border)
         click.echo("")
 
-    socket = TestRunSocket(new_execution, project_config_dict=new_execution.execution_config or {})
+    two_way_talk_handler = None
+    if _repeated_execution_contains_two_way_talk(new_execution):
+        two_way_talk_handler = TwoWayTalkHandler(port=8999)
+        two_way_talk_handler.start_waiting()
+        await _print_webrtc_banner_and_wait(th_config.hostname, two_way_talk_handler)
+
+    socket = TestRunSocket(
+        new_execution,
+        project_config_dict=new_execution.execution_config or {},
+        two_way_talk_handler=two_way_talk_handler,
+    )
     socket_task = asyncio.create_task(socket.connect_websocket())
     try:
         try:
@@ -766,6 +788,8 @@ async def __start_and_stream_repeated_execution(
         click.echo(colorize_key_value("Log output in", italic(log_path)))
     finally:
         test_logging.stop_log_streaming()
+        if two_way_talk_handler:
+            two_way_talk_handler.stop()
 
 
 async def _cancel_socket_task(socket_task: "asyncio.Task[None]") -> None:
