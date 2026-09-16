@@ -389,6 +389,56 @@ def sample_test_run_execution() -> api_models.TestRunExecutionWithChildren:
 
 
 @pytest.fixture
+def two_way_talk_test_run_execution() -> api_models.TestRunExecutionWithChildren:
+    """Sample test run execution whose selected tests include TC_WEBRTC_1_6, the two-way-talk test."""
+    return api_models.TestRunExecutionWithChildren(
+        id=2,
+        title="Two Way Talk Run",
+        state=api_models.TestStateEnum.pending,
+        project_id=1,
+        test_suite_executions=[
+            api_models.TestSuiteExecution(
+                id=2,
+                execution_index=1,
+                collection_id="SDK Python Tests",
+                public_id="Python Testing Suite",
+                mandatory=False,
+                state=api_models.TestStateEnum.pending,
+                test_run_execution_id=2,
+                test_suite_metadata_id=2,
+                test_case_executions=[
+                    api_models.TestCaseExecution(
+                        id=2,
+                        execution_index=1,
+                        public_id="TC_WEBRTC_1_6",
+                        state=api_models.TestStateEnum.pending,
+                        test_suite_execution_id=2,
+                        test_case_metadata_id=2,
+                        test_case_metadata=api_models.TestCaseMetadata(
+                            id=2,
+                            public_id="TC_WEBRTC_1_6",
+                            title="Two Way Talk",
+                            description="WebRTC two-way talk test",
+                            version="1.0",
+                            source_hash="webrtc123",
+                        ),
+                        test_step_executions=[],
+                    )
+                ],
+                test_suite_metadata=api_models.TestSuiteMetadata(
+                    id=2,
+                    public_id="Python Testing Suite",
+                    title="Python Testing Suite",
+                    description="Test suite for Python-based testing",
+                    version="1.0",
+                    source_hash="pytesting456",
+                ),
+            )
+        ],
+    )
+
+
+@pytest.fixture
 def sample_test_runner_status() -> api_models.TestRunnerStatus:
     """Create a sample test runner status for testing."""
     return api_models.TestRunnerStatus(state=api_models.TestRunnerState.idle, test_run_execution_id=None)
