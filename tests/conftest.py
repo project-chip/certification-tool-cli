@@ -26,7 +26,6 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from click.testing import CliRunner
 from faker import Faker
-from httpx import Headers
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.api_client import ApiClient, AsyncApis, SyncApis
@@ -447,7 +446,7 @@ def sample_test_runner_status() -> api_models.TestRunnerStatus:
 @pytest.fixture
 def mock_unexpected_response() -> UnexpectedResponse:
     """Create a mock UnexpectedResponse exception."""
-    return UnexpectedResponse(status_code=404, content=b"Not Found", headers=Headers())
+    return UnexpectedResponse(status_code=404, content=b"Not Found")
 
 
 @pytest.fixture

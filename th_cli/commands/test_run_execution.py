@@ -116,6 +116,12 @@ _list_options = [
         default=False,
         help=colorize_help("Fetch all test run executions with screen pagination (cannot be used with --limit)"),
     ),
+    click.option(
+        "--archived",
+        is_flag=True,
+        default=False,
+        help=colorize_help("List only archived test run executions (not applicable with --id)"),
+    ),
 ]
 
 
@@ -149,6 +155,7 @@ def test_run_execution(
     log: bool,
     json: bool,
     all: bool,
+    archived: bool,
 ) -> None:
     """Manage test run executions - list history or fetch logs"""
     if ctx.invoked_subcommand is None:
@@ -170,6 +177,7 @@ def list_executions(
     log: bool,
     json: bool,
     all: bool,
+    archived: bool,
 ) -> None:
     """Manage test run executions - list history or fetch logs"""
 
@@ -194,6 +202,9 @@ def list_executions(
     if log and all:
         raise click.ClickException("--all option is not applicable when fetching logs (--log)")
 
+    if archived and id is not None:
+        raise click.ClickException("--archived is not applicable when fetching a specific execution via --id")
+
     try:
         with closing(get_client()) as client:
             sync_apis = SyncApis(client)
@@ -203,7 +214,7 @@ def list_executions(
             elif id is not None:
                 __test_run_execution_by_id(sync_apis, id, json)
             else:
-                __test_run_execution_batch(sync_apis, json, skip, limit, sort, all, project_id)
+                __test_run_execution_batch(sync_apis, json, skip, limit, sort, all, project_id, archived)
 
     except CLIError:
         raise  # Re-raise CLI Errors as-is
@@ -361,6 +372,70 @@ def __rename_test_run_execution(sync_apis: SyncApis, id: int, name: str) -> None
 
 
 @test_run_execution.command(
+    name="archive",
+    short_help=colorize_help("Archive a test run execution"),
+    help=colorize_cmd_help("archive", "Archive a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to archive"),
+)
+def archive(id: int) -> None:
+    """Archive a test run execution"""
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __archive_test_run_execution(sync_apis, id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __archive_test_run_execution(sync_apis: SyncApis, id: int) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution_api.archive_api_v1_test_run_executions__id__archive_post(id=id)
+        click.echo(colorize_success(f"Test run execution {id} was archived."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"archive test run execution ID '{id}'")
+
+
+@test_run_execution.command(
+    name="unarchive",
+    short_help=colorize_help("Unarchive a test run execution"),
+    help=colorize_cmd_help("unarchive", "Unarchive a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to unarchive"),
+)
+def unarchive(id: int) -> None:
+    """Unarchive a test run execution"""
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __unarchive_test_run_execution(sync_apis, id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __unarchive_test_run_execution(sync_apis: SyncApis, id: int) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution_api.unarchive_api_v1_test_run_executions__id__unarchive_post(id=id)
+        click.echo(colorize_success(f"Test run execution {id} was unarchived."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"unarchive test run execution ID '{id}'")
+
+
+@test_run_execution.command(
     name="repeat",
     short_help=colorize_help("Repeat a test run execution"),
     help=colorize_cmd_help("repeat", "Create a new execution with the same selected tests/config as an existing one"),
@@ -483,7 +558,12 @@ def __test_run_execution_by_id(sync_apis: SyncApis, id: int, json: bool) -> None
 
 
 def __print_filters_info(
-    skip: int | None, limit: int | None, sort_order: str, show_all: bool = False, project_id: int | None = None
+    skip: int | None,
+    limit: int | None,
+    sort_order: str,
+    show_all: bool = False,
+    project_id: int | None = None,
+    archived: bool = False,
 ) -> str:
     """Generate comprehensive filter and pagination information text."""
     filters = []
@@ -491,6 +571,10 @@ def __print_filters_info(
     # Project filter
     if project_id is not None:
         filters.append(f"Project ID: {project_id}")
+
+    # Archived filter
+    if archived:
+        filters.append("Archived: yes")
 
     # Order information (more descriptive than just "Sort: DESC")
     if sort_order == "desc":
@@ -525,6 +609,7 @@ def __test_run_execution_batch(
     sort_order: str = "desc",
     show_all: bool = False,
     project_id: int | None = None,
+    archived: bool = False,
 ) -> None:
     try:
         test_run_execution_api = sync_apis.test_run_executions_api
@@ -533,7 +618,7 @@ def __test_run_execution_batch(
         effective_limit = 0 if show_all else limit
 
         test_run_executions = test_run_execution_api.read_test_run_executions_api_v1_test_run_executions__get(
-            skip=skip, limit=effective_limit, sort_order=sort_order, project_id=project_id
+            skip=skip, limit=effective_limit, sort_order=sort_order, project_id=project_id, archived=archived
         )
 
         if json:
@@ -544,7 +629,9 @@ def __test_run_execution_batch(
                 output_lines = []
                 output_lines.append(
                     click.style(
-                        __print_filters_info(skip, limit, sort_order, show_all, project_id), fg="cyan", bold=True
+                        __print_filters_info(skip, limit, sort_order, show_all, project_id, archived),
+                        fg="cyan",
+                        bold=True,
                     )
                 )
                 output_lines.append("")  # Empty line
@@ -579,7 +666,9 @@ def __test_run_execution_batch(
                 # Regular output with filter info
                 click.echo(
                     click.style(
-                        __print_filters_info(skip, limit, sort_order, show_all, project_id), fg="cyan", bold=True
+                        __print_filters_info(skip, limit, sort_order, show_all, project_id, archived),
+                        fg="cyan",
+                        bold=True,
                     )
                 )
                 click.echo()  # Add empty line for readability
