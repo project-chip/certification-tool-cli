@@ -61,7 +61,7 @@ class TestTestRunExecutionCommand:
         assert "Test Run 1" in result.output
         assert "Test Run 2" in result.output
         assert "PASSED" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_success_specific_id(
@@ -107,7 +107,7 @@ class TestTestRunExecutionCommand:
         # Assert
         assert result.exit_code == 0
         assert "Test Run 3" in result.output
-        api.assert_called_once_with(skip=10, limit=5, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=10, limit=5, sort_order="desc", project_id=None, archived=False)
 
     def test_test_run_execution_success_json_output(
         self,
@@ -316,7 +316,7 @@ class TestTestRunExecutionCommand:
 
         # Assert
         assert result.exit_code == 0
-        api.assert_called_once_with(skip=skip, limit=limit, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=skip, limit=limit, sort_order="desc", project_id=None, archived=False)
 
     def test_test_run_execution_error_display(
         self,
@@ -742,7 +742,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         assert "Old Test Run" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=None)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=None, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_sort_parameter_desc_default(
@@ -770,7 +770,7 @@ Escape sequences: \n\t\r"""
         assert result.exit_code == 0
         assert "New Test Run" in result.output
         assert "Old Test Run" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_sort_parameter_explicit_desc(
@@ -798,7 +798,7 @@ Escape sequences: \n\t\r"""
         assert result.exit_code == 0
         assert "New Test Run" in result.output
         assert "Old Test Run" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_all_flag(
@@ -826,7 +826,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         # When --all is used, limit should be set to 0
-        api.assert_called_once_with(skip=None, limit=0, sort_order="desc", project_id=None)
+        api.assert_called_once_with(skip=None, limit=0, sort_order="desc", project_id=None, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_all_with_limit_fails(
@@ -885,7 +885,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         assert "Project 5 Test Run" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=5)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=5, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_short_form(
@@ -909,7 +909,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         assert "Project 10 Test Run" in result.output
-        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=10)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=10, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_and_pagination(
@@ -933,7 +933,7 @@ Escape sequences: \n\t\r"""
         # Assert
         assert result.exit_code == 0
         assert "Filtered Paginated Test Run" in result.output
-        api.assert_called_once_with(skip=5, limit=10, sort_order="desc", project_id=7)
+        api.assert_called_once_with(skip=5, limit=10, sort_order="desc", project_id=7, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_with_project_id_and_sort(
@@ -954,7 +954,7 @@ Escape sequences: \n\t\r"""
 
         # Assert
         assert result.exit_code == 0
-        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=3)
+        api.assert_called_once_with(skip=None, limit=None, sort_order="asc", project_id=3, archived=False)
         mock_api_client.close.assert_called_once()
 
     def test_test_run_execution_project_id_with_log_fails(
@@ -969,3 +969,67 @@ Escape sequences: \n\t\r"""
         assert result.exit_code != 0
         assert "--project-id" in result.output
         assert "not applicable" in result.output or "Error" in result.output
+
+    def test_test_run_execution_archived_flag(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
+    ) -> None:
+        """Test that --archived filters for archived test run executions only."""
+        # Arrange
+        test_executions = [
+            api_models.TestRunExecution(
+                id=1, title="Archived Run", state=api_models.TestStateEnum.passed, project_id=1
+            ),
+        ]
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
+        api.return_value = test_executions
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--archived"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "Archived Run" in result.output
+        assert "Archived: yes" in result.output
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=None, archived=True)
+        mock_api_client.close.assert_called_once()
+
+    def test_test_run_execution_archived_flag_with_project_id(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
+    ) -> None:
+        """Test that --archived can be combined with --project-id."""
+        # Arrange
+        api = mock_sync_apis.test_run_executions_api.read_test_run_executions_api_v1_test_run_executions__get
+        api.return_value = []
+
+        with patch("th_cli.commands.test_run_execution.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.test_run_execution.SyncApis", return_value=mock_sync_apis):
+                # Act
+                result = cli_runner.invoke(test_run_execution, ["--archived", "--project-id", "5"])
+
+        # Assert
+        assert result.exit_code == 0
+        api.assert_called_once_with(skip=None, limit=None, sort_order="desc", project_id=5, archived=True)
+
+    def test_test_run_execution_archived_with_id_fails(
+        self,
+        cli_runner: CliRunner,
+    ) -> None:
+        """Test that --archived cannot be used with --id."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--id", "123", "--archived"])
+
+        # Assert
+        assert result.exit_code != 0
+        assert "--archived" in result.output
+        assert "not applicable" in result.output or "Error" in result.output
+
+    def test_test_run_execution_help_shows_archived_option(self, cli_runner: CliRunner) -> None:
+        """Test that the help message includes the --archived option."""
+        # Act
+        result = cli_runner.invoke(test_run_execution, ["--help"])
+
+        # Assert
+        assert result.exit_code == 0
+        assert "--archived" in result.output
