@@ -361,6 +361,70 @@ def __rename_test_run_execution(sync_apis: SyncApis, id: int, name: str) -> None
 
 
 @test_run_execution.command(
+    name="archive",
+    short_help=colorize_help("Archive a test run execution"),
+    help=colorize_cmd_help("archive", "Archive a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to archive"),
+)
+def archive(id: int) -> None:
+    """Archive a test run execution"""
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __archive_test_run_execution(sync_apis, id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __archive_test_run_execution(sync_apis: SyncApis, id: int) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution_api.archive_api_v1_test_run_executions__id__archive_post(id=id)
+        click.echo(colorize_success(f"Test run execution {id} was archived."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"archive test run execution ID '{id}'")
+
+
+@test_run_execution.command(
+    name="unarchive",
+    short_help=colorize_help("Unarchive a test run execution"),
+    help=colorize_cmd_help("unarchive", "Unarchive a test run execution"),
+)
+@click.option(
+    "--id",
+    "-i",
+    required=True,
+    type=int,
+    help=colorize_help("Test Run Execution ID to unarchive"),
+)
+def unarchive(id: int) -> None:
+    """Unarchive a test run execution"""
+    try:
+        with closing(get_client()) as client:
+            sync_apis = SyncApis(client)
+            __unarchive_test_run_execution(sync_apis, id)
+
+    except CLIError:
+        raise  # Re-raise CLI Errors as-is
+
+
+def __unarchive_test_run_execution(sync_apis: SyncApis, id: int) -> None:
+    try:
+        test_run_execution_api = sync_apis.test_run_executions_api
+        test_run_execution_api.unarchive_api_v1_test_run_executions__id__unarchive_post(id=id)
+        click.echo(colorize_success(f"Test run execution {id} was unarchived."))
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"unarchive test run execution ID '{id}'")
+
+
+@test_run_execution.command(
     name="repeat",
     short_help=colorize_help("Repeat a test run execution"),
     help=colorize_cmd_help("repeat", "Create a new execution with the same selected tests/config as an existing one"),
