@@ -51,8 +51,28 @@ def get_extended_help() -> str:
     return help_text
 
 
+def _print_version(ctx: click.Context, param: click.Parameter, value: bool) -> None:
+    """Eager --version callback.
+
+    Computed lazily (only when --version is actually passed) so that other
+    invocations (--help, subcommands, etc.) don't pay the cost of a server
+    round-trip in get_extended_help() -> get_versions().
+    """
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(get_extended_help())
+    ctx.exit()
+
+
 @click.group(help=colorize_cmd_help("th-cli", "A CLI tool for Matter Test Harness"))
-@click.version_option(message=get_extended_help())
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=_print_version,
+    help="Show the version and exit.",
+)
 def root() -> None:
     pass
 
