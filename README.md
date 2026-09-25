@@ -72,7 +72,7 @@ Optional:
   
   This allows the same JSON file to work with `project create`, `project update`, and `run-tests` commands. If not provided, the project's default configuration will be used.
 - `--pics-config-folder`: Path to the folder that contains PICS files. If not specified, no PICS file will be used.
-- `--project-id`: Project ID that this test run belongs to. If not provided, uses the default 'CLI Execution Project' in TH.
+- `--project-id`: Project ID that this test run belongs to. If not provided, uses the default 'CLI Project Execution' in TH.
 - `--no-color`: Disable all colors from the CLI's output text of this test run execution
 - `-- <extra-sdk-args>`: Pass additional arguments directly to the SDK container Python tests. Use the double dash (`--`) separator followed by any SDK test arguments. These arguments will be added to every Python test execution in the run.
 
