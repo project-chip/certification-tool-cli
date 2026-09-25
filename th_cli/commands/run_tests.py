@@ -116,7 +116,7 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     "--project-id",
     type=int,
     help=colorize_help(
-        "Project ID that this test run belongs to. " "If not provided, uses the default 'CLI Execution Project' in TH."
+        "Project ID that this test run belongs to. " "If not provided, uses the default 'CLI Project Execution' in TH."
     ),
 )
 @click.option(
