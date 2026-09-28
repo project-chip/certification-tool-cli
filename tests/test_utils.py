@@ -42,7 +42,7 @@ class TestBuildTestSelection:
         tests_list = ["TC-ACE-1.1", "TC_ACE_1_3"]
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
@@ -51,6 +51,7 @@ class TestBuildTestSelection:
         assert "FirstChipToolSuite" in result["SDK YAML Tests"]
         assert "TC-ACE-1.1" in result["SDK YAML Tests"]["FirstChipToolSuite"]
         assert result["SDK YAML Tests"]["FirstChipToolSuite"]["TC-ACE-1.1"] == 1
+        assert missing_ids == []
 
     def test_build_test_selection_no_matches(self, sample_test_collections: api_models.TestCollections) -> None:
         """Test test selection building with no matching tests."""
@@ -58,11 +59,12 @@ class TestBuildTestSelection:
         tests_list = ["TC-NONEXISTENT-1.1"]
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
         assert len(result) == 0
+        assert missing_ids == ["TC-NONEXISTENT-1.1"]
 
     def test_build_test_selection_mixed_formats(self, sample_test_collections: api_models.TestCollections) -> None:
         """Test test selection building with mixed ID formats."""
@@ -70,12 +72,13 @@ class TestBuildTestSelection:
         tests_list = ["TC-ACE-1.1", "TC_ACE_1_3", "TC.ACE.1.2"]
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
         # Should normalize formats and find matches
         assert len(result) > 0
+        assert missing_ids == []
 
     def test_build_test_selection_empty_list(self, sample_test_collections: api_models.TestCollections) -> None:
         """Test test selection building with empty test list."""
@@ -83,11 +86,12 @@ class TestBuildTestSelection:
         tests_list = []
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
         assert len(result) == 0
+        assert missing_ids == []
 
     def test_build_test_selection_whitespace_handling(
         self, sample_test_collections: api_models.TestCollections
@@ -97,10 +101,39 @@ class TestBuildTestSelection:
         tests_list = [" TC-ACE-1.1 ", "\tTC_ACE_1_3\t"]
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
+        assert missing_ids == []
+
+    def test_build_test_selection_unmatched_ids_reported(
+        self, sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Test that unmatched IDs are reported alongside valid matches, preserving original spelling."""
+        # Arrange
+        tests_list = ["TC-ACE-1.1", "TC-TYPO-9.9"]
+
+        # Act
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
+
+        # Assert
+        assert "TC-ACE-1.1" in result["SDK YAML Tests"]["FirstChipToolSuite"]
+        assert missing_ids == ["TC-TYPO-9.9"]
+
+    def test_build_test_selection_duplicate_normalized_unmatched_ids_all_reported(
+        self, sample_test_collections: api_models.TestCollections
+    ) -> None:
+        """Distinct unmatched IDs that normalize to the same key are all reported, not just the last one."""
+        # Arrange
+        tests_list = ["TC-TYPO-9.9", "TC_TYPO_9_9", "tc.typo.9.9"]
+
+        # Act
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
+
+        # Assert
+        assert result == {}
+        assert missing_ids == ["TC-TYPO-9.9", "TC_TYPO_9_9", "tc.typo.9.9"]
 
 
 @pytest.mark.unit
@@ -740,11 +773,12 @@ class TestUtilityFunctionsCoverage:
         tests_list = ["tc-ace-1.1", "TC_ACE_1_3"]
 
         # Act
-        result = build_test_selection(sample_test_collections, tests_list)
+        result, missing_ids = build_test_selection(sample_test_collections, tests_list)
 
         # Assert
         assert isinstance(result, dict)
         # Should still find matches despite case differences in normalization
+        assert missing_ids == []
 
     def test_convert_nested_to_dict_special_attributes(self) -> None:
         """Test that special attributes are properly filtered."""
@@ -808,7 +842,7 @@ class TestBuildTestSelectionCaseInsensitive:
         self, sample_test_collections: api_models.TestCollections
     ) -> None:
         """All-lowercase input 'tc-ace-1.1' matches the collection entry 'TC-ACE-1.1'."""
-        result = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
+        result, _ = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
 
         assert "SDK YAML Tests" in result
         assert "FirstChipToolSuite" in result["SDK YAML Tests"]
@@ -819,7 +853,7 @@ class TestBuildTestSelectionCaseInsensitive:
         self, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Mixed-case input 'Tc-Ace-1.1' matches the collection entry 'TC-ACE-1.1'."""
-        result = build_test_selection(sample_test_collections, ["Tc-Ace-1.1"])
+        result, _ = build_test_selection(sample_test_collections, ["Tc-Ace-1.1"])
 
         suite = result.get("SDK YAML Tests", {}).get("FirstChipToolSuite", {})
         assert "TC-ACE-1.1" in suite
@@ -829,7 +863,7 @@ class TestBuildTestSelectionCaseInsensitive:
         self, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Lowercase 'tc_ace_1_3' matches the Python collection entry 'TC_ACE_1_3'."""
-        result = build_test_selection(sample_test_collections, ["tc_ace_1_3"])
+        result, _ = build_test_selection(sample_test_collections, ["tc_ace_1_3"])
 
         assert "SDK Python Tests" in result
         assert "Python Testing Suite" in result["SDK Python Tests"]
@@ -838,7 +872,7 @@ class TestBuildTestSelectionCaseInsensitive:
 
     def test_uppercase_input_still_matches(self, sample_test_collections: api_models.TestCollections) -> None:
         """Existing all-uppercase input continues to work after the change."""
-        result = build_test_selection(sample_test_collections, ["TC-ACE-1.2"])
+        result, _ = build_test_selection(sample_test_collections, ["TC-ACE-1.2"])
 
         suite = result.get("SDK YAML Tests", {}).get("FirstChipToolSuite", {})
         assert "TC-ACE-1.2" in suite
@@ -848,7 +882,7 @@ class TestBuildTestSelectionCaseInsensitive:
         self, sample_test_collections: api_models.TestCollections
     ) -> None:
         """Output uses the original collection key, not the normalised form."""
-        result = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
+        result, _ = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
 
         suite = result.get("SDK YAML Tests", {}).get("FirstChipToolSuite", {})
         assert "TC-ACE-1.1" in suite  # original key preserved
@@ -857,7 +891,7 @@ class TestBuildTestSelectionCaseInsensitive:
 
     def test_multiple_mixed_case_ids_all_resolved(self, sample_test_collections: api_models.TestCollections) -> None:
         """Multiple IDs in varying cases are all matched in a single call."""
-        result = build_test_selection(
+        result, _ = build_test_selection(
             sample_test_collections,
             ["tc-ace-1.1", "TC-ACE-1.2", "Tc-Cc-1.1"],
         )
@@ -869,7 +903,7 @@ class TestBuildTestSelectionCaseInsensitive:
 
     def test_no_false_positives_for_unrelated_ids(self, sample_test_collections: api_models.TestCollections) -> None:
         """Selecting one ID by lowercase does not accidentally select other IDs."""
-        result = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
+        result, _ = build_test_selection(sample_test_collections, ["tc-ace-1.1"])
 
         suite = result.get("SDK YAML Tests", {}).get("FirstChipToolSuite", {})
         assert "TC-ACE-1.2" not in suite

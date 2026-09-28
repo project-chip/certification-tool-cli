@@ -56,7 +56,7 @@ def __json_string(object: Any) -> str:
         return json.dumps(object.model_dump(), indent=4, default=str)
 
 
-def build_test_selection(test_collections, tests_list) -> dict:
+def build_test_selection(test_collections, tests_list) -> tuple[dict, list[str]]:
     """Build the test selection JSON structure from test_collections and tests_list.
 
     Args:
@@ -64,7 +64,11 @@ def build_test_selection(test_collections, tests_list) -> dict:
         tests_list: List of test IDs to select
 
     Returns:
-        dict: Dictionary containing selected tests organized by collection and suite
+        A tuple of:
+        - ``selected_tests`` – dict containing selected tests organized by
+          collection and suite.
+        - ``missing_ids`` – list of TC IDs from *tests_list* that had no
+          matching test case in *test_collections* (may be empty).
 
     Example:
         tests_list = ["TC-ACE-1.1", "TC_ACE_1_3"]
@@ -83,8 +87,15 @@ def build_test_selection(test_collections, tests_list) -> dict:
     """
     selected_tests = {}
 
-    # Convert test IDs to a set for faster lookup and normalize them (case-insensitive)
-    tests_set = {test_id.strip().replace("-", "_").replace(".", "_").upper() for test_id in tests_list}
+    # Map normalized (case-insensitive) test IDs back to their original spelling(s),
+    # so unmatched entries can be reported to the caller as requested. Multiple
+    # original spellings can normalize to the same key (e.g. "TC-TYPO-9.9" and
+    # "TC_TYPO_9_9"), so track them all rather than overwriting.
+    unmatched_ids: dict[str, list[str]] = {}
+    for test_id in tests_list:
+        normalized_id = test_id.strip().replace("-", "_").replace(".", "_").upper()
+        unmatched_ids.setdefault(normalized_id, []).append(test_id.strip())
+    tests_set = set(unmatched_ids)
 
     # Iterate through test collections
     for collection_name, collection in test_collections.test_collections.items():
@@ -100,6 +111,7 @@ def build_test_selection(test_collections, tests_list) -> dict:
                 normalized_test_case_id = test_case_id.replace("-", "_").replace(".", "_").upper()
                 if normalized_test_case_id in tests_set:
                     selected_tests[collection_name][suite_name][test_case_id] = 1
+                    unmatched_ids.pop(normalized_test_case_id, None)
 
     # Remove empty collections and suites
     selected_tests = {
@@ -108,7 +120,9 @@ def build_test_selection(test_collections, tests_list) -> dict:
         if any(suites.values())
     }
 
-    return selected_tests
+    missing_ids = [original_id for ids in unmatched_ids.values() for original_id in ids]
+
+    return selected_tests, missing_ids
 
 
 def load_json_config(config_path: str) -> dict[str, Any]:

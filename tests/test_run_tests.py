@@ -491,10 +491,9 @@ class TestRunTestsCommand:
             "TC-ACE-1.1,TC-ACE-1.2",
             "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3",
             "TC_ACE_1_1,TC_ACE_1_2,TC_ACE_1_3,TC_ACE_1_3-custom",
-            "TC-ACE-1.1, TC-ACE-1.2, TC-ACE-1.3",  # with spaces
-            "TC-MCORE_FS-1.1, TC-MCORE_FS-1_2, TC_MCORE_FS-1.2",
-            "TC_CADMIN_1_3_4",
-            "TC_CADMIN_1_3_102",
+            "TC-ACE-1.1, TC-ACE-1.2, TC-CC-1.1",  # with spaces
+            "TC-ACE-1.1, TC_ACE_1_2, TC-CC-1.1",  # mixed separators
+            "TC_ACE_1_3",
         ],
     )
     def test_run_tests_various_test_lists(
@@ -570,7 +569,10 @@ class TestRunTestsCommand:
                         with patch(
                             "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
                         ):
-                            mock_build_test_selection.return_value = {"mock_collection": {"mock_suite": {"mock": 1}}}
+                            mock_build_test_selection.return_value = (
+                                {"mock_collection": {"mock_suite": {"mock": 1}}},
+                                [],
+                            )
                             mock_socket = Mock()
                             mock_socket.connect_websocket = AsyncMock()
                             mock_socket.expected_test_case_count.return_value = 0
@@ -587,6 +589,47 @@ class TestRunTestsCommand:
         mock_build_test_selection.assert_called_once()
         # Verify the test selection is displayed
         assert "Selected tests" in result.output
+
+    def test_run_tests_aborts_on_unmatched_test_ids(
+        self,
+        cli_runner: CliRunner,
+        mock_async_apis: Mock,
+        sample_test_collections: api_models.TestCollections,
+        sample_test_run_execution: api_models.TestRunExecutionWithChildren,
+        sample_default_config_dict: dict,
+    ) -> None:
+        """Test that the run aborts before creating a test run if any --tests-list ID is unmatched."""
+        # Arrange
+        project_api = mock_async_apis.projects_api.default_config_api_v1_projects_default_config_get
+        test_collection_api = mock_async_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        test_run_executions_api = mock_async_apis.test_run_executions_api
+        cli_api = test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+
+        project_api.return_value = sample_default_config_dict
+        test_collection_api.return_value = sample_test_collections
+
+        with patch("th_cli.commands.run_tests.AsyncApis", return_value=mock_async_apis):
+            with patch(
+                "th_cli.commands.run_tests.test_logging.configure_logger_for_run", return_value="./test_logs/test.log"
+            ):
+                with patch("th_cli.commands.run_tests.build_test_selection") as mock_build_test_selection:
+                    with patch(
+                        "th_cli.commands.run_tests.convert_nested_to_dict", return_value=sample_default_config_dict
+                    ):
+                        mock_build_test_selection.return_value = (
+                            {"mock_collection": {"mock_suite": {"mock": 1}}},
+                            ["TC-TYPO-9.9"],
+                        )
+
+                        # Act
+                        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1,TC-TYPO-9.9"])
+
+        # Assert
+        assert result.exit_code == 1
+        assert "TC-TYPO-9.9" in result.output
+        assert "No matching test case found" in result.output
+        # The run must never be created when a requested ID is unmatched.
+        cli_api.assert_not_called()
 
     def test_run_tests_logger_configuration(
         self,
