@@ -95,8 +95,11 @@ DRAIN_TIMEOUT_S = 5.0
 
 # Yield to the event loop every N log records while processing one batch, so
 # a very large batch doesn't block the websocket read loop for its entire
-# duration.
-LOG_RECORD_YIELD_INTERVAL = 200
+# duration. The backend sends up to LOG_RECORDS_BROADCAST_CHUNK_SIZE=200
+# records per message (test_ui_observer.py), so the old value of 200 only
+# yielded once per message; lowering it means a single large message yields
+# multiple times instead of running uninterrupted end to end.
+LOG_RECORD_YIELD_INTERVAL = 50
 
 # TestRun states that are not yet finished, mirroring the backend's own
 # TestRun.completed() contract (state not in [PENDING, EXECUTING]). Anything
