@@ -805,8 +805,10 @@ class ApiClient:
         if response.status_code in [200, 201, 204]:
             try:
                 # Use Pydantic v2 TypeAdapter for validation
-                if type_ is None or response.status_code == 204:
+                if response.status_code == 204:
                     return None
+                if type_ is None:
+                    return response.text
                 adapter = TypeAdapter(type_)
                 if type_ == bytes:
                     return adapter.validate_python(response.content)
