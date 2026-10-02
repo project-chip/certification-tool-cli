@@ -84,14 +84,6 @@ _SUMMARY_STATE_LABELS: list[tuple[str, str]] = [
     (TestStateEnum.CANCELLED.value, "cancelled"),
 ]
 
-# After the test run reaches a terminal state, the backend may still have a
-# trailing batch of log records queued/in-flight (it flushes and broadcasts
-# any pending log entries *after* sending the terminal state update - see
-# TestLogHandler.finish()/TestUIObserver.complete_tasks() on the backend).
-# Keep draining for a short grace period instead of closing immediately, so
-# that trailing batch isn't dropped by a socket we already hung up on.
-DRAIN_TIMEOUT_S = 5.0
-
 # Yield to the event loop every N log records while processing one batch, so
 # a very large batch doesn't block the websocket read loop for its entire
 # duration.
@@ -177,25 +169,18 @@ class TestRunSocket:
                 write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
             ) as socket:
                 try:
-                    while True:
+                    # Stop as soon as the terminal TestRunUpdate has been
+                    # handled. Log records the backend flushes after that are
+                    # not waited for here: the complete log is fetched from
+                    # the backend once it's persisted (see run_log.py).
+                    while not self._run_finished:
                         try:
-                            if self._run_finished:
-                                # Drain any trailing messages for a short grace
-                                # period instead of closing the instant the
-                                # terminal state update arrives.
-                                message = await asyncio.wait_for(socket.recv(), timeout=DRAIN_TIMEOUT_S)
-                            else:
-                                message = await socket.recv()
+                            message = await socket.recv()
                         except websockets.exceptions.ConnectionClosedOK:
-                            if not self._run_finished:
-                                # Connection closed cleanly, but before the run
-                                # reached a terminal state - the run itself was
-                                # interrupted, not just the drain period.
-                                incomplete_closure = True
-                            break
-                        except asyncio.TimeoutError:
-                            # No more trailing messages arrived during the
-                            # drain grace period - safe to close now.
+                            # Connection closed cleanly, but before the run
+                            # reached a terminal state - the run itself was
+                            # interrupted.
+                            incomplete_closure = True
                             break
 
                         # skip messages that are bytes, as we're expecting a string.\
@@ -274,11 +259,7 @@ class TestRunSocket:
         elif isinstance(update.body, TestRunUpdate):
             await self.__log_test_run_update(update.body)
             if update.body.state not in NON_TERMINAL_RUN_STATES:
-                # Test run ended. Don't close immediately - the backend may
-                # still be flushing/broadcasting a trailing batch of log
-                # entries after this message; let the read loop keep
-                # draining for a short grace period (see DRAIN_TIMEOUT_S)
-                # before actually closing.
+                # Test run ended; the read loop closes the socket.
                 self._run_finished = True
 
     async def __log_test_run_update(self, update: TestRunUpdate) -> None:

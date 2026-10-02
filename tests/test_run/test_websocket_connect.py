@@ -133,7 +133,7 @@ class TestConnectWebsocketIncompleteClosure:
 
     @pytest.mark.asyncio
     async def test_clean_close_after_run_finished_does_not_raise(self):
-        """Existing behavior: clean close during the post-terminal drain period is fine."""
+        """Once the run has finished, the socket is closed without reading further."""
         s = _make_socket()
         s._run_finished = True
         fake_socket = _FakeWSSocket(recv_side_effect=ws_exceptions.ConnectionClosedOK(None, None))

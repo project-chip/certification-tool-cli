@@ -15,11 +15,15 @@
 #
 import datetime
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from loguru import logger
 
 from th_cli.config import config
+from th_cli.test_run.socket_schemas import TestLogRecord
+
+if TYPE_CHECKING:
+    from loguru import Record
 
 # Add custom logger for "chip-tool"
 CHIPTOOL_LEVEL = "CHIPTOOL"
@@ -32,6 +36,17 @@ logger.level(PYTHON_TEST_LEVEL, no=22, icon="🐍", color="<cyan>")
 # Global reference to log stream handler (if enabled)
 _log_stream_handler: Optional["LogStreamHandler"] = None
 
+# Loguru sink id of the current run's log file (see write_log_file_from_entries())
+_log_file_sink_id: Optional[int] = None
+
+# `extra` key marking records replayed by write_log_file_from_entries(), so only
+# its own sink receives them (and e.g. the live log viewer doesn't get them twice).
+_REPLAY_EXTRA_KEY = "backend_log_replay"
+
+
+def _is_not_replayed(record: "Record") -> bool:
+    return _REPLAY_EXTRA_KEY not in record["extra"]
+
 
 def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> str:
     """Configure logger for a test run.
@@ -43,7 +58,7 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
     Returns:
         Path to the log file
     """
-    global _log_stream_handler
+    global _log_stream_handler, _log_file_sink_id
 
     # Reset (Remove all sinks from logger)
     logger.remove()
@@ -54,7 +69,7 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
         f"test_run_{title}_{timestamp}.log",
     )
 
-    logger.add(log_path, enqueue=True, format=config.log_config.format, mode="w")
+    _log_file_sink_id = logger.add(log_path, enqueue=True, format=config.log_config.format, mode="w")
 
     # Add streaming sink if enabled
     if enable_log_streaming:
@@ -76,7 +91,7 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
                     pass
 
             # Add sink with enqueue=True to prevent re-entrancy and catch=True to suppress errors
-            logger.add(stream_sink, format="{message}", catch=True)
+            logger.add(stream_sink, format="{message}", catch=True, filter=_is_not_replayed)
             logger.info(f"Real-time log streaming enabled: {viewer_url}")
 
         except Exception as e:
@@ -84,6 +99,71 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
             _log_stream_handler = None
 
     return log_path
+
+
+def write_log_file_from_entries(log_path: str, entries: Iterable[TestLogRecord]) -> None:
+    """Overwrite the run's log file with `entries`, e.g. the log persisted by the backend.
+
+    Each entry is rendered by loguru with config.log_config.format - the same
+    format the websocket-fed file sink uses - with its time set to the entry's
+    own timestamp, converted to this machine's local timezone.
+
+    The run's file sink is detached first: it writes from a background thread
+    (enqueue=True), and removing it waits for already-queued lines to be
+    written, so nothing stale can be appended after the replacement. Any
+    logging after this no longer goes to the file.
+    """
+    global _log_file_sink_id
+
+    if _log_file_sink_id is not None:
+        logger.remove(_log_file_sink_id)
+        _log_file_sink_id = None
+
+    # Timestamp of the entry being logged, read by the patcher below. Safe to
+    # share: the replay sink is synchronous (no enqueue), so each record is
+    # patched and written before the next entry is logged.
+    current: dict[str, float] = {}
+
+    def set_entry_time(record: "Record") -> None:
+        # type(record["time"]) is loguru's datetime subclass, which the format's
+        # "{time:...}" tokens need. astimezone() picks the local offset for that
+        # moment, so DST is right even for a run that spans a change.
+        record["time"] = type(record["time"]).fromtimestamp(current["timestamp"]).astimezone()
+
+    # Write to a temp file and swap it in, so an interrupted write can't leave
+    # a truncated log behind.
+    tmp_path = f"{log_path}.tmp"
+    sink_id = logger.add(
+        tmp_path,
+        format=config.log_config.format,
+        mode="w",
+        encoding="utf-8",
+        filter=lambda record: _REPLAY_EXTRA_KEY in record["extra"],
+        catch=False,
+    )
+    try:
+        replay_logger = logger.bind(**{_REPLAY_EXTRA_KEY: True}).patch(set_entry_time)
+        for entry in entries:
+            _ensure_level(entry.level)
+            current["timestamp"] = float(entry.timestamp)
+            replay_logger.log(entry.level, entry.message)
+    except BaseException:
+        logger.remove(sink_id)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+    logger.remove(sink_id)
+    os.replace(tmp_path, log_path)
+
+
+def _ensure_level(name: str) -> None:
+    """Register `name` as a loguru level if it isn't one already, so a level the
+    backend added (beyond CHIPTOOL/PYTHON_TEST) is written under its own name
+    instead of making logger.log() raise."""
+    try:
+        logger.level(name)
+    except ValueError:
+        logger.level(name, no=logger.level("INFO").no)
 
 
 def stop_log_streaming():

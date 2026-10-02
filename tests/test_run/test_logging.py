@@ -15,6 +15,7 @@
 #
 """Unit tests for th_cli/test_run/logging.py."""
 
+import time
 from unittest.mock import MagicMock, call, patch
 
 import pytest
@@ -25,6 +26,7 @@ from th_cli.test_run.logging import (
     get_log_stream_url,
     stop_log_streaming,
 )
+from th_cli.test_run.socket_schemas import TestLogRecord
 
 
 # ---------------------------------------------------------------------------
@@ -235,3 +237,109 @@ class TestGetLogStreamUrl:
 
         get_log_stream_url()
         mock_handler._get_log_viewer_url.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# write_log_file_from_entries
+# ---------------------------------------------------------------------------
+
+# 2026-09-21 14:13:20.123456 UTC
+_TS = 1790000000.123456
+
+
+def _entry(message: str, level: str = "INFO", timestamp: float = _TS) -> TestLogRecord:
+    return TestLogRecord(level=level, timestamp=timestamp, message=message)
+
+
+@pytest.mark.unit
+class TestWriteLogFileFromEntries:
+    @pytest.fixture(autouse=True)
+    def log_config(self, tmp_path):
+        logging_module._log_file_sink_id = None
+        with patch("th_cli.test_run.logging.config") as mock_config:
+            mock_config.log_config.output_log_path = str(tmp_path)
+            mock_config.log_config.format = "{level: <8} | {time:YYYY-MM-DD HH:mm:ss.SSS Z} | {message}"
+            yield mock_config
+        logging_module.logger.remove()
+
+    def test_renders_entries_with_configured_format_in_local_time(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TZ", "America/Los_Angeles")
+        time.tzset()
+        try:
+            log_path = tmp_path / "run.log"
+            logging_module.write_log_file_from_entries(
+                str(log_path), [_entry("first"), _entry("second", level="CHIPTOOL", timestamp=_TS + 1)]
+            )
+        finally:
+            monkeypatch.delenv("TZ")
+            time.tzset()
+
+        assert log_path.read_text(encoding="utf-8") == (
+            "INFO     | 2026-09-21 07:13:20.123 -07:00 | first\n"
+            "CHIPTOOL | 2026-09-21 07:13:21.123 -07:00 | second\n"
+        )
+        assert not (tmp_path / "run.log.tmp").exists()
+
+    def test_utc_offset_follows_dst_per_entry(self, tmp_path, monkeypatch):
+        """Entries either side of a DST change get their own offsets."""
+        monkeypatch.setenv("TZ", "America/Los_Angeles")
+        time.tzset()
+        try:
+            log_path = tmp_path / "run.log"
+            # 2026-11-01 08:59:59 UTC (PDT) and 09:00:00 UTC (PST)
+            logging_module.write_log_file_from_entries(
+                str(log_path), [_entry("before", timestamp=1793523599), _entry("after", timestamp=1793523600)]
+            )
+        finally:
+            monkeypatch.delenv("TZ")
+            time.tzset()
+
+        lines = log_path.read_text(encoding="utf-8").splitlines()
+        assert "01:59:59.000 -07:00" in lines[0]
+        assert "01:00:00.000 -08:00" in lines[1]
+
+    def test_messages_are_written_literally(self, tmp_path):
+        log_path = tmp_path / "run.log"
+        logging_module.write_log_file_from_entries(str(log_path), [_entry("a {brace} and <red>tag</red>")])
+        assert log_path.read_text(encoding="utf-8").endswith("| a {brace} and <red>tag</red>\n")
+
+    def test_unknown_level_is_written_under_its_own_name(self, tmp_path):
+        log_path = tmp_path / "run.log"
+        logging_module.write_log_file_from_entries(str(log_path), [_entry("x", level="SOME_NEW_LEVEL")])
+        assert log_path.read_text(encoding="utf-8").startswith("SOME_NEW_LEVEL | ")
+
+    def test_replaces_websocket_file_and_drops_queued_and_later_lines(self, tmp_path):
+        """Lines still queued in the enqueue=True file sink must land before the
+        replacement, not after it, and nothing logged afterwards reaches the file."""
+        log_path = configure_logger_for_run("run")
+        logging_module.logger.info("websocket line")
+
+        logging_module.write_log_file_from_entries(log_path, [_entry("backend line")])
+        logging_module.logger.info("late line")
+
+        with open(log_path, encoding="utf-8") as f:
+            content = f.read()
+        assert content.endswith("| backend line\n")
+        assert "websocket line" not in content
+        assert "late line" not in content
+        assert logging_module._log_file_sink_id is None
+
+    def test_replayed_entries_do_not_reach_other_sinks(self, tmp_path):
+        seen = []
+        logging_module.logger.add(lambda m: seen.append(m.record["message"]), filter=logging_module._is_not_replayed)
+
+        logging_module.write_log_file_from_entries(str(tmp_path / "run.log"), [_entry("backend line")])
+
+        assert seen == []
+
+    def test_failure_keeps_existing_file_and_removes_temp(self, tmp_path):
+        log_path = tmp_path / "run.log"
+        log_path.write_text("websocket log\n", encoding="utf-8")
+
+        with pytest.raises(ValueError):
+            logging_module.write_log_file_from_entries(
+                str(log_path), [_entry("ok"), TestLogRecord(level="INFO", timestamp="not a time", message="bad")]
+            )
+
+        assert log_path.read_text(encoding="utf-8") == "websocket log\n"
+        assert not (tmp_path / "run.log.tmp").exists()
