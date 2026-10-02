@@ -43,6 +43,7 @@ from th_cli.colorize import (
 from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
+from th_cli.test_run.run_log import sync_log_file_from_backend
 from th_cli.test_run.websocket import IncompleteTestRunError, TestRunSocket
 from th_cli.utils import (
     DEFAULT_CLI_PROJECT_NAME,
@@ -341,6 +342,10 @@ async def run_tests(
         new_test_run = await _start_test_run(async_apis, new_test_run)
         socket.run = new_test_run
         await socket_task
+
+        # The websocket may have closed before the backend's last log records
+        # arrived; replace the local log file with the complete persisted log.
+        await sync_log_file_from_backend(async_apis, new_test_run.id, log_path)
 
         # Defense in depth: connect_websocket() already raises IncompleteTestRunError
         # if the connection dropped before the run reached a terminal state. This

@@ -44,6 +44,7 @@ from th_cli.config import config as th_config
 from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
 from th_cli.test_run import logging as test_logging
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
+from th_cli.test_run.run_log import sync_log_file_from_backend
 from th_cli.test_run.websocket import TestRunSocket
 from th_cli.utils import __print_json
 
@@ -874,6 +875,9 @@ async def __start_and_stream_repeated_execution(
 
         socket.run = started_execution
         await socket_task
+        # The websocket may have closed before the backend's last log records
+        # arrived; replace the local log file with the complete persisted log.
+        await sync_log_file_from_backend(async_apis, new_execution.id, log_path)
         click.echo(colorize_key_value("Log output in", italic(log_path)))
     finally:
         test_logging.stop_log_streaming()

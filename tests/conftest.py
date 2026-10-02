@@ -525,3 +525,19 @@ def generate_test_project_data(**overrides) -> dict[str, Any]:
 def generate_test_ids(count: int = 3) -> list[str]:
     """Generate a list of test case IDs."""
     return [f"TC-TEST-{i}.{fake.random_int(min=1, max=9)}" for i in range(1, count + 1)]
+
+
+@pytest.fixture(autouse=True)
+def mock_sync_log_file_from_backend() -> Generator[AsyncMock, None, None]:
+    """Stop command tests from polling the (mocked) backend for the persisted
+    run log and overwriting log files after the websocket closes. Tests of
+    sync_log_file_from_backend itself import it from th_cli.test_run.run_log,
+    which this doesn't patch."""
+    from unittest.mock import patch
+
+    mock_sync = AsyncMock(return_value=True)
+    with (
+        patch("th_cli.commands.run_tests.sync_log_file_from_backend", mock_sync),
+        patch("th_cli.commands.test_run_execution.sync_log_file_from_backend", mock_sync),
+    ):
+        yield mock_sync
