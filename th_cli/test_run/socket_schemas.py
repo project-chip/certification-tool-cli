@@ -40,6 +40,11 @@ class TestUpdateBase(BaseModel):
 
 class TestRunUpdate(TestUpdateBase):
     test_run_execution_id: int
+    # Set on the terminal update by backends that send it after the run's last
+    # log records: True if they were all sent, False if the run ended before
+    # its logs could be flushed. None from older backends, which send the
+    # terminal update before their last log records.
+    logs_complete: bool | None = None
 
 
 class TestSuiteUpdate(TestUpdateBase):
