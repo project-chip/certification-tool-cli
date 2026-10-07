@@ -155,6 +155,7 @@ class PairingMode(str, Enum):
     BLE_THREAD = "ble-thread"
     WIFIPAF_WIFI = "wifipaf-wifi"
     NFC_THREAD = "nfc-thread"
+    NFC_ETHERNET = "nfc-ethernet"
     ONNETWORK = "onnetwork"
 
 
