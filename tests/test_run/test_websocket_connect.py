@@ -20,6 +20,8 @@ closed (cleanly or abruptly) before the run reached a terminal state was
 silently treated as a successfully completed run.
 """
 
+import asyncio
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -165,4 +167,71 @@ class TestConnectWebsocketIncompleteClosure:
         with _patch_connect(fake_socket):
             await s.connect_websocket()  # must not raise
 
+        fake_socket.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# connect_websocket — closing after the terminal TestRunUpdate
+# ---------------------------------------------------------------------------
+
+
+def _terminal_run_update(**body) -> str:
+    return json.dumps(
+        {
+            "type": "test_update",
+            "payload": {
+                "test_type": "test_run",
+                "body": {"state": "passed", "test_run_execution_id": 1, **body},
+            },
+        }
+    )
+
+
+_TRAILING_LOG_RECORDS = json.dumps(
+    {"type": "test_log_records", "payload": [{"level": "INFO", "timestamp": 1.0, "message": "trailing"}]}
+)
+
+
+@pytest.mark.unit
+class TestConnectWebsocketAfterTerminalUpdate:
+    @pytest.mark.asyncio
+    async def test_logs_complete_closes_without_draining(self):
+        """The backend sent the terminal update after the run's last log records."""
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=[_terminal_run_update(logs_complete=True), AssertionError("must not drain")]
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.DRAIN_TIMEOUT_S", 3600):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert fake_socket.recv.await_count == 1
+        fake_socket.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_logs_incomplete_warns_and_closes_without_draining(self, capsys):
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=[_terminal_run_update(logs_complete=False), AssertionError("must not drain")]
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.DRAIN_TIMEOUT_S", 3600):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert fake_socket.recv.await_count == 1
+        assert "couldn't send all of the run's log records" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_older_backend_drains_trailing_log_records(self):
+        """No logs_complete field: the backend's last log records may still follow."""
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=[_terminal_run_update(), _TRAILING_LOG_RECORDS, asyncio.TimeoutError()]
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.logger") as mock_logger:
+            await s.connect_websocket()
+
+        mock_logger.log.assert_any_call("INFO", "trailing")
+        assert fake_socket.recv.await_count == 3
         fake_socket.close.assert_called_once()

@@ -38,6 +38,7 @@ from th_cli.colorize import (
     colorize_hierarchy_prefix,
     colorize_key_value,
     colorize_state,
+    colorize_warning,
 )
 from th_cli.config import config
 from th_cli.shared_constants import MessageTypeEnum, TestStateEnum
@@ -84,12 +85,12 @@ _SUMMARY_STATE_LABELS: list[tuple[str, str]] = [
     (TestStateEnum.CANCELLED.value, "cancelled"),
 ]
 
-# After the test run reaches a terminal state, the backend may still have a
-# trailing batch of log records queued/in-flight (it flushes and broadcasts
-# any pending log entries *after* sending the terminal state update - see
-# TestLogHandler.finish()/TestUIObserver.complete_tasks() on the backend).
-# Keep draining for a short grace period instead of closing immediately, so
-# that trailing batch isn't dropped by a socket we already hung up on.
+# Older backends send the terminal test run update before flushing and
+# broadcasting the run's last log records. Their terminal update has no
+# `logs_complete` field; keep draining for a short grace period after it
+# instead of closing immediately, so that trailing batch isn't dropped by a
+# socket we already hung up on. Newer backends send the terminal update last,
+# so the socket closes as soon as it arrives.
 DRAIN_TIMEOUT_S = 5.0
 
 # Yield to the event loop every N log records while processing one batch, so
@@ -128,6 +129,8 @@ class TestRunSocket:
         self.two_way_talk_handler = two_way_talk_handler
         self._chip_server_info_displayed = False
         self._run_finished = False
+        # From the terminal TestRunUpdate (see TestRunUpdate.logs_complete).
+        self._logs_complete: bool | None = None
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -178,6 +181,10 @@ class TestRunSocket:
             ) as socket:
                 try:
                     while True:
+                        if self._run_finished and self._logs_complete is not None:
+                            # The backend sent the terminal update after the
+                            # run's last log records: nothing left to drain.
+                            break
                         try:
                             if self._run_finished:
                                 # Drain any trailing messages for a short grace
@@ -274,12 +281,18 @@ class TestRunSocket:
         elif isinstance(update.body, TestRunUpdate):
             await self.__log_test_run_update(update.body)
             if update.body.state not in NON_TERMINAL_RUN_STATES:
-                # Test run ended. Don't close immediately - the backend may
-                # still be flushing/broadcasting a trailing batch of log
-                # entries after this message; let the read loop keep
-                # draining for a short grace period (see DRAIN_TIMEOUT_S)
-                # before actually closing.
+                # Test run ended. The read loop closes the socket, after a
+                # drain period for older backends (see DRAIN_TIMEOUT_S).
                 self._run_finished = True
+                self._logs_complete = update.body.logs_complete
+                if self._logs_complete is False:
+                    click.echo(
+                        colorize_warning(
+                            "The backend couldn't send all of the run's log records; "
+                            "the log file may be missing its final lines."
+                        ),
+                        err=True,
+                    )
 
     async def __log_test_run_update(self, update: TestRunUpdate) -> None:
         # Display CHIP server info when test run starts executing (SDK container already running)
