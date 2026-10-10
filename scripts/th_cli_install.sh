@@ -70,7 +70,7 @@ if ! command -v poetry &> /dev/null; then
   exit 1
 fi
 poetry self update
-poetry --project="$PROJECT_ROOT" install
+poetry --project="$PROJECT_ROOT" install --without dev
 
 # Build the package
 echo "Building package..."
