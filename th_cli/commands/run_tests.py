@@ -21,6 +21,7 @@ import socket as _socket
 from typing import Any
 
 import click
+from click.shell_completion import CompletionItem
 
 import th_cli.api_lib_autogen.models as m
 import th_cli.test_run.camera.two_way_talk_handler as _twt_mod
@@ -62,6 +63,30 @@ JSON_INDENT = 2
 TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
 
 
+def _complete_test_ids(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+    """Complete a single test ID; lists of multiple tests are not completed."""
+    if "," in incomplete:
+        return []
+    try:
+        client = get_client(timeout=3)
+        try:
+            from th_cli.api_lib_autogen.api_client import SyncApis
+
+            if tests := SyncApis(client).test_collections_api.read_test_collections_api_v1_test_collections__get():
+                from th_cli.commands.available_tests import _extract_test_cases
+
+                return [
+                    CompletionItem(item["id"])
+                    for item in _extract_test_cases(tests)
+                    if item["id"].startswith(incomplete)
+                ]
+        finally:
+            client.close()
+    except Exception:
+        return []
+    return []
+
+
 @click.command(
     no_args_is_help=True,
     short_help=colorize_help("CLI execution of a test run"),
@@ -72,6 +97,7 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     "--tests-list",
     "-t",
     required=True,
+    shell_complete=_complete_test_ids,
     help=colorize_help("List of test cases to execute. For example: TC-ACE-1.1,TC_ACE_1_3"),
 )
 @click.option(
@@ -133,8 +159,7 @@ TWO_WAY_TALK_TEST_IDS: frozenset[str] = frozenset({"TC_WEBRTC_1_6"})
     "--prompt-timeout",
     type=int,
     help=colorize_help(
-        "Override the user-prompt response timeout in seconds for this run only "
-        "(th_config.prompt_timeout_seconds)."
+        "Override the user-prompt response timeout in seconds for this run only " "(th_config.prompt_timeout_seconds)."
     ),
 )
 @async_cmd
@@ -293,9 +318,7 @@ async def run_tests(
         # Override the user-prompt timeout if provided (execution-only, not persisted)
         if prompt_timeout is not None:
             click.echo(colorize_key_value("Prompt Timeout Used (Execution Only)", f"{prompt_timeout}s"))
-            test_run_config = merge_configs(
-                test_run_config, {"th_config": {"prompt_timeout_seconds": prompt_timeout}}
-            )
+            test_run_config = merge_configs(test_run_config, {"th_config": {"prompt_timeout_seconds": prompt_timeout}})
 
         # Retrieve available test collections to build test selection
         test_collections = await test_collections_api.read_test_collections_api_v1_test_collections__get()
