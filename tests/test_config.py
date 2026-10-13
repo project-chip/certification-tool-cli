@@ -274,6 +274,9 @@ class TestPairingMode:
     def test_nfc_thread_value(self):
         assert PairingMode.NFC_THREAD.value == "nfc-thread"
 
+    def test_nfc_ethernet_value(self):
+        assert PairingMode.NFC_ETHERNET.value == "nfc-ethernet"
+
     def test_onnetwork_value(self):
         assert PairingMode.ONNETWORK.value == "onnetwork"
 
