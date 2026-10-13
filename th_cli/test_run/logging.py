@@ -75,8 +75,13 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
                     # Silently fail to avoid disrupting logging
                     pass
 
-            # Add sink with enqueue=True to prevent re-entrancy and catch=True to suppress errors
-            logger.add(stream_sink, format="{message}", catch=True)
+            # enqueue=True: run stream_sink on loguru's dedicated worker
+            # thread rather than synchronously on the caller. Without it,
+            # this sink runs inline on whichever thread logged the message -
+            # including the SSE-server thread when it logs its own send
+            # progress (logs_http_server.py), which then re-enters this same
+            # sink/queue from inside itself.
+            logger.add(stream_sink, format="{message}", enqueue=True, catch=True)
             logger.info(f"Real-time log streaming enabled: {viewer_url}")
 
         except Exception as e:
@@ -92,6 +97,12 @@ def stop_log_streaming():
 
     if _log_stream_handler:
         try:
+            # stream_sink runs via enqueue=True, on loguru's worker thread.
+            # complete() blocks until everything already queued has been
+            # delivered, so the last log lines aren't dropped by stopping
+            # the handler (which makes add_log_entry() a no-op) while some
+            # are still in flight.
+            logger.complete()
             _log_stream_handler.stop()
             logger.info("Log streaming stopped")
         except Exception as e:
