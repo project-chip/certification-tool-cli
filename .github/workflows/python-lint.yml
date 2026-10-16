@@ -36,7 +36,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Run linters
-        uses: wearerequired/lint-action@v2
+        uses: wearerequired/lint-action@v3
         with:
           github_token: ${{ secrets.github_token }}
           # Enable linters
