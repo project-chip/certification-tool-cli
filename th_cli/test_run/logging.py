@@ -54,7 +54,12 @@ def configure_logger_for_run(title: str, enable_log_streaming: bool = False) -> 
         f"test_run_{title}_{timestamp}.log",
     )
 
-    logger.add(log_path, enqueue=True, format=config.log_config.format, mode="w")
+    # enqueue=False: write the file synchronously. With enqueue=True every
+    # line is pickled onto a multiprocessing queue and handed to a worker
+    # thread, which costs ~3x more per line than the write itself and is what
+    # limits how fast the CLI can drain a large run's log records. Loguru
+    # still serialises concurrent writers with a per-handler lock.
+    logger.add(log_path, enqueue=False, format=config.log_config.format, mode="w")
 
     # Add streaming sink if enabled
     if enable_log_streaming:
