@@ -57,6 +57,13 @@ class TestConfigureLoggerForRunNoStreaming:
             result = configure_logger_for_run("special_run_title")
         assert "special_run_title" in result
 
+    def test_log_file_sink_is_not_enqueued(self):
+        with patch("th_cli.test_run.logging.logger") as mock_logger:
+            result = configure_logger_for_run("run")
+        mock_logger.add.assert_called_once()
+        assert mock_logger.add.call_args.args[0] == result
+        assert mock_logger.add.call_args.kwargs["enqueue"] is False
+
     def test_log_handler_remains_none_when_streaming_disabled(self):
         with patch("th_cli.test_run.logging.logger"):
             configure_logger_for_run("run", enable_log_streaming=False)
