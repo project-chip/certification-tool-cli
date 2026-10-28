@@ -361,7 +361,9 @@ class TestRunSocket:
                 # Cheap status check first: generating the pairing code runs a command
                 # in the SDK container, so only do it when there is something to show.
                 chip_info = await get_info()
-                if not chip_info.server_started or chip_info.node_id == self._displayed_node_id:
+                # Only an explicit False means "not started": a backend that predates the
+                # server_started field omits it, and should still get the banner.
+                if chip_info.server_started is False or chip_info.node_id == self._displayed_node_id:
                     return
 
                 chip_info = await get_info(

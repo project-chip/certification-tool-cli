@@ -38,7 +38,7 @@ class BodyUploadPicsApiV1ProjectsIdUploadPicsPut(BodyUploadFileApiV1TestRunExecu
 class ChipServerInfo(BaseModel):
     node_id: Annotated[int, Field(title="Node Id")]
     node_id_hex: Annotated[str, Field(title="Node Id Hex")]
-    server_started: Annotated[bool | None, Field(title="Server Started")] = False
+    server_started: Annotated[bool | None, Field(title="Server Started")] = None
     manual_pairing_code: Annotated[str | None, Field(title="Manual Pairing Code")] = None
 
 

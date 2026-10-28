@@ -233,6 +233,18 @@ class TestDisplayManualPairingCode:
         client.aclose.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_displays_node_id_when_backend_omits_server_started(self):
+        s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
+        client, apis, _ = self._patch_chip_info_api(
+            [self._chip_info(node_id=0x10, started=None), self._chip_info(node_id=0x10, started=None)]
+        )
+
+        output = await self._display(s, client, apis)
+
+        assert "0x10" in output
+        assert s._displayed_node_id == 0x10
+
+    @pytest.mark.asyncio
     async def test_does_not_redisplay_unchanged_node_id(self):
         s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
         s._displayed_node_id = 0x10
