@@ -93,6 +93,9 @@ _SUMMARY_STATE_LABELS: list[tuple[str, str]] = [
 # so the socket closes as soon as it arrives.
 DRAIN_TIMEOUT_S = 5.0
 
+# How often to check whether the CHIP server (re)started, so its Node ID is shown.
+CHIP_SERVER_POLL_INTERVAL_S = 2.0
+
 # Yield to the event loop every N log records while processing one batch, so
 # a very large batch doesn't block the websocket read loop for its entire
 # duration. The backend sends up to LOG_RECORDS_BROADCAST_CHUNK_SIZE=200
@@ -131,6 +134,8 @@ class TestRunSocket:
         self.project_config_dict = project_config_dict or {}
         self.two_way_talk_handler = two_way_talk_handler
         self._chip_server_info_displayed = False
+        self._displayed_node_id: int | None = None
+        self._chip_server_watcher: asyncio.Task | None = None
         self._run_finished = False
         # From the terminal TestRunUpdate (see TestRunUpdate.logs_complete).
         self._logs_complete: bool | None = None
@@ -238,6 +243,9 @@ class TestRunSocket:
             # benign handshake quirk.
             if not self._run_finished:
                 incomplete_closure = True
+        finally:
+            if self._chip_server_watcher:
+                self._chip_server_watcher.cancel()
 
         if incomplete_closure:
             raise IncompleteTestRunError(
@@ -300,7 +308,9 @@ class TestRunSocket:
     async def __log_test_run_update(self, update: TestRunUpdate) -> None:
         # Display CHIP server info when test run starts executing (SDK container already running)
         if update.state.value == "executing" and not self._chip_server_info_displayed:
-            await self.__display_manual_pairing_code()
+            # The chip server starts during suite setup, after the run is already
+            # executing, so watch for it instead of querying once.
+            self._chip_server_watcher = asyncio.create_task(self.__watch_chip_server_info())
             self._chip_server_info_displayed = True
 
         handler = get_log_stream_handler()
@@ -314,8 +324,19 @@ class TestRunSocket:
         colored_state = colorize_state(update.state.value)
         click.echo(f"{test_run_text} {colored_state}")
 
+    async def __watch_chip_server_info(self) -> None:
+        """Display the CHIP server info each time the server (re)starts during the run."""
+        while not self._run_finished:
+            await self.__display_manual_pairing_code()
+            await asyncio.sleep(CHIP_SERVER_POLL_INTERVAL_S)
+
     async def __display_manual_pairing_code(self) -> None:
-        """Fetch and display manual pairing code after SDK container has started."""
+        """Display the Node ID and manual pairing code once the CHIP server is up.
+
+        The Node ID is regenerated every time the CHIP server starts, so it is only
+        displayed (again) when the server is started and the ID differs from the last
+        one shown.
+        """
         try:
             # Extract device configuration
             dut_config = self.project_config_dict.get("dut_config", {})
@@ -335,13 +356,22 @@ class TestRunSocket:
             client = get_client()
             try:
                 test_run_api = AsyncApis(client).test_run_executions_api
-                chip_info = await test_run_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get(
+                get_info = test_run_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get
+
+                # Cheap status check first: generating the pairing code runs a command
+                # in the SDK container, so only do it when there is something to show.
+                chip_info = await get_info()
+                if not chip_info.server_started or chip_info.node_id == self._displayed_node_id:
+                    return
+
+                chip_info = await get_info(
                     discriminator=discriminator,
                     setup_pin_code=setup_pin_code,
                     version=version,
                     vendor_id=vendor_id,
                     product_id=product_id,
                 )
+                self._displayed_node_id = chip_info.node_id
 
                 node_id = colorize_key_value("Node ID", chip_info.node_id_hex)
                 click.echo("═══════════════════════════════════════════════════════")
@@ -356,8 +386,8 @@ class TestRunSocket:
                 await client.aclose()
 
         except Exception as e:
-            logger.debug(f"Could not fetch manual pairing code: {e}")
-            # Don't fail the test run if we can't get the pairing code
+            logger.debug(f"Could not fetch CHIP server info: {e}")
+            # Don't fail the test run if we can't get the CHIP server info
 
     def __log_test_suite_update(self, update: TestSuiteUpdate) -> None:
         suite = self.__suite(update.test_suite_execution_index)

@@ -107,30 +107,31 @@ class TestLogTestRunUpdate:
         assert "PASSED" in output.upper() or "passed" in output.lower()
 
     @pytest.mark.asyncio
-    async def test_displays_chip_server_info_on_executing(self):
+    async def test_starts_chip_server_watcher_on_executing(self):
         s = _make_socket(project_config={
             "dut_config": {"discriminator": 1234, "setup_code": 20202021}
         })
         update = TestRunUpdate(state=SharedTestStateEnum.EXECUTING, test_run_execution_id=1)
 
-        with patch.object(s, "_TestRunSocket__display_manual_pairing_code", new_callable=AsyncMock) as mock_display:
+        with patch.object(s, "_TestRunSocket__watch_chip_server_info", new_callable=AsyncMock) as mock_watch:
             with patch("th_cli.test_run.websocket.click.echo"):
                 await s._TestRunSocket__log_test_run_update(update)
+            await s._chip_server_watcher
 
-        mock_display.assert_called_once()
+        mock_watch.assert_called_once()
         assert s._chip_server_info_displayed is True
 
     @pytest.mark.asyncio
-    async def test_does_not_display_chip_info_twice(self):
+    async def test_does_not_start_chip_server_watcher_twice(self):
         s = _make_socket()
         s._chip_server_info_displayed = True
         update = TestRunUpdate(state=SharedTestStateEnum.EXECUTING, test_run_execution_id=1)
 
-        with patch.object(s, "_TestRunSocket__display_manual_pairing_code", new_callable=AsyncMock) as mock_display:
+        with patch.object(s, "_TestRunSocket__watch_chip_server_info", new_callable=AsyncMock) as mock_watch:
             with patch("th_cli.test_run.websocket.click.echo"):
                 await s._TestRunSocket__log_test_run_update(update)
 
-        mock_display.assert_not_called()
+        mock_watch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -176,31 +177,102 @@ class TestDisplayManualPairingCode:
                     await s._TestRunSocket__display_manual_pairing_code()
         # Must not raise
 
-    @pytest.mark.asyncio
-    async def test_calls_chip_server_info_api(self):
-        s = _make_socket(project_config={
-            "dut_config": {"discriminator": 1234, "setup_code": 20202021}
-        })
+    @staticmethod
+    def _patch_chip_info_api(responses):
         mock_client = MagicMock()
         mock_client.aclose = AsyncMock()
-        mock_chip_info = MagicMock()
-        mock_chip_info.node_id_hex = "0x0001"
-        mock_chip_info.manual_pairing_code = "34970112332"
-
-        mock_api = AsyncMock()
-        mock_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get = AsyncMock(
-            return_value=mock_chip_info
-        )
+        get_info = AsyncMock(side_effect=responses)
+        mock_api = MagicMock()
+        mock_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get = get_info
         mock_async_apis = MagicMock()
         mock_async_apis.test_run_executions_api = mock_api
+        return mock_client, mock_async_apis, get_info
 
+    @staticmethod
+    def _chip_info(node_id=1, started=True, manual_code=None):
+        info = MagicMock()
+        info.node_id = node_id
+        info.node_id_hex = hex(node_id)
+        info.server_started = started
+        info.manual_pairing_code = manual_code
+        return info
+
+    async def _display(self, s, mock_client, mock_async_apis):
         with patch("th_cli.test_run.websocket.get_client", return_value=mock_client):
             with patch("th_cli.test_run.websocket.AsyncApis", return_value=mock_async_apis):
-                with patch("th_cli.test_run.websocket.click.echo"):
+                with patch("th_cli.test_run.websocket.click.echo") as mock_echo:
                     await s._TestRunSocket__display_manual_pairing_code()
+        return " ".join(str(a) for call in mock_echo.call_args_list for a in call[0])
 
-        mock_api.get_chip_server_info_api_v1_test_run_executions_chip_server_info_get.assert_called_once()
-        mock_client.aclose.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_does_not_display_node_id_before_server_started(self):
+        s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
+        client, apis, get_info = self._patch_chip_info_api([self._chip_info(started=False)])
+
+        output = await self._display(s, client, apis)
+
+        assert output == ""
+        get_info.assert_called_once_with()
+        assert s._displayed_node_id is None
+        client.aclose.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_displays_node_id_and_pairing_code_once_server_started(self):
+        s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
+        client, apis, get_info = self._patch_chip_info_api(
+            [self._chip_info(node_id=0x10), self._chip_info(node_id=0x10, manual_code="34970112332")]
+        )
+
+        output = await self._display(s, client, apis)
+
+        assert "0x10" in output
+        assert "34970112332" in output
+        assert s._displayed_node_id == 0x10
+        assert get_info.call_count == 2
+        assert get_info.call_args.kwargs["discriminator"] == 1234
+        client.aclose.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_does_not_redisplay_unchanged_node_id(self):
+        s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
+        s._displayed_node_id = 0x10
+        client, apis, get_info = self._patch_chip_info_api([self._chip_info(node_id=0x10)])
+
+        output = await self._display(s, client, apis)
+
+        assert output == ""
+        get_info.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_redisplays_when_node_id_changes(self):
+        s = _make_socket(project_config={"dut_config": {"discriminator": 1234, "setup_code": 20202021}})
+        s._displayed_node_id = 0x10
+        client, apis, _ = self._patch_chip_info_api([self._chip_info(node_id=0x20), self._chip_info(node_id=0x20)])
+
+        output = await self._display(s, client, apis)
+
+        assert "0x20" in output
+        assert s._displayed_node_id == 0x20
+
+
+@pytest.mark.unit
+class TestWatchChipServerInfo:
+    @pytest.mark.asyncio
+    async def test_polls_until_run_finished(self):
+        s = _make_socket()
+        calls = 0
+
+        async def fake_display():
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                s._run_finished = True
+
+        with patch.object(s, "_TestRunSocket__display_manual_pairing_code", side_effect=fake_display):
+            with patch("th_cli.test_run.websocket.CHIP_SERVER_POLL_INTERVAL_S", 0):
+                await s._TestRunSocket__watch_chip_server_info()
+
+        assert calls == 3
 
 
 # ---------------------------------------------------------------------------
