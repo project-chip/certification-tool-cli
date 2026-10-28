@@ -21,7 +21,6 @@ from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjec
 from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollectionsApi, SyncTestCollectionsApi
 from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
 from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
-from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
 from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
 
 __all__ = [
@@ -43,9 +42,6 @@ __all__ = [
     "VersionApi",
     "AsyncVersionApi",
     "SyncVersionApi",
-    "UtilsApi",
-    "AsyncUtilsApi",
-    "SyncUtilsApi",
     "DevicesApi",
     "AsyncDevicesApi",
     "SyncDevicesApi",

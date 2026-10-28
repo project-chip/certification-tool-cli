@@ -25,7 +25,6 @@ from th_cli.api_lib_autogen.api.projects_api import AsyncProjectsApi, SyncProjec
 from th_cli.api_lib_autogen.api.test_collections_api import AsyncTestCollectionsApi, SyncTestCollectionsApi
 from th_cli.api_lib_autogen.api.test_run_configs_api import AsyncTestRunConfigsApi, SyncTestRunConfigsApi
 from th_cli.api_lib_autogen.api.test_run_executions_api import AsyncTestRunExecutionsApi, SyncTestRunExecutionsApi
-from th_cli.api_lib_autogen.api.utils_api import AsyncUtilsApi, SyncUtilsApi
 from th_cli.api_lib_autogen.api.version_api import AsyncVersionApi, SyncVersionApi
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 
@@ -42,7 +41,6 @@ class AsyncApis(Generic[ClientT]):
         self.test_run_executions_api = AsyncTestRunExecutionsApi(self.client)
         self.test_run_configs_api = AsyncTestRunConfigsApi(self.client)
         self.version_api = AsyncVersionApi(self.client)
-        self.utils_api = AsyncUtilsApi(self.client)
         self.devices_api = AsyncDevicesApi(self.client)
 
 
@@ -56,7 +54,6 @@ class SyncApis(Generic[ClientT]):
         self.test_run_executions_api = SyncTestRunExecutionsApi(self.client)
         self.test_run_configs_api = SyncTestRunConfigsApi(self.client)
         self.version_api = SyncVersionApi(self.client)
-        self.utils_api = SyncUtilsApi(self.client)
         self.devices_api = SyncDevicesApi(self.client)
 
 
