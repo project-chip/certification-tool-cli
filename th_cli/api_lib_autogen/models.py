@@ -433,6 +433,30 @@ class TestCollections(BaseModel):
     test_collections: Annotated[dict[str, TestCollection], Field(title="Test Collections")]
 
 
+class TestCaseChange(BaseModel):
+    collection: Annotated[str, Field(title="Collection")]
+    test_suite: Annotated[str, Field(title="Test Suite")]
+    test_case: Annotated[str, Field(title="Test Case")]
+
+
+class ScriptError(BaseModel):
+    script: Annotated[str | None, Field(title="Script")] = None
+    reason: Annotated[str, Field(title="Reason")]
+
+
+class RescanChanges(BaseModel):
+    added: Annotated[list[TestCaseChange] | None, Field(title="Added")] = None
+    modified: Annotated[list[TestCaseChange] | None, Field(title="Modified")] = None
+    removed: Annotated[list[TestCaseChange] | None, Field(title="Removed")] = None
+    errors: Annotated[list[ScriptError] | None, Field(title="Errors")] = None
+    collections: Annotated[list[str] | None, Field(title="Collections")] = None
+
+
+class RescanTestCollections(BaseModel):
+    test_collections: Annotated[dict[str, TestCollection], Field(title="Test Collections")]
+    changes: RescanChanges
+
+
 class TestRunExecutionToExport(BaseModel):
     title: Annotated[str, Field(title="Title")]
     description: Annotated[str | None, Field(title="Description")] = None
