@@ -152,41 +152,87 @@ class TestRescanTestsCommand:
         assert "  ! TC_BAD_1_1.py: Syntax error: invalid syntax (line 3)" in output
         assert "  ! Failed running command: boom" in output
 
-    def test_rescan_tests_reports_custom_overrides(
+    def test_rescan_tests_reports_custom_file_changes(
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
         mock_api_client: Mock,
         sample_test_collections: api_models.TestCollections,
     ) -> None:
-        """Custom files overriding SDK modules are listed, separately from same-name copies nothing imports."""
+        """Added, modified and removed files in custom/ are listed, flagging the ones that replace an SDK module."""
         response = _rescan_response(
             sample_test_collections,
-            custom_overrides=api_models.CustomOverrides(
-                overriding=["TC_SUTestBase.py"], unused_copies=["TC_ACE_1_3.py"]
+            custom_files=api_models.CustomFileChanges(
+                added=[api_models.CustomFileChange(name="TC_SUTestBase.py", replaces_sdk=True)],
+                modified=[api_models.CustomFileChange(name="TC_ACE_1_3.py")],
+                removed=[api_models.CustomFileChange(name="TC_OLD_1_1.py")],
             ),
         )
 
         output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
 
-        assert "No changes detected." in output
-        assert "Custom files overriding SDK modules (used by every test that imports them):" in output
-        assert "  ! TC_SUTestBase.py" in output
-        assert "override nothing" in output
-        assert "  - TC_ACE_1_3.py" in output
+        assert "Custom files" in output
+        assert "  + TC_SUTestBase.py" in output
+        assert "added (replaces sdk/TC_SUTestBase.py)" in output
+        assert "  ~ TC_ACE_1_3.py" in output
+        assert "modified" in output
+        assert "  - TC_OLD_1_1.py" in output
+        assert "removed" in output
+        # Only files that replace an SDK module get the note.
+        assert "sdk/TC_ACE_1_3.py" not in output
+        assert "sdk/TC_OLD_1_1.py" not in output
 
-    def test_rescan_tests_no_custom_overrides_prints_nothing(
+    def test_rescan_tests_custom_file_changes_alone_are_not_reported_as_no_changes(
         self,
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
         mock_api_client: Mock,
         sample_test_collections: api_models.TestCollections,
     ) -> None:
-        response = _rescan_response(sample_test_collections, custom_overrides=api_models.CustomOverrides())
+        """A changed helper has no test case, but the rescan did pick up a change."""
+        response = _rescan_response(
+            sample_test_collections,
+            custom_files=api_models.CustomFileChanges(modified=[api_models.CustomFileChange(name="Helper.py")]),
+        )
 
         output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
 
-        assert "overriding SDK modules" not in output
+        count = len(sample_test_collections.test_collections)
+        assert f"Rescanned test collections successfully ({count} found)" in output
+        assert "No changes detected" not in output
+        assert "  ~ Helper.py" in output
+
+    def test_rescan_tests_removed_file_that_replaced_an_sdk_module(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+    ) -> None:
+        response = _rescan_response(
+            sample_test_collections,
+            custom_files=api_models.CustomFileChanges(
+                removed=[api_models.CustomFileChange(name="Helper.py", replaces_sdk=True)]
+            ),
+        )
+
+        output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
+
+        assert "removed (was replacing sdk/Helper.py)" in output
+
+    def test_rescan_tests_no_custom_file_changes_prints_nothing_extra(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+    ) -> None:
+        response = _rescan_response(sample_test_collections, custom_files=api_models.CustomFileChanges())
+
+        output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
+
+        assert "No changes detected." in output
+        assert "Custom files" not in output
 
     def test_rescan_tests_backend_without_change_report(
         self,

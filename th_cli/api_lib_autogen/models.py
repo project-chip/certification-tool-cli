@@ -42,9 +42,15 @@ class ChipServerInfo(BaseModel):
     manual_pairing_code: Annotated[str | None, Field(title="Manual Pairing Code")] = None
 
 
-class CustomOverrides(BaseModel):
-    overriding: Annotated[list[str] | None, Field(title="Overriding")] = []
-    unused_copies: Annotated[list[str] | None, Field(title="Unused Copies")] = []
+class CustomFileChange(BaseModel):
+    name: Annotated[str, Field(title="Name")]
+    replaces_sdk: Annotated[bool | None, Field(title="Replaces Sdk")] = False
+
+
+class CustomFileChanges(BaseModel):
+    added: Annotated[list[CustomFileChange] | None, Field(title="Added")] = []
+    modified: Annotated[list[CustomFileChange] | None, Field(title="Modified")] = []
+    removed: Annotated[list[CustomFileChange] | None, Field(title="Removed")] = []
 
 
 class Name(RootModel[str]):
@@ -301,11 +307,11 @@ class RescanChanges(BaseModel):
     removed: Annotated[list[TestCaseChange], Field(title="Removed")]
     errors: Annotated[list[ScriptError], Field(title="Errors")]
     collections: Annotated[list[str], Field(title="Collections")]
-    custom_overrides: Annotated[
-        CustomOverrides | None,
+    custom_files: Annotated[
+        CustomFileChanges | None,
         Field(
-            default_factory=lambda: CustomOverrides.model_validate({"overriding": [], "unused_copies": []}),
-            title="Custom Overrides",
+            default_factory=lambda: CustomFileChanges.model_validate({"added": [], "modified": [], "removed": []}),
+            title="Custom Files",
         ),
     ]
 

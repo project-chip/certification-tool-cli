@@ -59,16 +59,25 @@ def _render_errors(errors: list[api_models.ScriptError]) -> list[str]:
     return lines
 
 
-def _render_overrides(overrides: api_models.CustomOverrides) -> list[str]:
+def _render_custom_files(custom_files: api_models.CustomFileChanges) -> list[str]:
+    """Render the files added, modified or removed in custom/, flagging the ones that
+    replace an SDK module."""
+    markers = (
+        ("+", "added", custom_files.added),
+        ("~", "modified", custom_files.modified),
+        ("-", "removed", custom_files.removed),
+    )
+
     lines: list[str] = []
-    if overrides.overriding:
-        lines.append("")
-        lines.append("Custom files overriding SDK modules (used by every test that imports them):")
-        lines.extend(f"  ! {name}" for name in overrides.overriding)
-    if overrides.unused_copies:
-        lines.append("")
-        lines.append("Custom files with the same name as an SDK file that nothing imports (override nothing):")
-        lines.extend(f"  - {name}" for name in overrides.unused_copies)
+    for marker, label, files in markers:
+        for file in files or []:
+            replaces = ""
+            if file.replaces_sdk:
+                replaces = f" ({'was replacing' if label == 'removed' else 'replaces'} sdk/{file.name})"
+            lines.append(f"  {marker} {file.name:<30} {label}{replaces}")
+    if lines:
+        lines.insert(0, "")
+        lines.insert(1, "Custom files")
     return lines
 
 
@@ -83,21 +92,21 @@ def print_rescan_report(response: api_models.TestCollections) -> None:
         click.echo(colorize_success(summary))
         return
 
-    has_changes = bool(changes.added or changes.modified or changes.removed)
-    if has_changes:
+    test_cases_changed = bool(changes.added or changes.modified or changes.removed)
+    custom_file_lines = _render_custom_files(changes.custom_files) if changes.custom_files else []
+
+    if test_cases_changed or custom_file_lines:
         click.echo(colorize_success(summary))
-        for line in _render_changes(changes):
+        if test_cases_changed:
+            for line in _render_changes(changes):
+                click.echo(line)
+        for line in custom_file_lines:
             click.echo(line)
     else:
         click.echo(colorize_success(f"{summary}. No changes detected."))
 
     if changes.errors:
         click.echo(colorize_warning("\n".join(_render_errors(changes.errors))))
-
-    if changes.custom_overrides:
-        override_lines = _render_overrides(changes.custom_overrides)
-        if override_lines:
-            click.echo(colorize_warning("\n".join(override_lines)))
 
 
 @click.command(
