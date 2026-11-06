@@ -36,7 +36,7 @@ def _render_changes(changes: api_models.RescanChanges) -> list[str]:
 
     lines_by_collection: dict[str, list[str]] = {}
     for marker, label, test_cases in markers:
-        for change in test_cases or []:
+        for change in test_cases:
             lines_by_collection.setdefault(change.collection, []).append(f"  {marker} {change.test_case:<30} {label}")
 
     lines: list[str] = []
@@ -45,7 +45,7 @@ def _render_changes(changes: api_models.RescanChanges) -> list[str]:
         lines.append(collection)
         lines.extend(collection_lines)
 
-    unchanged = [name for name in changes.collections or [] if name not in lines_by_collection]
+    unchanged = [name for name in changes.collections if name not in lines_by_collection]
     if unchanged:
         lines.append(f"No changes in: {', '.join(unchanged)}")
     return lines
@@ -59,13 +59,18 @@ def _render_errors(errors: list[api_models.ScriptError]) -> list[str]:
     return lines
 
 
-def print_rescan_report(response: api_models.RescanTestCollections) -> None:
+def print_rescan_report(response: api_models.TestCollections) -> None:
     """Print the outcome of a rescan, including what it changed."""
     collection_count = len(response.test_collections)
     changes = response.changes
-    has_changes = bool(changes.added or changes.modified or changes.removed)
 
     summary = f"Rescanned test collections successfully ({collection_count} found)"
+    if changes is None:
+        # Backend that predates the change report
+        click.echo(colorize_success(summary))
+        return
+
+    has_changes = bool(changes.added or changes.modified or changes.removed)
     if has_changes:
         click.echo(colorize_success(summary))
         for line in _render_changes(changes):

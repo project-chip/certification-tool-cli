@@ -27,10 +27,12 @@ from th_cli.commands.rescan_tests import rescan_tests
 from th_cli.exceptions import ConfigurationError
 
 
-def _rescan_response(test_collections: api_models.TestCollections, **changes: list) -> api_models.RescanTestCollections:
-    return api_models.RescanTestCollections(
+def _rescan_response(test_collections: api_models.TestCollections, **changes: list) -> api_models.TestCollections:
+    changes_by_kind: dict[str, list] = {"added": [], "modified": [], "removed": [], "errors": []}
+    changes_by_kind.update(changes)
+    return api_models.TestCollections(
         test_collections=test_collections.test_collections,
-        changes=api_models.RescanChanges(collections=list(test_collections.test_collections), **changes),
+        changes=api_models.RescanChanges(collections=list(test_collections.test_collections), **changes_by_kind),
     )
 
 
@@ -72,7 +74,7 @@ class TestRescanTestsCommand:
         cli_runner: CliRunner,
         mock_sync_apis: Mock,
         mock_api_client: Mock,
-        response: api_models.RescanTestCollections,
+        response: api_models.TestCollections,
     ) -> str:
         api = mock_sync_apis.test_collections_api.rescan_test_collections_api_v1_test_collections_rescan_post
         api.return_value = response
@@ -149,6 +151,20 @@ class TestRescanTestsCommand:
         assert "Scripts that could not be parsed (skipped):" in output
         assert "  ! TC_BAD_1_1.py: Syntax error: invalid syntax (line 3)" in output
         assert "  ! Failed running command: boom" in output
+
+    def test_rescan_tests_backend_without_change_report(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+    ) -> None:
+        """A response without `changes` (older backend) falls back to the plain summary."""
+        output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, sample_test_collections)
+
+        count = len(sample_test_collections.test_collections)
+        assert f"Rescanned test collections successfully ({count} found)" in output
+        assert "No changes detected" not in output
 
     def test_rescan_tests_no_response(
         self,
