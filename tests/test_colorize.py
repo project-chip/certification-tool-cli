@@ -15,12 +15,14 @@
 #
 """Unit tests for th_cli/colorize.py."""
 
+import click
 import pytest
 
 from th_cli.colorize import (
     ColorConfig,
     HierarchyEnum,
     TextTypeEnum,
+    colorize_change,
     colorize_cmd_help,
     colorize_dump,
     colorize_error,
@@ -436,3 +438,35 @@ class TestItalic:
         set_colors_enabled(True)
         result = italic("hello")
         assert "hello" in result
+
+
+# ---------------------------------------------------------------------------
+# colorize_change
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestColorizeChange:
+    def test_plain_when_colors_disabled(self):
+        set_colors_enabled(False)
+        assert colorize_change("added", "  + TC_A_1_1.py") == "  + TC_A_1_1.py"
+
+    @pytest.mark.parametrize("kind", ["added", "modified", "removed"])
+    def test_styled_text_keeps_the_content_when_colors_enabled(self, kind):
+        set_colors_enabled(True)
+        result = colorize_change(kind, "  ~ TC_A_1_1.py")
+        assert result != "  ~ TC_A_1_1.py"
+        assert click.unstyle(result) == "  ~ TC_A_1_1.py"
+
+    def test_each_kind_has_its_own_color(self):
+        set_colors_enabled(True)
+        results = {kind: colorize_change(kind, "x") for kind in ("added", "modified", "removed")}
+        assert len(set(results.values())) == 3
+
+    def test_get_change_color(self):
+        cfg = ColorConfig()
+        assert cfg.get_change_color("added") == "green"
+        assert cfg.get_change_color("MODIFIED") == "yellow"
+        assert cfg.get_change_color("removed") == "red"
+        assert cfg.get_change_color("unknown") == "white"
+

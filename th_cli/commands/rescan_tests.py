@@ -21,7 +21,7 @@ from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.client import get_client
-from th_cli.colorize import colorize_cmd_help, colorize_help, colorize_success, colorize_warning
+from th_cli.colorize import colorize_change, colorize_cmd_help, colorize_help, colorize_success, colorize_warning
 from th_cli.exceptions import CLIError, handle_api_error
 
 # Rescanning regenerates the Python test JSON files via the SDK container,
@@ -37,7 +37,8 @@ def _render_changes(changes: api_models.RescanChanges) -> list[str]:
     lines_by_collection: dict[str, list[str]] = {}
     for marker, label, test_cases in markers:
         for change in test_cases:
-            lines_by_collection.setdefault(change.collection, []).append(f"  {marker} {change.test_case:<30} {label}")
+            line = f"  {marker} {change.test_case:<30} {label}"
+            lines_by_collection.setdefault(change.collection, []).append(colorize_change(label, line))
 
     lines: list[str] = []
     for collection, collection_lines in lines_by_collection.items():
@@ -74,7 +75,7 @@ def _render_custom_files(custom_files: api_models.CustomFileChanges) -> list[str
             replaces = ""
             if file.replaces_sdk:
                 replaces = f" ({'was replacing' if label == 'removed' else 'replaces'} sdk/{file.name})"
-            lines.append(f"  {marker} {file.name:<30} {label}{replaces}")
+            lines.append(colorize_change(label, f"  {marker} {file.name:<30} {label}{replaces}"))
     if lines:
         lines.insert(0, "")
         lines.insert(1, "Custom files")
