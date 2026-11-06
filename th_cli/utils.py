@@ -17,11 +17,11 @@ import copy
 import json
 import os
 import subprocess
+import tomllib
 from typing import Any
 from xml.etree.ElementTree import ParseError, fromstring
 
 import click
-import tomli
 
 from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
@@ -479,7 +479,7 @@ def get_cli_version() -> str:
 
         if pyproject_path.exists():
             with open(pyproject_path, "rb") as f:
-                pyproject_data = tomli.load(f)
+                pyproject_data = tomllib.load(f)
                 version = pyproject_data.get("project", {}).get("version")
                 if version:
                     return version
