@@ -59,6 +59,19 @@ def _render_errors(errors: list[api_models.ScriptError]) -> list[str]:
     return lines
 
 
+def _render_overrides(overrides: api_models.CustomOverrides) -> list[str]:
+    lines: list[str] = []
+    if overrides.overriding:
+        lines.append("")
+        lines.append("Custom files overriding SDK modules (used by every test that imports them):")
+        lines.extend(f"  ! {name}" for name in overrides.overriding)
+    if overrides.unused_copies:
+        lines.append("")
+        lines.append("Custom files with the same name as an SDK file that nothing imports (override nothing):")
+        lines.extend(f"  - {name}" for name in overrides.unused_copies)
+    return lines
+
+
 def print_rescan_report(response: api_models.TestCollections) -> None:
     """Print the outcome of a rescan, including what it changed."""
     collection_count = len(response.test_collections)
@@ -80,6 +93,11 @@ def print_rescan_report(response: api_models.TestCollections) -> None:
 
     if changes.errors:
         click.echo(colorize_warning("\n".join(_render_errors(changes.errors))))
+
+    if changes.custom_overrides:
+        override_lines = _render_overrides(changes.custom_overrides)
+        if override_lines:
+            click.echo(colorize_warning("\n".join(override_lines)))
 
 
 @click.command(

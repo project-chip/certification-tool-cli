@@ -27,8 +27,8 @@ from th_cli.commands.rescan_tests import rescan_tests
 from th_cli.exceptions import ConfigurationError
 
 
-def _rescan_response(test_collections: api_models.TestCollections, **changes: list) -> api_models.TestCollections:
-    changes_by_kind: dict[str, list] = {"added": [], "modified": [], "removed": [], "errors": []}
+def _rescan_response(test_collections: api_models.TestCollections, **changes: object) -> api_models.TestCollections:
+    changes_by_kind: dict[str, object] = {"added": [], "modified": [], "removed": [], "errors": []}
     changes_by_kind.update(changes)
     return api_models.TestCollections(
         test_collections=test_collections.test_collections,
@@ -151,6 +151,42 @@ class TestRescanTestsCommand:
         assert "Scripts that could not be parsed (skipped):" in output
         assert "  ! TC_BAD_1_1.py: Syntax error: invalid syntax (line 3)" in output
         assert "  ! Failed running command: boom" in output
+
+    def test_rescan_tests_reports_custom_overrides(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+    ) -> None:
+        """Custom files overriding SDK modules are listed, separately from same-name copies nothing imports."""
+        response = _rescan_response(
+            sample_test_collections,
+            custom_overrides=api_models.CustomOverrides(
+                overriding=["TC_SUTestBase.py"], unused_copies=["TC_ACE_1_3.py"]
+            ),
+        )
+
+        output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
+
+        assert "No changes detected." in output
+        assert "Custom files overriding SDK modules (used by every test that imports them):" in output
+        assert "  ! TC_SUTestBase.py" in output
+        assert "override nothing" in output
+        assert "  - TC_ACE_1_3.py" in output
+
+    def test_rescan_tests_no_custom_overrides_prints_nothing(
+        self,
+        cli_runner: CliRunner,
+        mock_sync_apis: Mock,
+        mock_api_client: Mock,
+        sample_test_collections: api_models.TestCollections,
+    ) -> None:
+        response = _rescan_response(sample_test_collections, custom_overrides=api_models.CustomOverrides())
+
+        output = self._invoke(cli_runner, mock_sync_apis, mock_api_client, response)
+
+        assert "overriding SDK modules" not in output
 
     def test_rescan_tests_backend_without_change_report(
         self,

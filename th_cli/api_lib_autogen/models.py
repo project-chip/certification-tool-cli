@@ -440,12 +440,18 @@ class ScriptError(BaseModel):
     reason: Annotated[str, Field(title="Reason")]
 
 
+class CustomOverrides(BaseModel):
+    overriding: Annotated[list[str], Field(title="Overriding")] = []
+    unused_copies: Annotated[list[str], Field(title="Unused Copies")] = []
+
+
 class RescanChanges(BaseModel):
     added: Annotated[list[TestCaseChange], Field(title="Added")]
     modified: Annotated[list[TestCaseChange], Field(title="Modified")]
     removed: Annotated[list[TestCaseChange], Field(title="Removed")]
     errors: Annotated[list[ScriptError], Field(title="Errors")]
     collections: Annotated[list[str], Field(title="Collections")]
+    custom_overrides: CustomOverrides | None = None
 
 
 class TestCollections(BaseModel):
