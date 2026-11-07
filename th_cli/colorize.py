@@ -71,6 +71,13 @@ class ColorConfig:
         HierarchyEnum.TEST_STEP.value: "bright_black",
     }
 
+    # Colors for the kind of change reported by rescan-tests
+    CHANGE_COLORS: dict[str, str] = {
+        "added": "green",
+        "modified": "yellow",
+        "removed": "red",
+    }
+
     # Default colors for logs
     TEXT_COLORS: dict[str, str] = {
         TextTypeEnum.CMD.value: "bright_blue",
@@ -108,6 +115,10 @@ class ColorConfig:
     def get_hierarchy_color(self, level: str) -> str:
         """Get color for a hierarchy level."""
         return self.TEST_HIERARCHY_COLORS.get(level.lower(), "white")
+
+    def get_change_color(self, kind: str) -> str:
+        """Get color for a kind of change (added, modified, removed)."""
+        return self.CHANGE_COLORS.get(kind.lower(), "white")
 
 
 # Global color configuration instance
@@ -151,6 +162,23 @@ def colorize_state(state_name: str) -> str:
 
     color = color_config.get_state_color(state_name)
     return click.style(state_text, fg=color, bold=True)
+
+
+def colorize_change(kind: str, text: str) -> str:
+    """
+    Colorize a line describing an added, modified or removed item.
+
+    Args:
+        kind: The kind of change: "added", "modified" or "removed"
+        text: The text to colorize
+
+    Returns:
+        Colored string if colors are enabled, plain string otherwise
+    """
+    if not color_config.colors_enabled:
+        return text
+
+    return click.style(text, fg=color_config.get_change_color(kind))
 
 
 def colorize_runner_state(runner_state_name: str) -> str:
