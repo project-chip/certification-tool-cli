@@ -281,6 +281,31 @@ def import_project(file: str) -> None:
         _import_project(sync_apis, file)
 
 
+# Click command to list the test cases applicable to a project
+@project.command(
+    "applicable-tests",
+    short_help=colorize_help("List test cases applicable to a project (filtered by its PICS)"),
+)
+@click.option(
+    "--id",
+    "-i",
+    type=int,
+    required=True,
+    help=colorize_help("Project ID"),
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help=colorize_help("Print the raw JSON response from the backend"),
+)
+def applicable_tests(id: int, json_output: bool) -> None:
+    """List the test cases that apply to a project based on its PICS and DMP test skip configuration"""
+    with get_sync_apis("applicable-tests") as sync_apis:
+        _applicable_tests(sync_apis, id, json_output)
+
+
 # Click command to download all logs for a project
 @project.command(
     "logs",
@@ -683,6 +708,23 @@ def _import_project(sync_apis: SyncApis, file: str) -> None:
         click.echo(colorize_success(f"Project '{response.name}' imported with ID {response.id}"))
     except UnexpectedResponse as e:
         handle_api_error(e, f"import project from '{file}'")
+
+
+def _applicable_tests(sync_apis: SyncApis, id: int, json_output: bool) -> None:
+    """List the test cases applicable to a project"""
+    try:
+        response = sync_apis.projects_api.applicable_test_cases_api_v1_projects__id__applicable_test_cases_get(id=id)
+    except UnexpectedResponse as e:
+        handle_api_error(e, f"get applicable test cases for project ID '{id}'")
+
+    if json_output:
+        __print_json(response)
+        return
+
+    # Count goes to stderr so the test IDs on stdout stay clean for piping (grep, wc -l, ...)
+    click.echo(f"{len(response.test_cases)} applicable test case(s) for project {id}", err=True)
+    for test_id in sorted(response.test_cases):
+        click.echo(test_id)
 
 
 def _download_project_logs(sync_apis: SyncApis, id: int, grouped: bool, output_file: str | None) -> None:
