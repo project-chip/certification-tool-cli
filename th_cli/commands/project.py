@@ -721,8 +721,8 @@ def _applicable_tests(sync_apis: SyncApis, id: int, json_output: bool) -> None:
         __print_json(response)
         return
 
-    # Count goes to stderr so the test IDs on stdout stay clean for piping (grep, wc -l, ...)
-    click.echo(f"{len(response.test_cases)} applicable test case(s) for project {id}", err=True)
+    # Header goes to stderr so the test IDs on stdout stay clean for piping (grep, wc -l, ...)
+    click.echo(f"Applicable test case(s) for project {id}:", err=True)
     for test_id in sorted(response.test_cases):
         click.echo(test_id)
 

@@ -191,7 +191,7 @@ Run `th-cli project update --id {id} --config {config file}` to update a project
 
 ### Project Applicable Tests
 
-Run `th-cli project applicable-tests --id {id}` to list the test cases that apply to a project, based on its PICS configuration and `dmp_test_skip` setting. Test IDs are printed one per line (sorted) on stdout and the count goes to stderr, so the output can be piped, e.g. `th-cli project applicable-tests --id 5 | grep TC-ACL`. For the raw JSON response, add `--json`.
+Run `th-cli project applicable-tests --id {id}` to list the test cases that apply to a project, based on its PICS configuration and `dmp_test_skip` setting. Test IDs are printed one per line (sorted) on stdout and a header line goes to stderr, so the output can be piped, e.g. `th-cli project applicable-tests --id 5 | grep TC-ACL`. For the raw JSON response, add `--json`.
 
 This differs from `th-cli available-tests`, which lists every test case known to the Test Harness regardless of project: a test that requires a PICS item disabled in the project appears in `available-tests` but not in `project applicable-tests`.
 

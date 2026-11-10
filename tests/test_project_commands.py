@@ -1302,11 +1302,11 @@ class TestApplicableTestsCommand:
 
         assert result.exit_code == 0
         assert result.stdout.splitlines() == ["TC-ACL-2.1", "TC-OO-2.1"]
-        assert "2 applicable test case(s) for project 3" in result.stderr
+        assert "Applicable test case(s) for project 3:" in result.stderr
         api.assert_called_once_with(id=3)
 
     def test_applicable_tests_empty(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
-        """An empty result prints no IDs and reports a zero count."""
+        """An empty result prints no IDs and still prints the header."""
         self._mock_response(mock_sync_apis, [])
 
         with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
@@ -1314,7 +1314,7 @@ class TestApplicableTestsCommand:
 
         assert result.exit_code == 0
         assert result.stdout == ""
-        assert "0 applicable test case(s)" in result.stderr
+        assert "Applicable test case(s) for project 3:" in result.stderr
 
     def test_applicable_tests_json(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
         """--json prints the raw response."""
