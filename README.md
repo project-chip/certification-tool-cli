@@ -48,6 +48,7 @@ Commands:
   abort-testing               Abort the current test execution
   available-tests             Get a list of available tests
   project                     Manage the application projects
+  rescan-tests                Rescan available test collections
   run-tests                   Create a new test run from selected tests
   test-run-execution          List test run executions and read logs
   test-runner-status          Get the current Matter test runner status
@@ -57,9 +58,45 @@ Commands:
 
 Run `th-cli available-tests` to get a list of tests available in Test Harness, printed in YAML. For JSON respond, use `th-cli available-tests --json` .
 
+Options:
+- `--json`: Print the JSON response for more details.
+- `--compact`: Show test IDs only, 4 per line.
+- `--cluster <name>`: Filter by cluster name (e.g. `--cluster ACE`, `CADMIN`, `CC`).
+- `--group-by-cluster`: Group test cases by cluster, 4 per line.
+
+### test-runner-status
+
+Run `th-cli test-runner-status` to get the current state of the Matter test runner. For JSON respond, add `--json`.
+
+### abort-testing
+
+Run `th-cli abort-testing` to abort the test run execution that is currently running.
+
+### rescan-tests
+
+Run `th-cli rescan-tests` to make the Test Harness pick up newly added or edited side-loaded test scripts without
+restarting the backend. The backend re-discovers all test collections and the command reports what changed, grouped by
+test collection:
+
+```
+Rescanned test collections successfully (6 found)
+
+Custom SDK Python Tests
+  + TC-FAKE-1.1-custom           added
+  ~ TC-ACE-1.3-custom            modified
+  - TC-OLD-1.1-custom            removed
+No changes in: SDK Python Tests, SDK YAML Tests
+```
+
+When nothing changed, the command says `No changes detected.`. Scripts that could not be parsed are skipped and listed
+with the reason, and the Python files added, modified or removed in the *custom* folder are listed under `Custom files`.
+
+The rescan cannot run while a test is executing: the command fails with `Test Engine is busy.`, so wait for the run to
+finish or abort it with `th-cli abort-testing`. See the Side Loading section of the Matter TH User Guide for details.
+
 ### run-tests
 
-Run `th-cli run-tests --tests-list <tests> [--title, -n <title>] [--config, -c <config>] [--pics-config-folder, -p <pics-config-folder>] [--project-id <ID>] [--no-color] [-- <extra-sdk-args>]` to start a new test execution.
+Run `th-cli run-tests --tests-list <tests> [--title, -n <title>] [--config, -c <config>] [--pics-config-folder, -p <pics-config-folder>] [--tc-params-file, -m <mapping-file>] [--project-id <ID>] [--no-color] [--no-streaming] [--prompt-timeout <seconds>] [-- <extra-sdk-args>]` to start a new test execution.
 
 Required:
 - `--tests-list`: Comma-separated list of test case identifiers (e.g. --tests-list TC-ACE-1.1,TC_ACE_1_3)
@@ -72,8 +109,11 @@ Optional:
   
   This allows the same JSON file to work with `project create`, `project update`, and `run-tests` commands. If not provided, the project's default configuration will be used.
 - `--pics-config-folder`: Path to the folder that contains PICS files. If not specified, no PICS file will be used.
+- `--tc-params-file`, `-m`: Path to a JSON file that maps TC IDs to their `test_parameters` (e.g. `int-arg`, `string-arg`, `timeout`). TC IDs are matched case-insensitively with the separators `-`, `_` and `.` normalised, and TC IDs not found in the file are silently skipped. Precedence, lowest to highest: project config, `--tc-params-file`, `--config` file, `--` inline args. See the *TC Parameters Mapping File* section of the Matter TH User Guide.
 - `--project-id`: Project ID that this test run belongs to. If not provided, uses the default 'CLI Project Execution' in TH.
 - `--no-color`: Disable all colors from the CLI's output text of this test run execution
+- `--no-streaming`: Disable the real-time log streaming via web browser (enabled by default).
+- `--prompt-timeout`: Override the user-prompt response timeout, in seconds, for this run only (`th_config.prompt_timeout_seconds`).
 - `-- <extra-sdk-args>`: Pass additional arguments directly to the SDK container Python tests. Use the double dash (`--`) separator followed by any SDK test arguments. These arguments will be added to every Python test execution in the run.
 
 **Example config files:**
@@ -139,11 +179,35 @@ Common SDK test arguments you might want to use for example:
 
 ### Test Run Execution
 
-Run `th-cli test-run-execution` to fetch the history of test runs. Use `--skip` and `--limit` for pagination
+Run `th-cli test-run-execution` (or `th-cli test-run-execution list`) to fetch the history of test runs. Use `--skip` and `--limit` for pagination, `--sort asc|desc` to order by ID (default `desc`), `--project-id` to filter by project, `--archived` to list only archived test runs, and `--all` to fetch every test run with screen pagination (cannot be combined with `--limit`).
 
 Run `th-cli test-run-execution --id {id}` with a test run execution id to fetch the information for that test run.
 
 For JSON respond, add `--json` to the command.
+
+The following subcommands are available: `list`, `log`, `pics-export`, `delete`, `rename`, `archive`, `unarchive`, `repeat`, `export` and `import`.
+
+### Test Run Execution Log
+
+Run `th-cli test-run-execution log --id {id}` to download the log of a test run execution. Use `--output-file` to override the default filename (the test run execution title) and `--grouped` to download a zip archive of the logs grouped by test case state.
+
+The `--log` flag of `th-cli test-run-execution` is deprecated; use this command instead.
+
+### Test Run Execution PICS Export
+
+Run `th-cli test-run-execution pics-export --id {id}` to export the PICS actually used by a test run execution to a zip file. Use `--output-file` to override the default filename (the test run execution title).
+
+### Test Run Execution Delete
+
+Run `th-cli test-run-execution delete --id {id}` to delete a test run execution. It asks for confirmation unless `--yes` is given.
+
+### Test Run Execution Rename
+
+Run `th-cli test-run-execution rename --id {id} --name {new name}` to rename a test run execution. Both parameters are required.
+
+### Test Run Execution Archive and Unarchive
+
+Run `th-cli test-run-execution archive --id {id}` to archive a test run execution, and `th-cli test-run-execution unarchive --id {id}` to restore it. Archived test runs are only listed with `th-cli test-run-execution list --archived`.
 
 ### Test Run Execution Repeat
 
@@ -171,13 +235,13 @@ instance's current database revision.
 
 ### Project Create
 
-Run `th-cli project create --name {project name} --config {config file}` to create a new project. Project name is required.
+Run `th-cli project create --name {project name} --config {config file}` to create a new project. Project name is required. Use `--pics-config-folder` to load the PICS XML files of a directory into the project.
 
 ### Project List
 
-Run `th-cli projects list` to fetch projects. Use `--skip` and `--limit` for pagination. Use `--archived` to fetch archived projects only.
+Run `th-cli project list` to fetch projects. Use `--skip` and `--limit` for pagination. Use `--archived` to fetch archived projects only.
 
-Run `th-cli list-projects --id {id}` with a project id to fetch the information for that specific project.
+Run `th-cli project list --id {id}` with a project id to fetch the information for that specific project.
 
 For JSON respond, add `--json` to the command.
 
@@ -201,6 +265,18 @@ edit preserved so nothing is lost.
 The editor used is picked from the `$VISUAL` environment variable first, then `$EDITOR`,
 falling back to `vim`/`nano`/`vi` if neither is set. To use a different editor, set one
 of these before running the command, e.g. `EDITOR=nano th-cli project edit --id {id}`.
+
+### Project Export
+
+Run `th-cli project export --id {id}` to export a project's config to a JSON file. Use `--output-file` to override the default filename (`<project-name>-project-config.json`).
+
+### Project Import
+
+Run `th-cli project import --file {file}` to create a project from a JSON file previously written by `project export`.
+
+### Project Logs
+
+Run `th-cli project logs --id {id}` to download all logs of a project as a single zip archive. Use `--grouped` to download the logs organized by test case state instead of flat log files, and `--output-file` to override the default filename (`<project-name>-logs.zip`).
 
 ## Command Colors
 By default, the CLI application presents colored texts for all the available commands, specially for the log of test run executions from the `th-cli run-tests` command.
