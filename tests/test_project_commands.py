@@ -1280,3 +1280,72 @@ class TestProjectLogsCommand:
         assert "--id" in result.output
         assert "--grouped" in result.output
         assert "--output-file" in result.output
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestApplicableTestsCommand:
+    """Test cases for the project applicable-tests command."""
+
+    @staticmethod
+    def _mock_response(mock_sync_apis: Mock, test_cases: list[str]) -> Mock:
+        api = mock_sync_apis.projects_api.applicable_test_cases_api_v1_projects__id__applicable_test_cases_get
+        api.return_value = api_models.PICSApplicableTestCases(test_cases=test_cases)
+        return api
+
+    def test_applicable_tests_lists_sorted_ids(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """Test IDs are printed one per line, sorted."""
+        api = self._mock_response(mock_sync_apis, ["TC-OO-2.1", "TC-ACL-2.1"])
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["applicable-tests", "--id", "3"])
+
+        assert result.exit_code == 0
+        assert result.stdout.splitlines() == ["TC-ACL-2.1", "TC-OO-2.1"]
+        assert "Applicable test case(s) for project 3:" in result.stderr
+        api.assert_called_once_with(id=3)
+
+    def test_applicable_tests_empty(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """An empty result prints no IDs and still prints the header."""
+        self._mock_response(mock_sync_apis, [])
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["applicable-tests", "--id", "3"])
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "Applicable test case(s) for project 3:" in result.stderr
+
+    def test_applicable_tests_json(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """--json prints the raw response."""
+        self._mock_response(mock_sync_apis, ["TC-ACL-2.1"])
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["applicable-tests", "--id", "3", "--json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == {"test_cases": ["TC-ACL-2.1"]}
+
+    def test_applicable_tests_api_error(self, cli_runner: CliRunner, mock_sync_apis: Mock) -> None:
+        """A backend error is reported with the project ID."""
+        mock_sync_apis.projects_api.applicable_test_cases_api_v1_projects__id__applicable_test_cases_get.side_effect = (
+            UnexpectedResponse(status_code=404, content=b"Not Found")
+        )
+
+        with patch("th_cli.commands.project.SyncApis", return_value=mock_sync_apis):
+            result = cli_runner.invoke(project, ["applicable-tests", "--id", "99"])
+
+        assert result.exit_code == 1
+        assert "Failed to get applicable test cases for project ID '99' (Status: 404)" in result.output
+
+    def test_applicable_tests_requires_id(self, cli_runner: CliRunner) -> None:
+        result = cli_runner.invoke(project, ["applicable-tests"])
+
+        assert result.exit_code != 0
+
+    def test_applicable_tests_help_message(self, cli_runner: CliRunner) -> None:
+        result = cli_runner.invoke(project, ["applicable-tests", "--help"])
+
+        assert result.exit_code == 0
+        assert "--id" in result.output
+        assert "--json" in result.output
