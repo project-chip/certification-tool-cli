@@ -34,6 +34,7 @@ from th_cli.config import (
     known_cli_path,
     load_config,
 )
+from th_cli.exceptions import ConfigurationError
 
 
 # ---------------------------------------------------------------------------
@@ -231,19 +232,19 @@ class TestLoadConfig:
         assert isinstance(result, Config)
         assert result.hostname == "localhost"
 
-    def test_skips_malformed_config_json(self, tmp_path):
+    def test_raises_on_malformed_config_json(self, tmp_path):
         config_file = tmp_path / "config.json"
         config_file.write_text("{this is: not valid json}")
 
         good_dir = tmp_path / "good"
         good_dir.mkdir()
-        good_config = good_dir / "config.json"
-        good_config.write_text(json.dumps({"hostname": "goodserver"}))
+        (good_dir / "config.json").write_text(json.dumps({"hostname": "goodserver"}))
 
         with patch("th_cli.config.get_config_search_paths", return_value=[tmp_path, good_dir]):
-            result = load_config()
+            with pytest.raises(ConfigurationError) as exc_info:
+                load_config()
 
-        assert isinstance(result, Config)
+        assert str(config_file) in exc_info.value.message
 
     def test_handles_config_json_with_comments_in_example(self, tmp_path):
         """config.json.example may have comment lines (# ...)."""

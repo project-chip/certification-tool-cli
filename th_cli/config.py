@@ -14,12 +14,13 @@
 # limitations under the License.
 #
 import json
+import sys
 from enum import Enum
 from pathlib import Path
 
 from pydantic import BaseModel
 
-from th_cli.exceptions import CLIError
+from th_cli.exceptions import ConfigurationError
 
 
 def known_cli_path() -> Path:
@@ -120,8 +121,7 @@ def load_config():
             try:
                 return Config.model_validate_json(config_path.read_text(encoding="utf-8"))
             except Exception as e:
-                CLIError(f"Could not load config from {config_path}: {e}")
-                continue
+                raise ConfigurationError(f"Could not load config from {config_path}: {e}") from e
 
     # Try to create config from example file
     example_locations = []
@@ -147,7 +147,12 @@ def load_config():
 
 
 # Load the configuration
-config = load_config()
+try:
+    config = load_config()
+except ConfigurationError as e:
+    # Raised at import time, before click is running, so report it like click would
+    e.show()
+    sys.exit(e.exit_code)
 
 
 class PairingMode(str, Enum):
