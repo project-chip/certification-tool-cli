@@ -492,8 +492,9 @@ class TestRunTestsCommand:
 
         # Assert
         assert result.exit_code == 2
-        assert "No such option '--prompt_timeout'" in result.output
-        assert "Did you mean '--prompt-timeout'?" in result.output
+        # Wording differs across Click versions (quoted vs. unquoted option names)
+        assert re.search(r"No such option:? '?--prompt_timeout'?", result.output)
+        assert re.search(r"Did you mean '?--prompt-timeout'?\?", result.output)
 
     def test_run_tests_rejects_unexpected_positional_argument(self, cli_runner: CliRunner) -> None:
         """Stray positional arguments before -- are errors, not silently ignored."""
