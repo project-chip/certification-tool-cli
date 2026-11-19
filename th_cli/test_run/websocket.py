@@ -407,7 +407,8 @@ class TestRunSocket:
             key = (update.test_suite_execution_index, error)
             if key not in self._reported_suite_errors:
                 self._reported_suite_errors.add(key)
-                click.echo(colorize_error(f"      {error}"), err=True)
+                for line in error.splitlines() or [error]:
+                    click.echo(colorize_error(f"      {line}"), err=True)
 
         handler = get_log_stream_handler()
         if handler:

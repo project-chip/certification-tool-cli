@@ -539,6 +539,19 @@ class TestHandleTestUpdate:
 
         assert capsys.readouterr().err.count(error) == 1
 
+    def test_suite_update_indents_every_line_of_multiline_error(self, capsys):
+        s = _make_socket(suites=[_make_suite()])
+        error = "Invalid test parameter(s):\n  '--int-args'\nNo test was started."
+        body = TestSuiteUpdate(state="error", test_suite_execution_index=0, errors=[error])
+
+        with patch("th_cli.test_run.websocket.get_log_stream_handler", return_value=None):
+            s._TestRunSocket__log_test_suite_update(body)
+
+        lines = capsys.readouterr().err.splitlines()
+        assert any(line.endswith("Invalid test parameter(s):") for line in lines)
+        assert any(line.endswith("  '--int-args'") for line in lines)
+        assert all(line.startswith("      ") for line in lines if "No test was started" in line)
+
     def test_suite_update_without_errors_prints_no_error(self, capsys):
         s = _make_socket(suites=[_make_suite()])
         body = TestSuiteUpdate(state="executing", test_suite_execution_index=0)
