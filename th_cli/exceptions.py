@@ -50,7 +50,10 @@ class APIError(CLIError):
         if self.status_code:
             msg += f" (Status: {self.status_code})"
         if self.content:
-            msg += f" - {self.content}"
+            # Multi-line content (e.g. a list of problems) reads better below the
+            # header than glued to it on one long line.
+            separator = "\n" if "\n" in str(self.content) else " - "
+            msg += f"{separator}{self.content}"
         return msg
 
 
