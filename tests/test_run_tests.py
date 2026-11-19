@@ -518,12 +518,23 @@ class TestRunTestsCommand:
         with patch("th_cli.commands.run_tests._parse_extra_args", side_effect=fake_parse):
             result = cli_runner.invoke(
                 run_tests,
-                ["--tests-list", "TC-ACE-1.1", "--", "--int-arg", "PIXIT.X:1", "--prompt_timeout", "5"],
+                ["--tests-list", "TC-ACE-1.1", "--", "--int-arg", "PIXIT.X:1", "--some-runner-flag", "5"],
             )
 
         # Assert
-        assert captured["args"] == ["--int-arg", "PIXIT.X:1", "--prompt_timeout", "5"]
+        assert captured["args"] == ["--int-arg", "PIXIT.X:1", "--some-runner-flag", "5"]
         assert "stop after parsing" in result.output
+
+    @pytest.mark.parametrize("misplaced", ["--prompt-timeout", "--prompt_timeout", "--tests-list", "--project-id"])
+    def test_run_tests_rejects_own_option_after_separator(self, cli_runner: CliRunner, misplaced: str) -> None:
+        """An option of run-tests after -- would only reach the test runner, so say where it goes."""
+        # Act
+        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--", misplaced, "5"])
+
+        # Assert
+        assert result.exit_code == 2
+        assert f"'{misplaced}' is an option of run-tests" in result.output
+        assert "before the '--' separator" in result.output
 
     @pytest.mark.parametrize(
         "test_list",

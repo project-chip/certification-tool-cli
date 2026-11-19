@@ -103,8 +103,29 @@ class _RunTestsCommand(click.Command):
         else:
             cli_args, inline_args = args, []
         remaining = super().parse_args(ctx, cli_args)
+        self._reject_misplaced_options(ctx, inline_args)
         ctx.args = inline_args
         return remaining
+
+    def _reject_misplaced_options(self, ctx: click.Context, inline_args: list[str]) -> None:
+        """Fail if an option of this command was put after ``--``.
+
+        After ``--`` everything goes to the test runner, which would reject (or
+        ignore) e.g. ``-- --prompt-timeout 5``. Dashes and underscores are treated
+        alike, so the common ``--prompt_timeout`` typo is caught too.
+        """
+        own_options = {
+            opt.lstrip("-").replace("_", "-")
+            for param in self.params
+            for opt in (*param.opts, *param.secondary_opts)
+            if opt.startswith("--")
+        }
+        for arg in inline_args:
+            if arg.startswith("--") and arg[2:].replace("_", "-") in own_options:
+                raise click.UsageError(
+                    f"'{arg}' is an option of run-tests, not a test parameter: " "pass it before the '--' separator.",
+                    ctx,
+                )
 
 
 @click.command(
