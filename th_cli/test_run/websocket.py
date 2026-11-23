@@ -139,6 +139,13 @@ class TestRunSocket:
         self._run_finished = False
         # From the terminal TestRunUpdate (see TestRunUpdate.logs_complete).
         self._logs_complete: bool | None = None
+        # Prompts are answered in background tasks (keyed by message_id) so the
+        # read loop keeps handling updates and log records while the user types.
+        self._prompt_tasks: dict[int, asyncio.Task] = {}
+        # Every prompt reads from the same stdin, so only one is shown at a time.
+        self._prompt_lock = asyncio.Lock()
+        # First exception raised by a prompt task, re-raised by the read loop.
+        self._prompt_error: BaseException | None = None
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -192,6 +199,8 @@ class TestRunSocket:
             ) as socket:
                 try:
                     while True:
+                        if self._prompt_error is not None:
+                            raise self._prompt_error
                         if self._run_finished and self._logs_complete is not None:
                             # The backend sent the terminal update after the
                             # run's last log records: nothing left to drain.
@@ -249,6 +258,10 @@ class TestRunSocket:
         finally:
             if self._chip_server_watcher:
                 self._chip_server_watcher.cancel()
+            await self.__cancel_pending_prompts()
+
+        if self._prompt_error is not None:
+            raise self._prompt_error
 
         if incomplete_closure:
             raise IncompleteTestRunError(
@@ -262,7 +275,27 @@ class TestRunSocket:
         elif isinstance(message.payload, PromptRequest):
             # Debug: log the message type
             logger.debug(f"Received prompt with type: {message.type}")
+            self.__start_prompt_task(socket=socket, message=message)
+        elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
+            await self.__handle_log_record(message.payload)
+        elif isinstance(message.payload, TimeOutNotification):
+            # The backend stopped waiting for this prompt: drop it if it is still open.
+            self.__cancel_prompt(message.payload.message_id)
+        else:
+            click.echo(
+                colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
+                err=True,
+            )
 
+    def __start_prompt_task(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
+        """Answer the prompt in the background so the read loop is not blocked while waiting for input."""
+        message_id = message.payload.message_id
+        task = asyncio.create_task(self.__answer_prompt(socket=socket, message=message))
+        self._prompt_tasks[message_id] = task
+        task.add_done_callback(lambda done: self.__prompt_task_done(message_id=message_id, task=done))
+
+    async def __answer_prompt(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
+        async with self._prompt_lock:
             # Check message type to route to appropriate handler
             if message.type == MessageTypeEnum.FILE_UPLOAD_REQUEST:
                 await handle_file_upload_request(socket=socket, request=message.payload)
@@ -274,16 +307,32 @@ class TestRunSocket:
                     message_type=message.type,
                     two_way_talk_handler=self.two_way_talk_handler,
                 )
-        elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
-            await self.__handle_log_record(message.payload)
-        elif isinstance(message.payload, TimeOutNotification):
-            # ignore time_out_notification as we handle timeout our selves
-            pass
-        else:
-            click.echo(
-                colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
-                err=True,
-            )
+
+    def __prompt_task_done(self, message_id: int, task: asyncio.Task) -> None:
+        if self._prompt_tasks.get(message_id) is task:
+            del self._prompt_tasks[message_id]
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            # Show it right away; the read loop re-raises it once it gets control back.
+            click.echo(colorize_error(f"Prompt handling failed: {error}"), err=True)
+            if self._prompt_error is None:
+                self._prompt_error = error
+
+    def __cancel_prompt(self, message_id: int) -> None:
+        task = self._prompt_tasks.get(message_id)
+        if task is None or task.done():
+            return
+        task.cancel()
+        click.echo(colorize_error("Prompt timed out"), err=True)
+
+    async def __cancel_pending_prompts(self) -> None:
+        tasks = list(self._prompt_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def __handle_test_update(self, update: TestUpdate) -> None:
         if isinstance(update.body, TestStepUpdate):

@@ -235,3 +235,165 @@ class TestConnectWebsocketAfterTerminalUpdate:
         mock_logger.log.assert_any_call("INFO", "trailing")
         assert fake_socket.recv.await_count == 3
         fake_socket.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# connect_websocket — prompts are answered without blocking the read loop
+# ---------------------------------------------------------------------------
+
+_PROMPT_ID = 7
+
+_OPTIONS_PROMPT = json.dumps(
+    {
+        "type": "options_request",
+        "payload": {"prompt": "Make sure the DUT is in Commissioning Mode", "timeout": 60, "message_id": _PROMPT_ID,
+                    "options": {"DONE": 1, "FAILED": 2}},
+    }
+)
+_PROMPT_TIMED_OUT = json.dumps({"type": "time_out_notification", "payload": {"message_id": _PROMPT_ID}})
+_LOG_RECORDS = json.dumps(
+    {"type": "test_log_records", "payload": [{"level": "INFO", "timestamp": 1.0, "message": "pairing logs"}]}
+)
+
+
+def _yielding_recv(messages):
+    """recv() stand-in that hands over the messages in order, yielding to the loop before each one."""
+    pending = list(messages)
+
+    async def recv():
+        await asyncio.sleep(0)
+        return pending.pop(0)
+
+    return recv
+
+
+class _BlockedPrompt:
+    """handle_prompt stand-in that stays open until released, recording how it ended."""
+
+    def __init__(self):
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.cancelled = False
+
+    async def __call__(self, **_kwargs):
+        self.started.set()
+        try:
+            await self.release.wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+
+
+@pytest.mark.unit
+class TestConnectWebsocketPrompts:
+    @pytest.mark.asyncio
+    async def test_log_records_are_processed_while_prompt_is_open(self):
+        """The prompt only returns after a log record was handled: the read loop must not wait for it."""
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _LOG_RECORDS, _terminal_run_update(logs_complete=True)])
+        )
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch("th_cli.test_run.websocket.logger") as mock_logger,
+        ):
+            mock_logger.log.side_effect = lambda *_: prompt.release.set()
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        mock_logger.log.assert_any_call("INFO", "pairing logs")
+        assert prompt.started.is_set()
+        assert not prompt.cancelled
+
+    @pytest.mark.asyncio
+    async def test_timeout_notification_cancels_open_prompt(self, capsys):
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv(
+                [_OPTIONS_PROMPT, _PROMPT_TIMED_OUT, _terminal_run_update(logs_complete=True)]
+            )
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.handle_prompt", new=prompt):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert prompt.cancelled
+        assert capsys.readouterr().err.count("Prompt timed out") == 1
+
+    @pytest.mark.asyncio
+    async def test_timeout_notification_for_unknown_prompt_is_ignored(self, capsys):
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_PROMPT_TIMED_OUT, _terminal_run_update(logs_complete=True)])
+        )
+
+        with _patch_connect(fake_socket):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert "Prompt timed out" not in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_open_prompt_is_cancelled_when_run_finishes(self):
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _terminal_run_update(logs_complete=True)])
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.handle_prompt", new=prompt):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert prompt.started.is_set()
+        assert prompt.cancelled
+
+    @pytest.mark.asyncio
+    async def test_prompt_failure_is_reported_and_raised(self, capsys):
+        s = _make_socket()
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        fake_socket = _FakeWSSocket(recv_side_effect=_yielding_recv(messages))
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock(side_effect=EOFError("stdin closed"))),
+            patch("th_cli.test_run.websocket.logger"),
+        ):
+            with pytest.raises(EOFError):
+                await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert "Prompt handling failed" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_prompts_are_answered_one_at_a_time(self):
+        s = _make_socket()
+        second_prompt = _OPTIONS_PROMPT.replace(f'"message_id": {_PROMPT_ID}', f'"message_id": {_PROMPT_ID + 1}')
+        running = 0
+        max_running = 0
+
+        async def prompt(**_kwargs):
+            nonlocal running, max_running
+            running += 1
+            max_running = max(max_running, running)
+            await asyncio.sleep(0.05)
+            running -= 1
+
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, second_prompt, _terminal_run_update(logs_complete=True)])
+        )
+        # The run finishing cancels what is still open, so keep the loop alive until both prompts are done.
+        original = s._TestRunSocket__cancel_pending_prompts
+
+        async def wait_then_cancel():
+            await asyncio.gather(*s._prompt_tasks.values(), return_exceptions=True)
+            await original()
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch.object(s, "_TestRunSocket__cancel_pending_prompts", wait_then_cancel),
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert max_running == 1
