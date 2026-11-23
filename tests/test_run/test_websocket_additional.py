@@ -527,6 +527,40 @@ class TestHandleTestUpdate:
             await s._TestRunSocket__handle_test_update(update=update)
         mock_fn.assert_called_once_with(body)
 
+    def test_suite_update_prints_suite_errors_once(self, capsys):
+        """Suite errors (e.g. failed setup) are shown, and not repeated on later updates."""
+        s = _make_socket(suites=[_make_suite()])
+        error = "Error occurred during setup of test suite. Invalid test parameter(s): '--prompt_timeout'"
+        body = TestSuiteUpdate(state="error", test_suite_execution_index=0, errors=[error])
+
+        with patch("th_cli.test_run.websocket.get_log_stream_handler", return_value=None):
+            s._TestRunSocket__log_test_suite_update(body)
+            s._TestRunSocket__log_test_suite_update(body)
+
+        assert capsys.readouterr().err.count(error) == 1
+
+    def test_suite_update_indents_every_line_of_multiline_error(self, capsys):
+        s = _make_socket(suites=[_make_suite()])
+        error = "Invalid test parameter(s):\n  '--int-args'\nNo test was started."
+        body = TestSuiteUpdate(state="error", test_suite_execution_index=0, errors=[error])
+
+        with patch("th_cli.test_run.websocket.get_log_stream_handler", return_value=None):
+            s._TestRunSocket__log_test_suite_update(body)
+
+        lines = capsys.readouterr().err.splitlines()
+        assert any(line.endswith("Invalid test parameter(s):") for line in lines)
+        assert any(line.endswith("  '--int-args'") for line in lines)
+        assert all(line.startswith("      ") for line in lines if "No test was started" in line)
+
+    def test_suite_update_without_errors_prints_no_error(self, capsys):
+        s = _make_socket(suites=[_make_suite()])
+        body = TestSuiteUpdate(state="executing", test_suite_execution_index=0)
+
+        with patch("th_cli.test_run.websocket.get_log_stream_handler", return_value=None):
+            s._TestRunSocket__log_test_suite_update(body)
+
+        assert capsys.readouterr().err == ""
+
     @pytest.mark.asyncio
     async def test_routes_run_update_and_closes_socket_when_not_executing(self):
         s = _make_socket()

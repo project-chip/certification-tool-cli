@@ -20,6 +20,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -483,6 +484,57 @@ class TestRunTestsCommand:
         # Assert
         assert result.exit_code != 0
         assert "required" in result.output
+
+    def test_run_tests_rejects_unknown_option_before_separator(self, cli_runner: CliRunner) -> None:
+        """A typo like --prompt_timeout must fail up front instead of reaching the test runner."""
+        # Act
+        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--prompt_timeout", "5"])
+
+        # Assert
+        assert result.exit_code == 2
+        # Wording differs across Click versions (quoted vs. unquoted option names)
+        assert re.search(r"No such option:? '?--prompt_timeout'?", result.output)
+        assert re.search(r"Did you mean '?--prompt-timeout'?\?", result.output)
+
+    def test_run_tests_rejects_unexpected_positional_argument(self, cli_runner: CliRunner) -> None:
+        """Stray positional arguments before -- are errors, not silently ignored."""
+        # Act
+        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "stray"])
+
+        # Assert
+        assert result.exit_code == 2
+        assert "unexpected extra argument" in result.output.lower()
+
+    def test_run_tests_forwards_args_after_separator(self, cli_runner: CliRunner) -> None:
+        """Unknown options after -- are still captured as test parameters."""
+        # Arrange
+        captured: dict[str, list[str]] = {}
+
+        def fake_parse(args: list[str]) -> dict[str, str]:
+            captured["args"] = args
+            raise click.ClickException("stop after parsing")
+
+        # Act
+        with patch("th_cli.commands.run_tests._parse_extra_args", side_effect=fake_parse):
+            result = cli_runner.invoke(
+                run_tests,
+                ["--tests-list", "TC-ACE-1.1", "--", "--int-arg", "PIXIT.X:1", "--some-runner-flag", "5"],
+            )
+
+        # Assert
+        assert captured["args"] == ["--int-arg", "PIXIT.X:1", "--some-runner-flag", "5"]
+        assert "stop after parsing" in result.output
+
+    @pytest.mark.parametrize("misplaced", ["--prompt-timeout", "--prompt_timeout", "--tests-list", "--project-id"])
+    def test_run_tests_rejects_own_option_after_separator(self, cli_runner: CliRunner, misplaced: str) -> None:
+        """An option of run-tests after -- would only reach the test runner, so say where it goes."""
+        # Act
+        result = cli_runner.invoke(run_tests, ["--tests-list", "TC-ACE-1.1", "--", misplaced, "5"])
+
+        # Assert
+        assert result.exit_code == 2
+        assert f"'{misplaced}' is an option of run-tests" in result.output
+        assert "before the '--' separator" in result.output
 
     @pytest.mark.parametrize(
         "test_list",
