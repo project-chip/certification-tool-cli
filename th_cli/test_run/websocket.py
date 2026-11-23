@@ -142,6 +142,9 @@ class TestRunSocket:
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
+        # Suite-level errors (e.g. a failed suite setup) already shown to the user.
+        # Key: (suite_index, error), so repeated updates don't print them again.
+        self._reported_suite_errors: set[tuple[int, str]] = set()
         # Track the final state of each test case for the end-of-run summary.
         # Key: (suite_index, case_index), Value: final TestStateEnum value.
         # A dict (rather than a running counter) so a case that is updated more
@@ -397,6 +400,15 @@ class TestRunSocket:
         colored_title = colorize_hierarchy_prefix(title, HierarchyEnum.TEST_SUITE.value)
         colored_state = colorize_state(update.state.value)
         click.echo(f"  - {colored_title} {colored_state}")
+
+        # Suite-level errors (e.g. a failed suite setup) would otherwise only be in
+        # the backend log. Show each one once.
+        for error in update.errors or []:
+            key = (update.test_suite_execution_index, error)
+            if key not in self._reported_suite_errors:
+                self._reported_suite_errors.add(key)
+                for line in error.splitlines() or [error]:
+                    click.echo(colorize_error(f"      {line}"), err=True)
 
         handler = get_log_stream_handler()
         if handler:

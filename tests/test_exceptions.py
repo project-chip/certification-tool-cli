@@ -85,6 +85,18 @@ class TestAPIError:
         assert "not found" in msg
         assert "404" in msg
 
+    def test_api_error_multiline_content_goes_below_header(self) -> None:
+        """Multi-line content (e.g. a list of problems) is not glued to the header."""
+        content = "Invalid test parameter(s):\n  '--int-args'\nNo test was started."
+        err = APIError("Failed to create", status_code=422, content=content)
+
+        assert err.format_message() == f"Failed to create (Status: 422)\n{content}"
+
+    def test_api_error_single_line_content_stays_inline(self) -> None:
+        err = APIError("Failed to create", status_code=500, content="boom")
+
+        assert err.format_message() == "Failed to create (Status: 500) - boom"
+
     def test_with_content(self):
         err = APIError("server error", content="Internal Server Error")
         msg = err.format_message()

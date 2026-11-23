@@ -87,11 +87,52 @@ def _complete_test_ids(ctx: click.Context, param: click.Parameter, incomplete: s
     return []
 
 
+class _RunTestsCommand(click.Command):
+    """Command that only treats arguments after a literal ``--`` as test parameters.
+
+    Options before ``--`` are parsed strictly, so a typo such as ``--prompt_timeout``
+    fails with "No such option" (plus a suggestion) instead of being forwarded to the
+    test runner as an extra test parameter. Everything after ``--`` is kept untouched
+    in ``ctx.args`` for ``_parse_extra_args``.
+    """
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if "--" in args:
+            separator = args.index("--")
+            cli_args, inline_args = args[:separator], args[separator + 1 :]
+        else:
+            cli_args, inline_args = args, []
+        remaining = super().parse_args(ctx, cli_args)
+        self._reject_misplaced_options(ctx, inline_args)
+        ctx.args = inline_args
+        return remaining
+
+    def _reject_misplaced_options(self, ctx: click.Context, inline_args: list[str]) -> None:
+        """Fail if an option of this command was put after ``--``.
+
+        After ``--`` everything goes to the test runner, which would reject (or
+        ignore) e.g. ``-- --prompt-timeout 5``. Dashes and underscores are treated
+        alike, so the common ``--prompt_timeout`` typo is caught too.
+        """
+        own_options = {
+            opt.lstrip("-").replace("_", "-")
+            for param in self.params
+            for opt in (*param.opts, *param.secondary_opts)
+            if opt.startswith("--")
+        }
+        for arg in inline_args:
+            if arg.startswith("--") and arg[2:].replace("_", "-") in own_options:
+                raise click.UsageError(
+                    f"'{arg}' is an option of run-tests, not a test parameter: " "pass it before the '--' separator.",
+                    ctx,
+                )
+
+
 @click.command(
+    cls=_RunTestsCommand,
     no_args_is_help=True,
     short_help=colorize_help("CLI execution of a test run"),
     help=colorize_cmd_help("run_tests", "CLI execution of a test run from selected tests"),
-    context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
 )
 @click.option(
     "--tests-list",
