@@ -462,7 +462,7 @@ class TestColorizePrompt:
         set_colors_enabled(True)
         result = colorize_prompt(_DUT_PROMPT)
         for value in ("3437", "9198814"):
-            assert click.style(value, fg="bright_yellow", bold=True, italic=True) in result
+            assert click.style(value, fg="bright_blue", bold=True, italic=True) in result
 
     def test_highlights_values_in_retry_prompt(self):
         set_colors_enabled(True)
@@ -473,7 +473,7 @@ class TestColorizePrompt:
         )
         result = colorize_prompt(prompt)
         assert click.unstyle(result) == prompt
-        assert click.style("20202021", fg="bright_yellow", bold=True, italic=True) in result
+        assert click.style("20202021", fg="bright_blue", bold=True, italic=True) in result
 
     def test_other_numbers_are_not_highlighted(self):
         set_colors_enabled(True)

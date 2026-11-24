@@ -91,7 +91,7 @@ class ColorConfig:
         TextTypeEnum.SUCCESS.value: "green",
         TextTypeEnum.ERROR.value: "red",
         TextTypeEnum.WARNING.value: "yellow",
-        TextTypeEnum.HIGHLIGHT.value: "bright_yellow",
+        TextTypeEnum.HIGHLIGHT.value: "bright_blue",
     }
 
     def __init__(self):
