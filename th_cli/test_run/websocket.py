@@ -96,6 +96,9 @@ DRAIN_TIMEOUT_S = 5.0
 # How often to check whether the CHIP server (re)started, so its Node ID is shown.
 CHIP_SERVER_POLL_INTERVAL_S = 2.0
 
+# Longest a prompt waits for the CHIP server info to be shown ahead of it.
+CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S = 5.0
+
 # Yield to the event loop every N log records while processing one batch, so
 # a very large batch doesn't block the websocket read loop for its entire
 # duration. The backend sends up to LOG_RECORDS_BROADCAST_CHUNK_SIZE=200
@@ -136,6 +139,9 @@ class TestRunSocket:
         self._chip_server_info_displayed = False
         self._displayed_node_id: int | None = None
         self._chip_server_watcher: asyncio.Task | None = None
+        # The watcher and the prompts both show the CHIP server info: one at a time,
+        # so it is only shown once per server start.
+        self._chip_info_lock = asyncio.Lock()
         self._run_finished = False
         # From the terminal TestRunUpdate (see TestRunUpdate.logs_complete).
         self._logs_complete: bool | None = None
@@ -296,6 +302,8 @@ class TestRunSocket:
 
     async def __answer_prompt(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         async with self._prompt_lock:
+            await self.__show_chip_server_info_before_prompt()
+
             # Check message type to route to appropriate handler
             if message.type == MessageTypeEnum.FILE_UPLOAD_REQUEST:
                 await handle_file_upload_request(socket=socket, request=message.payload)
@@ -382,7 +390,24 @@ class TestRunSocket:
             await self.__display_manual_pairing_code()
             await asyncio.sleep(CHIP_SERVER_POLL_INTERVAL_S)
 
+    async def __show_chip_server_info_before_prompt(self) -> None:
+        """Show the CHIP server info before a prompt, instead of between it and its answer.
+
+        The CHIP server starts right before the commissioning prompt is sent, but the
+        watcher only notices it up to a poll interval later.
+        """
+        if self._chip_server_watcher is None:
+            return  # The run is not executing yet, so there is no CHIP server
+        try:
+            await asyncio.wait_for(self.__display_manual_pairing_code(), CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.debug("Timed out fetching the CHIP server info before a prompt")
+
     async def __display_manual_pairing_code(self) -> None:
+        async with self._chip_info_lock:
+            await self.__fetch_and_display_chip_server_info()
+
+    async def __fetch_and_display_chip_server_info(self) -> None:
         """Display the Node ID and manual pairing code once the CHIP server is up.
 
         The Node ID is regenerated every time the CHIP server starts, so it is only

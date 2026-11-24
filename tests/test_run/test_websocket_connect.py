@@ -22,7 +22,7 @@ silently treated as a successfully completed run.
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import websockets.exceptions as ws_exceptions
@@ -256,12 +256,12 @@ _LOG_RECORDS = json.dumps(
 )
 
 
-def _yielding_recv(messages):
+def _yielding_recv(messages, delay=0):
     """recv() stand-in that hands over the messages in order, yielding to the loop before each one."""
     pending = list(messages)
 
     async def recv():
-        await asyncio.sleep(0)
+        await asyncio.sleep(delay)
         return pending.pop(0)
 
     return recv
@@ -397,3 +397,90 @@ class TestConnectWebsocketPrompts:
             await asyncio.wait_for(s.connect_websocket(), timeout=5)
 
         assert max_running == 1
+
+
+# ---------------------------------------------------------------------------
+# CHIP server info is shown before the prompt, not between the prompt and its answer
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestChipServerInfoBeforePrompt:
+    @staticmethod
+    async def _run(s, show, prompt, messages, delay=0):
+        fake_socket = _FakeWSSocket(recv_side_effect=_yielding_recv(messages, delay=delay))
+        with (
+            _patch_connect(fake_socket),
+            patch.object(s, "_TestRunSocket__display_manual_pairing_code", new=show),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch("th_cli.test_run.websocket.logger"),
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+    @pytest.mark.asyncio
+    async def test_info_is_shown_before_the_prompt(self):
+        s = _make_socket()
+        s._chip_server_watcher = MagicMock()  # the run is executing
+        order = []
+
+        async def show():
+            order.append("info")
+
+        async def prompt(**_kwargs):
+            order.append("prompt")
+
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        await self._run(s, show, prompt, messages)
+
+        assert order == ["info", "prompt"]
+
+    @pytest.mark.asyncio
+    async def test_no_info_before_the_prompt_when_run_is_not_executing(self):
+        s = _make_socket()
+        show = AsyncMock()
+        prompt = AsyncMock()
+
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        await self._run(s, show, prompt, messages)
+
+        show.assert_not_called()
+        prompt.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_slow_info_does_not_hold_the_prompt_back(self):
+        s = _make_socket()
+        s._chip_server_watcher = MagicMock()
+        shown = []
+
+        async def show():
+            await asyncio.Event().wait()  # never answers
+
+        async def prompt(**_kwargs):
+            shown.append("prompt")
+
+        with patch("th_cli.test_run.websocket.CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S", 0.01):
+            await self._run(s, show, prompt, [_OPTIONS_PROMPT, _terminal_run_update(logs_complete=True)], delay=0.05)
+
+        assert shown == ["prompt"]
+
+    @pytest.mark.asyncio
+    async def test_info_is_fetched_one_caller_at_a_time(self):
+        """The watcher and a prompt can ask at once; only one may fetch, so the banner shows once."""
+        s = _make_socket()
+        running = 0
+        peak = 0
+
+        async def fetch():
+            nonlocal running, peak
+            running += 1
+            peak = max(peak, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+
+        with patch.object(s, "_TestRunSocket__fetch_and_display_chip_server_info", new=fetch):
+            await asyncio.gather(
+                s._TestRunSocket__display_manual_pairing_code(),
+                s._TestRunSocket__display_manual_pairing_code(),
+            )
+
+        assert peak == 1

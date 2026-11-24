@@ -34,6 +34,7 @@ from th_cli.colorize import (
     colorize_state,
     colorize_success,
     colorize_warning,
+    colorize_prompt,
     italic,
     set_colors_enabled,
 )
@@ -438,6 +439,46 @@ class TestItalic:
         set_colors_enabled(True)
         result = italic("hello")
         assert "hello" in result
+
+
+# ---------------------------------------------------------------------------
+# colorize_prompt
+# ---------------------------------------------------------------------------
+
+_DUT_PROMPT = "Make sure the DUT is in Commissioning Mode (looking for discriminator 3437, setup code 9198814)"
+
+
+@pytest.mark.unit
+class TestColorizePrompt:
+    def test_plain_when_colors_disabled(self):
+        set_colors_enabled(False)
+        assert colorize_prompt(_DUT_PROMPT) == _DUT_PROMPT
+
+    def test_text_is_unchanged_once_styles_are_removed(self):
+        set_colors_enabled(True)
+        assert click.unstyle(colorize_prompt(_DUT_PROMPT)) == _DUT_PROMPT
+
+    def test_highlights_discriminator_and_setup_code_values(self):
+        set_colors_enabled(True)
+        result = colorize_prompt(_DUT_PROMPT)
+        for value in ("3437", "9198814"):
+            assert click.style(value, fg="bright_yellow", bold=True, italic=True) in result
+
+    def test_highlights_values_in_retry_prompt(self):
+        set_colors_enabled(True)
+        prompt = (
+            "Commissioning failed.\n"
+            "The Test Harness was looking for discriminator 3840, setup code 20202021.\n"
+            "Retry?"
+        )
+        result = colorize_prompt(prompt)
+        assert click.unstyle(result) == prompt
+        assert click.style("20202021", fg="bright_yellow", bold=True, italic=True) in result
+
+    def test_other_numbers_are_not_highlighted(self):
+        set_colors_enabled(True)
+        prompt = "Press 1 within 60 seconds"
+        assert colorize_prompt(prompt) == italic(prompt)
 
 
 # ---------------------------------------------------------------------------
