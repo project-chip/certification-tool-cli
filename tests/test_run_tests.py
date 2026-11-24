@@ -29,12 +29,13 @@ from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
 from th_cli.commands.run_tests import (
     TWO_WAY_TALK_TEST_IDS,
     _contains_webrtc_two_way_talk,
+    _create_new_test_run_cli,
     _dict_contains_key,
     _parse_extra_args,
     _print_webrtc_banner_and_wait,
     run_tests,
 )
-from th_cli.exceptions import ConfigurationError
+from th_cli.exceptions import APIError, ConfigurationError
 from th_cli.test_run.websocket import IncompleteTestRunError
 
 
@@ -1728,3 +1729,30 @@ class TestPrintWebrtcBannerAndWait:
                         await _print_webrtc_banner_and_wait("192.168.1.100", handler)
 
         mock_local_ip.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# _create_new_test_run_cli: backend rejection of an invalid execution config
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestCreateNewTestRunInvalidConfig:
+    @pytest.mark.asyncio
+    async def test_422_from_backend_is_reported_as_api_error(self):
+        """A config rejected by the backend (422) surfaces as a clear error."""
+        detail = b'{"detail": "The informed configuration has one or more invalid properties."}'
+        async_apis = Mock()
+        create = async_apis.test_run_executions_api.create_cli_test_run_execution_api_v1_test_run_executions_cli_post
+        create.side_effect = UnexpectedResponse(status_code=422, content=detail)
+
+        with pytest.raises(APIError) as exc_info:
+            await _create_new_test_run_cli(
+                async_apis,
+                selected_tests={"suite": {}},
+                title="t",
+                execution_config={"dut_config": {"pairing_mode": "bogus"}},
+            )
+
+        assert exc_info.value.status_code == 422
+        assert "invalid properties" in exc_info.value.format_message()
