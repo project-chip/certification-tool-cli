@@ -22,7 +22,7 @@ silently treated as a successfully completed run.
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import websockets.exceptions as ws_exceptions
@@ -235,3 +235,307 @@ class TestConnectWebsocketAfterTerminalUpdate:
         mock_logger.log.assert_any_call("INFO", "trailing")
         assert fake_socket.recv.await_count == 3
         fake_socket.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# connect_websocket — prompts are answered without blocking the read loop
+# ---------------------------------------------------------------------------
+
+_PROMPT_ID = 7
+
+_OPTIONS_PROMPT = json.dumps(
+    {
+        "type": "options_request",
+        "payload": {"prompt": "Make sure the DUT is in Commissioning Mode", "timeout": 60, "message_id": _PROMPT_ID,
+                    "options": {"DONE": 1, "FAILED": 2}},
+    }
+)
+_PROMPT_TIMED_OUT = json.dumps({"type": "time_out_notification", "payload": {"message_id": _PROMPT_ID}})
+_LOG_RECORDS = json.dumps(
+    {"type": "test_log_records", "payload": [{"level": "INFO", "timestamp": 1.0, "message": "pairing logs"}]}
+)
+
+
+def _yielding_recv(messages, delay=0):
+    """recv() stand-in that hands over the messages in order, yielding to the loop before each one."""
+    pending = list(messages)
+
+    async def recv():
+        await asyncio.sleep(delay)
+        return pending.pop(0)
+
+    return recv
+
+
+class _BlockedPrompt:
+    """handle_prompt stand-in that stays open until released, recording how it ended."""
+
+    def __init__(self):
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.cancelled = False
+
+    async def __call__(self, **_kwargs):
+        self.started.set()
+        try:
+            await self.release.wait()
+        except asyncio.CancelledError:
+            self.cancelled = True
+            raise
+
+
+@pytest.mark.unit
+class TestConnectWebsocketPrompts:
+    @pytest.mark.asyncio
+    async def test_log_records_are_processed_while_prompt_is_open(self):
+        """The prompt only returns after a log record was handled: the read loop must not wait for it."""
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _LOG_RECORDS, _terminal_run_update(logs_complete=True)])
+        )
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch("th_cli.test_run.websocket.logger") as mock_logger,
+        ):
+            mock_logger.log.side_effect = lambda *_: prompt.release.set()
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        mock_logger.log.assert_any_call("INFO", "pairing logs")
+        assert prompt.started.is_set()
+        assert not prompt.cancelled
+
+    @pytest.mark.asyncio
+    async def test_timeout_notification_cancels_open_prompt(self, capsys):
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv(
+                [_OPTIONS_PROMPT, _PROMPT_TIMED_OUT, _terminal_run_update(logs_complete=True)]
+            )
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.handle_prompt", new=prompt):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert prompt.cancelled
+        assert capsys.readouterr().err.count("Prompt timed out") == 1
+
+    @pytest.mark.asyncio
+    async def test_timeout_notification_for_unknown_prompt_is_ignored(self, capsys):
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_PROMPT_TIMED_OUT, _terminal_run_update(logs_complete=True)])
+        )
+
+        with _patch_connect(fake_socket):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert "Prompt timed out" not in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_open_prompt_is_cancelled_when_run_finishes(self):
+        s = _make_socket()
+        prompt = _BlockedPrompt()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _terminal_run_update(logs_complete=True)])
+        )
+
+        with _patch_connect(fake_socket), patch("th_cli.test_run.websocket.handle_prompt", new=prompt):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert prompt.started.is_set()
+        assert prompt.cancelled
+
+    @pytest.mark.asyncio
+    async def test_prompt_failure_is_reported_and_raised(self, capsys):
+        s = _make_socket()
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        fake_socket = _FakeWSSocket(recv_side_effect=_yielding_recv(messages))
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock(side_effect=EOFError("stdin closed"))),
+            patch("th_cli.test_run.websocket.logger"),
+        ):
+            with pytest.raises(EOFError):
+                await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert "Prompt handling failed" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_prompts_are_answered_one_at_a_time(self):
+        s = _make_socket()
+        second_prompt = _OPTIONS_PROMPT.replace(f'"message_id": {_PROMPT_ID}', f'"message_id": {_PROMPT_ID + 1}')
+        running = 0
+        max_running = 0
+
+        async def prompt(**_kwargs):
+            nonlocal running, max_running
+            running += 1
+            max_running = max(max_running, running)
+            await asyncio.sleep(0.05)
+            running -= 1
+
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, second_prompt, _terminal_run_update(logs_complete=True)])
+        )
+        # The run finishing cancels what is still open, so keep the loop alive until both prompts are done.
+        original = s._TestRunSocket__cancel_pending_prompts
+
+        async def wait_then_cancel():
+            await asyncio.gather(*s._prompt_tasks.values(), return_exceptions=True)
+            await original()
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch.object(s, "_TestRunSocket__cancel_pending_prompts", wait_then_cancel),
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert max_running == 1
+
+
+# ---------------------------------------------------------------------------
+# CHIP server info is shown before the prompt, not between the prompt and its answer
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestChipServerInfoBeforePrompt:
+    @staticmethod
+    async def _run(s, show, prompt, messages, delay=0):
+        fake_socket = _FakeWSSocket(recv_side_effect=_yielding_recv(messages, delay=delay))
+        with (
+            _patch_connect(fake_socket),
+            patch.object(s, "_TestRunSocket__display_manual_pairing_code", new=show),
+            patch("th_cli.test_run.websocket.handle_prompt", new=prompt),
+            patch("th_cli.test_run.websocket.logger"),
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+    @pytest.mark.asyncio
+    async def test_info_is_shown_before_the_prompt(self):
+        s = _make_socket()
+        s._chip_server_watcher = MagicMock()  # the run is executing
+        order = []
+
+        async def show():
+            order.append("info")
+
+        async def prompt(**_kwargs):
+            order.append("prompt")
+
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        await self._run(s, show, prompt, messages)
+
+        assert order == ["info", "prompt"]
+
+    @pytest.mark.asyncio
+    async def test_no_info_before_the_prompt_when_run_is_not_executing(self):
+        s = _make_socket()
+        show = AsyncMock()
+        prompt = AsyncMock()
+
+        messages = [_OPTIONS_PROMPT] + [_LOG_RECORDS] * 5 + [_terminal_run_update(logs_complete=True)]
+        await self._run(s, show, prompt, messages)
+
+        show.assert_not_called()
+        prompt.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_slow_info_does_not_hold_the_prompt_back(self):
+        s = _make_socket()
+        s._chip_server_watcher = MagicMock()
+        shown = []
+
+        async def show():
+            await asyncio.Event().wait()  # never answers
+
+        async def prompt(**_kwargs):
+            shown.append("prompt")
+
+        with patch("th_cli.test_run.websocket.CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S", 0.01):
+            await self._run(s, show, prompt, [_OPTIONS_PROMPT, _terminal_run_update(logs_complete=True)], delay=0.05)
+
+        assert shown == ["prompt"]
+
+    @pytest.mark.asyncio
+    async def test_info_is_fetched_one_caller_at_a_time(self):
+        """The watcher and a prompt can ask at once; only one may fetch, so the banner shows once."""
+        s = _make_socket()
+        running = 0
+        peak = 0
+
+        async def fetch():
+            nonlocal running, peak
+            running += 1
+            peak = max(peak, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+
+        with patch.object(s, "_TestRunSocket__fetch_and_display_chip_server_info", new=fetch):
+            await asyncio.gather(
+                s._TestRunSocket__display_manual_pairing_code(),
+                s._TestRunSocket__display_manual_pairing_code(),
+            )
+
+        assert peak == 1
+
+
+# ---------------------------------------------------------------------------
+# A failed prompt is raised even if the backend sends nothing more
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestConnectWebsocketPromptFailureWhileIdle:
+    @pytest.mark.asyncio
+    async def test_prompt_failure_is_raised_while_waiting_for_a_message(self, capsys):
+        """The backend waits for the prompt's answer, so no further message will come."""
+        s = _make_socket()
+        to_send = [_OPTIONS_PROMPT]
+        receive_cancelled = []
+
+        async def recv():
+            if to_send:
+                await asyncio.sleep(0)
+                return to_send.pop(0)
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                receive_cancelled.append(True)
+                raise
+
+        fake_socket = _FakeWSSocket(recv_side_effect=recv)
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock(side_effect=EOFError("stdin closed"))),
+        ):
+            with pytest.raises(EOFError):
+                await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert receive_cancelled == [True]
+        assert "Prompt handling failed" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_healthy_prompt_does_not_interrupt_receiving(self):
+        """No failure: messages keep being received and the run ends normally."""
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _LOG_RECORDS, _terminal_run_update(logs_complete=True)])
+        )
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock()),
+            patch("th_cli.test_run.websocket.logger") as mock_logger,
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        mock_logger.log.assert_any_call("INFO", "pairing logs")
+        assert fake_socket.recv.await_count == 3
