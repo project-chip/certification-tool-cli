@@ -307,6 +307,8 @@ class TestRunSocket:
         finally:
             if not receive_task.done():
                 receive_task.cancel()
+                # Let the cancelled receive unwind, so none is left running on the socket
+                await asyncio.gather(receive_task, return_exceptions=True)
             elif not receive_task.cancelled():
                 receive_task.exception()  # Retrieved, so a dropped result is not reported as an error
 
