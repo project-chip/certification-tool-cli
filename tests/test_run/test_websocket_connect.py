@@ -484,3 +484,58 @@ class TestChipServerInfoBeforePrompt:
             )
 
         assert peak == 1
+
+
+# ---------------------------------------------------------------------------
+# A failed prompt is raised even if the backend sends nothing more
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestConnectWebsocketPromptFailureWhileIdle:
+    @pytest.mark.asyncio
+    async def test_prompt_failure_is_raised_while_waiting_for_a_message(self, capsys):
+        """The backend waits for the prompt's answer, so no further message will come."""
+        s = _make_socket()
+        to_send = [_OPTIONS_PROMPT]
+        receive_cancelled = []
+
+        async def recv():
+            if to_send:
+                await asyncio.sleep(0)
+                return to_send.pop(0)
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                receive_cancelled.append(True)
+                raise
+
+        fake_socket = _FakeWSSocket(recv_side_effect=recv)
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock(side_effect=EOFError("stdin closed"))),
+        ):
+            with pytest.raises(EOFError):
+                await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        assert receive_cancelled == [True]
+        assert "Prompt handling failed" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_healthy_prompt_does_not_interrupt_receiving(self):
+        """No failure: messages keep being received and the run ends normally."""
+        s = _make_socket()
+        fake_socket = _FakeWSSocket(
+            recv_side_effect=_yielding_recv([_OPTIONS_PROMPT, _LOG_RECORDS, _terminal_run_update(logs_complete=True)])
+        )
+
+        with (
+            _patch_connect(fake_socket),
+            patch("th_cli.test_run.websocket.handle_prompt", new=AsyncMock()),
+            patch("th_cli.test_run.websocket.logger") as mock_logger,
+        ):
+            await asyncio.wait_for(s.connect_websocket(), timeout=5)
+
+        mock_logger.log.assert_any_call("INFO", "pairing logs")
+        assert fake_socket.recv.await_count == 3

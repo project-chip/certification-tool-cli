@@ -150,8 +150,10 @@ class TestRunSocket:
         self._prompt_tasks: dict[int, asyncio.Task] = {}
         # Every prompt reads from the same stdin, so only one is shown at a time.
         self._prompt_lock = asyncio.Lock()
-        # First exception raised by a prompt task, re-raised by the read loop.
+        # First exception raised by a prompt task, re-raised by the read loop. The
+        # event wakes the loop up even while it is waiting for the next message.
         self._prompt_error: BaseException | None = None
+        self._prompt_failed = asyncio.Event()
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -194,6 +196,7 @@ class TestRunSocket:
         # once at the end so we still run the existing cleanup (socket.close(),
         # ConnectionClosed suppression) unchanged before deciding whether to raise.
         incomplete_closure = False
+        prompt_failure_waiter: asyncio.Task | None = None
         try:
             async with websocket_connect(
                 WEBSOCKET_URL,
@@ -203,10 +206,9 @@ class TestRunSocket:
                 read_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
                 write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
             ) as socket:
+                prompt_failure_waiter = asyncio.ensure_future(self._prompt_failed.wait())
                 try:
                     while True:
-                        if self._prompt_error is not None:
-                            raise self._prompt_error
                         if self._run_finished and self._logs_complete is not None:
                             # The backend sent the terminal update after the
                             # run's last log records: nothing left to drain.
@@ -216,9 +218,9 @@ class TestRunSocket:
                                 # Drain any trailing messages for a short grace
                                 # period instead of closing the instant the
                                 # terminal state update arrives.
-                                message = await asyncio.wait_for(socket.recv(), timeout=DRAIN_TIMEOUT_S)
+                                message = await self.__receive(socket, prompt_failure_waiter, timeout=DRAIN_TIMEOUT_S)
                             else:
-                                message = await socket.recv()
+                                message = await self.__receive(socket, prompt_failure_waiter)
                         except websockets.exceptions.ConnectionClosedOK:
                             if not self._run_finished:
                                 # Connection closed cleanly, but before the run
@@ -262,6 +264,8 @@ class TestRunSocket:
             if not self._run_finished:
                 incomplete_closure = True
         finally:
+            if prompt_failure_waiter:
+                prompt_failure_waiter.cancel()
             if self._chip_server_watcher:
                 self._chip_server_watcher.cancel()
             await self.__cancel_pending_prompts()
@@ -274,6 +278,37 @@ class TestRunSocket:
                 "Websocket connection closed before the test run reached a terminal state; "
                 "results may be incomplete."
             )
+
+    async def __receive(
+        self, socket: WebSocketClientProtocol, prompt_failure_waiter: asyncio.Future, timeout: float | None = None
+    ) -> str | bytes:
+        """Receive the next message, giving up as soon as a prompt task fails.
+
+        Without this a failed prompt would only be raised once the backend sends
+        another message, which may never happen while it waits for the prompt's answer.
+        Cancelling recv() is safe: a message is never lost to it.
+
+        Raises:
+            asyncio.TimeoutError: no message arrived within the timeout.
+        """
+        if self._prompt_error is not None:
+            raise self._prompt_error
+
+        receive_task = asyncio.ensure_future(socket.recv())
+        try:
+            done, _ = await asyncio.wait(
+                {receive_task, prompt_failure_waiter}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+            )
+            if prompt_failure_waiter in done and self._prompt_error is not None:
+                raise self._prompt_error
+            if receive_task not in done:
+                raise asyncio.TimeoutError()
+            return receive_task.result()
+        finally:
+            if not receive_task.done():
+                receive_task.cancel()
+            elif not receive_task.cancelled():
+                receive_task.exception()  # Retrieved, so a dropped result is not reported as an error
 
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
@@ -327,6 +362,7 @@ class TestRunSocket:
             click.echo(colorize_error(f"Prompt handling failed: {error}"), err=True)
             if self._prompt_error is None:
                 self._prompt_error = error
+                self._prompt_failed.set()
 
     def __cancel_prompt(self, message_id: int) -> None:
         task = self._prompt_tasks.get(message_id)
