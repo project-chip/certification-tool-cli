@@ -15,6 +15,7 @@
 #
 """Unit tests for th_cli/colorize.py."""
 
+import click
 import pytest
 
 from th_cli.colorize import (
@@ -28,11 +29,11 @@ from th_cli.colorize import (
     colorize_help,
     colorize_hierarchy_prefix,
     colorize_key_value,
+    colorize_prompt,
     colorize_runner_state,
     colorize_state,
     colorize_success,
     colorize_warning,
-    colorize_prompt,
     italic,
     set_colors_enabled,
 )
