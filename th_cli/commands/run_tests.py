@@ -42,7 +42,7 @@ from th_cli.colorize import (
     set_colors_enabled,
 )
 from th_cli.config import config as th_config
-from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.exceptions import CLIError, handle_api_error, unexpected_error
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import IncompleteTestRunError, TestRunSocket
 from th_cli.utils import (
@@ -431,7 +431,7 @@ async def run_tests(
     except CLIError:
         raise  # Re-raise CLI errors
     except Exception as e:
-        raise CLIError(f"Unexpected error during test execution: {e}")
+        raise unexpected_error("Unexpected error during test execution", e) from e
     finally:
         # Stop log streaming
         test_logging.stop_log_streaming()

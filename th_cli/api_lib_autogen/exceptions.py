@@ -24,12 +24,31 @@ class ApiException(Exception):
     pass
 
 
+def describe_error(error: BaseException) -> str:
+    """Describe an exception so the result is never empty.
+
+    Several httpx transport errors (ConnectError, ReadTimeout, ...) have an
+    empty str(), which used to leave messages ending in a bare colon. When
+    there is text it is kept as is, except for errors wrapped in a
+    ResponseHandlingException, where the class name is added so users can
+    tell a refused connection from a timeout.
+    """
+    wrapped = isinstance(error, ResponseHandlingException)
+    if wrapped:
+        error = error.error
+    text = str(error).strip()
+    name = type(error).__name__
+    if not text:
+        return name
+    return f"{name}: {text}" if wrapped else text
+
+
 class ResponseHandlingException(ApiException):
     """Exception raised when response handling fails."""
 
     def __init__(self, error: Exception):
         self.error = error
-        super().__init__(f"Error handling response: {error}")
+        super().__init__(f"Error handling response: {describe_error(error)}")
 
 
 class UnexpectedResponse(ApiException):
