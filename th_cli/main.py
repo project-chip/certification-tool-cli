@@ -22,6 +22,7 @@ from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_key_valu
 from th_cli.commands import (
     abort_testing,
     available_tests,
+    doctor,
     project,
     rescan_tests,
     run_tests,
@@ -80,6 +81,7 @@ def root() -> None:
 
 root.add_command(abort_testing)
 root.add_command(available_tests)
+root.add_command(doctor)
 root.add_command(project)
 root.add_command(rescan_tests)
 root.add_command(run_tests)

@@ -147,12 +147,21 @@ def load_config():
 
 
 # Load the configuration
+def _is_doctor_invocation() -> bool:
+    """True when the first non-option argument is `doctor`."""
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
+    return bool(args) and args[0] == "doctor"
+
+
 try:
     config = load_config()
 except ConfigurationError as e:
-    # Raised at import time, before click is running, so report it like click would
-    e.show()
-    sys.exit(e.exit_code)
+    if not _is_doctor_invocation():
+        # Raised at import time, before click is running, so report it like click would
+        e.show()
+        sys.exit(e.exit_code)
+    # `th-cli doctor` loads the config itself so it can report this error.
+    config = Config(**get_default_config())
 
 
 class PairingMode(str, Enum):
