@@ -27,7 +27,7 @@ import click
 import httpx
 from websockets.client import WebSocketClientProtocol
 
-from th_cli.colorize import colorize_error, colorize_key_value, italic
+from th_cli.colorize import colorize_error, colorize_key_value, colorize_prompt, italic
 from th_cli.config import config
 from th_cli.shared_constants import MessageKeysEnum, MessageTypeEnum
 
@@ -392,7 +392,7 @@ async def __handle_message_prompt(socket: WebSocketClientProtocol, prompt: Promp
 
 async def _prompt_user_for_option(prompt: OptionsSelectPromptRequest) -> int:
     # Print Prompt
-    click.echo(italic(prompt.prompt))
+    click.echo(colorize_prompt(prompt.prompt))
     for key in prompt.options.keys():
         id = prompt.options[key]
         click.echo(f"  {colorize_key_value(str(id), key)}")

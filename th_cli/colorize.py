@@ -15,6 +15,7 @@
 #
 
 import os
+import re
 from enum import Enum
 
 import click
@@ -32,6 +33,7 @@ class TextTypeEnum(str, Enum):
     SUCCESS = "success"
     ERROR = "error"
     WARNING = "warning"
+    HIGHLIGHT = "highlight"
 
 
 class HierarchyEnum(str, Enum):
@@ -82,6 +84,7 @@ class ColorConfig:
         TextTypeEnum.SUCCESS.value: "green",
         TextTypeEnum.ERROR.value: "red",
         TextTypeEnum.WARNING.value: "yellow",
+        TextTypeEnum.HIGHLIGHT.value: "bright_blue",
     }
 
     def __init__(self):
@@ -319,6 +322,36 @@ def italic(text: str) -> str:
         return text
 
     return click.style(text, italic=True)
+
+
+# The values the backend names when it asks about the DUT's commissioning mode, e.g.
+# "(looking for discriminator 3840, setup code 20202021)".
+_DUT_VALUE_PATTERN = re.compile(r"(?<=discriminator )\d+|(?<=setup code )\d+")
+
+
+def colorize_prompt(prompt: str) -> str:
+    """
+    Italicize a prompt, emphasizing the DUT discriminator and setup code it mentions.
+
+    Args:
+        prompt: The prompt text, as sent by the backend
+    Returns:
+        Styled string if colors are enabled, plain string otherwise
+    """
+    if not color_config.colors_enabled:
+        return prompt
+
+    highlight_color = color_config.get_text_color(TextTypeEnum.HIGHLIGHT.value)
+    parts = []
+    position = 0
+    for match in _DUT_VALUE_PATTERN.finditer(prompt):
+        if match.start() > position:
+            parts.append(click.style(prompt[position : match.start()], italic=True))
+        parts.append(click.style(match.group(), fg=highlight_color, bold=True, italic=True))
+        position = match.end()
+    if position < len(prompt):
+        parts.append(click.style(prompt[position:], italic=True))
+    return "".join(parts)
 
 
 def set_colors_enabled(enabled: bool) -> None:

@@ -96,6 +96,9 @@ DRAIN_TIMEOUT_S = 5.0
 # How often to check whether the CHIP server (re)started, so its Node ID is shown.
 CHIP_SERVER_POLL_INTERVAL_S = 2.0
 
+# Longest a prompt waits for the CHIP server info to be shown ahead of it.
+CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S = 5.0
+
 # Yield to the event loop every N log records while processing one batch, so
 # a very large batch doesn't block the websocket read loop for its entire
 # duration. The backend sends up to LOG_RECORDS_BROADCAST_CHUNK_SIZE=200
@@ -136,9 +139,21 @@ class TestRunSocket:
         self._chip_server_info_displayed = False
         self._displayed_node_id: int | None = None
         self._chip_server_watcher: asyncio.Task | None = None
+        # The watcher and the prompts both show the CHIP server info: one at a time,
+        # so it is only shown once per server start.
+        self._chip_info_lock = asyncio.Lock()
         self._run_finished = False
         # From the terminal TestRunUpdate (see TestRunUpdate.logs_complete).
         self._logs_complete: bool | None = None
+        # Prompts are answered in background tasks (keyed by message_id) so the
+        # read loop keeps handling updates and log records while the user types.
+        self._prompt_tasks: dict[int, asyncio.Task] = {}
+        # Every prompt reads from the same stdin, so only one is shown at a time.
+        self._prompt_lock = asyncio.Lock()
+        # First exception raised by a prompt task, re-raised by the read loop. The
+        # event wakes the loop up even while it is waiting for the next message.
+        self._prompt_error: BaseException | None = None
+        self._prompt_failed = asyncio.Event()
         # Track test step errors for logging
         # Key: (suite_index, case_index), Value: list of error strings from all steps
         self.test_case_step_errors: dict[tuple[int, int], list[str]] = {}
@@ -181,6 +196,7 @@ class TestRunSocket:
         # once at the end so we still run the existing cleanup (socket.close(),
         # ConnectionClosed suppression) unchanged before deciding whether to raise.
         incomplete_closure = False
+        prompt_failure_waiter: asyncio.Task | None = None
         try:
             async with websocket_connect(
                 WEBSOCKET_URL,
@@ -190,6 +206,7 @@ class TestRunSocket:
                 read_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
                 write_limit=WEBSOCKET_MAX_MESSAGE_SIZE,
             ) as socket:
+                prompt_failure_waiter = asyncio.ensure_future(self._prompt_failed.wait())
                 try:
                     while True:
                         if self._run_finished and self._logs_complete is not None:
@@ -201,9 +218,9 @@ class TestRunSocket:
                                 # Drain any trailing messages for a short grace
                                 # period instead of closing the instant the
                                 # terminal state update arrives.
-                                message = await asyncio.wait_for(socket.recv(), timeout=DRAIN_TIMEOUT_S)
+                                message = await self.__receive(socket, prompt_failure_waiter, timeout=DRAIN_TIMEOUT_S)
                             else:
-                                message = await socket.recv()
+                                message = await self.__receive(socket, prompt_failure_waiter)
                         except websockets.exceptions.ConnectionClosedOK:
                             if not self._run_finished:
                                 # Connection closed cleanly, but before the run
@@ -247,8 +264,14 @@ class TestRunSocket:
             if not self._run_finished:
                 incomplete_closure = True
         finally:
+            if prompt_failure_waiter:
+                prompt_failure_waiter.cancel()
             if self._chip_server_watcher:
                 self._chip_server_watcher.cancel()
+            await self.__cancel_pending_prompts()
+
+        if self._prompt_error is not None:
+            raise self._prompt_error
 
         if incomplete_closure:
             raise IncompleteTestRunError(
@@ -256,12 +279,67 @@ class TestRunSocket:
                 "results may be incomplete."
             )
 
+    async def __receive(
+        self, socket: WebSocketClientProtocol, prompt_failure_waiter: asyncio.Future, timeout: float | None = None
+    ) -> str | bytes:
+        """Receive the next message, giving up as soon as a prompt task fails.
+
+        Without this a failed prompt would only be raised once the backend sends
+        another message, which may never happen while it waits for the prompt's answer.
+        Cancelling recv() is safe: a message is never lost to it.
+
+        Raises:
+            asyncio.TimeoutError: no message arrived within the timeout.
+        """
+        if self._prompt_error is not None:
+            raise self._prompt_error
+
+        receive_task = asyncio.ensure_future(socket.recv())
+        try:
+            done, _ = await asyncio.wait(
+                {receive_task, prompt_failure_waiter}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED
+            )
+            if prompt_failure_waiter in done and self._prompt_error is not None:
+                raise self._prompt_error
+            if receive_task not in done:
+                raise asyncio.TimeoutError()
+            return receive_task.result()
+        finally:
+            if not receive_task.done():
+                receive_task.cancel()
+                # Let the cancelled receive unwind, so none is left running on the socket
+                await asyncio.gather(receive_task, return_exceptions=True)
+            elif not receive_task.cancelled():
+                receive_task.exception()  # Retrieved, so a dropped result is not reported as an error
+
     async def __handle_incoming_socket_message(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
         if isinstance(message.payload, TestUpdate):
             await self.__handle_test_update(update=message.payload)
         elif isinstance(message.payload, PromptRequest):
             # Debug: log the message type
             logger.debug(f"Received prompt with type: {message.type}")
+            self.__start_prompt_task(socket=socket, message=message)
+        elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
+            await self.__handle_log_record(message.payload)
+        elif isinstance(message.payload, TimeOutNotification):
+            # The backend stopped waiting for this prompt: drop it if it is still open.
+            self.__cancel_prompt(message.payload.message_id)
+        else:
+            click.echo(
+                colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
+                err=True,
+            )
+
+    def __start_prompt_task(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
+        """Answer the prompt in the background so the read loop is not blocked while waiting for input."""
+        message_id = message.payload.message_id
+        task = asyncio.create_task(self.__answer_prompt(socket=socket, message=message))
+        self._prompt_tasks[message_id] = task
+        task.add_done_callback(lambda done: self.__prompt_task_done(message_id=message_id, task=done))
+
+    async def __answer_prompt(self, socket: WebSocketClientProtocol, message: SocketMessage) -> None:
+        async with self._prompt_lock:
+            await self.__show_chip_server_info_before_prompt()
 
             # Check message type to route to appropriate handler
             if message.type == MessageTypeEnum.FILE_UPLOAD_REQUEST:
@@ -274,16 +352,33 @@ class TestRunSocket:
                     message_type=message.type,
                     two_way_talk_handler=self.two_way_talk_handler,
                 )
-        elif message.type == MessageTypeEnum.TEST_LOG_RECORDS and isinstance(message.payload, list):
-            await self.__handle_log_record(message.payload)
-        elif isinstance(message.payload, TimeOutNotification):
-            # ignore time_out_notification as we handle timeout our selves
-            pass
-        else:
-            click.echo(
-                colorize_error(f"Unknown socket message type: {message.type} | payload: {message.payload}."),
-                err=True,
-            )
+
+    def __prompt_task_done(self, message_id: int, task: asyncio.Task) -> None:
+        if self._prompt_tasks.get(message_id) is task:
+            del self._prompt_tasks[message_id]
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            # Show it right away; the read loop re-raises it once it gets control back.
+            click.echo(colorize_error(f"Prompt handling failed: {error}"), err=True)
+            if self._prompt_error is None:
+                self._prompt_error = error
+                self._prompt_failed.set()
+
+    def __cancel_prompt(self, message_id: int) -> None:
+        task = self._prompt_tasks.get(message_id)
+        if task is None or task.done():
+            return
+        task.cancel()
+        click.echo(colorize_error("Prompt timed out"), err=True)
+
+    async def __cancel_pending_prompts(self) -> None:
+        tasks = list(self._prompt_tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def __handle_test_update(self, update: TestUpdate) -> None:
         if isinstance(update.body, TestStepUpdate):
@@ -333,7 +428,24 @@ class TestRunSocket:
             await self.__display_manual_pairing_code()
             await asyncio.sleep(CHIP_SERVER_POLL_INTERVAL_S)
 
+    async def __show_chip_server_info_before_prompt(self) -> None:
+        """Show the CHIP server info before a prompt, instead of between it and its answer.
+
+        The CHIP server starts right before the commissioning prompt is sent, but the
+        watcher only notices it up to a poll interval later.
+        """
+        if self._chip_server_watcher is None:
+            return  # The run is not executing yet, so there is no CHIP server
+        try:
+            await asyncio.wait_for(self.__display_manual_pairing_code(), CHIP_SERVER_INFO_BEFORE_PROMPT_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.debug("Timed out fetching the CHIP server info before a prompt")
+
     async def __display_manual_pairing_code(self) -> None:
+        async with self._chip_info_lock:
+            await self.__fetch_and_display_chip_server_info()
+
+    async def __fetch_and_display_chip_server_info(self) -> None:
         """Display the Node ID and manual pairing code once the CHIP server is up.
 
         The Node ID is regenerated every time the CHIP server starts, so it is only
