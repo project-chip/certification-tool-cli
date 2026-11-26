@@ -57,6 +57,21 @@ class TestRedactText:
         assert "00112233" not in out
         assert "ssid=home" in out
 
+    @pytest.mark.parametrize(
+        "text", ["pin=20202021", "setup_pin: 20202021", '{"pin": "20202021"}', "wifi_pin=20202021"]
+    )
+    def test_masks_pin_values(self, text: str) -> None:
+        assert "20202021" not in redact_text(text)
+        assert "20202021" not in redact_text(text, mask_network=False)
+
+    def test_does_not_mask_words_merely_containing_pin(self) -> None:
+        assert redact_text("spinning=fast") == "spinning=fast"
+
+    def test_masks_whole_value_with_escaped_quotes(self) -> None:
+        out = redact_text(r'{"password": "ab\"secret-suffix", "ssid": "home"}')
+        assert "secret-suffix" not in out
+        assert '"ssid": "home"' in out
+
     def test_strips_url_userinfo(self) -> None:
         assert redact_text("https://user:tok@github.com/o/r.git") == "https://github.com/o/r.git"
 

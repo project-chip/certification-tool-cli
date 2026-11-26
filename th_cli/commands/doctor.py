@@ -221,7 +221,12 @@ def check_docker(log_lines: int) -> list[CheckResult]:
         try:
             proc = _run_docker(["logs", "--tail", str(log_lines), BACKEND_CONTAINER])
             output = (proc.stdout + proc.stderr).strip()
-            results.append(CheckResult("backend logs", Status.PASS, f"last {log_lines} lines", {"log_tail": output}))
+            if proc.returncode != 0:
+                results.append(CheckResult("backend logs", Status.WARN, output or f"docker exited {proc.returncode}"))
+            else:
+                results.append(
+                    CheckResult("backend logs", Status.PASS, f"last {log_lines} lines", {"log_tail": output})
+                )
         except (OSError, subprocess.SubprocessError) as e:
             results.append(CheckResult("backend logs", Status.WARN, describe_error(e)))
     return results

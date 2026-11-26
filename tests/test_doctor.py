@@ -230,6 +230,31 @@ class TestCheckDocker:
         assert results[-1].name == "backend logs"
         assert "line2" in results[-1].data["log_tail"]
 
+    def test_log_command_failure_is_a_warning_not_a_pass(self) -> None:
+        def fake(args: list[str]) -> subprocess.CompletedProcess:
+            if args[0] == "logs":
+                return subprocess.CompletedProcess(args, 1, "", "Error: No such container")
+            return subprocess.CompletedProcess(args, 0, "running\n", "")
+
+        with (
+            patch("th_cli.commands.doctor.shutil.which", return_value="/usr/bin/docker"),
+            patch("th_cli.commands.doctor._run_docker", side_effect=fake),
+        ):
+            result = check_docker(5)[-1]
+        assert result.status == Status.WARN
+        assert "No such container" in result.detail
+        assert result.data is None
+
+    def test_empty_log_is_still_a_pass(self) -> None:
+        def fake(args: list[str]) -> subprocess.CompletedProcess:
+            return subprocess.CompletedProcess(args, 0, "" if args[0] == "logs" else "running\n", "")
+
+        with (
+            patch("th_cli.commands.doctor.shutil.which", return_value="/usr/bin/docker"),
+            patch("th_cli.commands.doctor._run_docker", side_effect=fake),
+        ):
+            assert check_docker(5)[-1].status == Status.PASS
+
     def test_log_failure_is_a_warning(self) -> None:
         def fake(args: list[str]) -> subprocess.CompletedProcess:
             if args[0] == "logs":
@@ -345,3 +370,28 @@ class TestDoctorInvocationDetection:
 
         with patch.object(config_module.sys, "argv", argv):
             assert config_module._is_doctor_invocation() is expected
+
+
+@pytest.mark.unit
+@pytest.mark.cli
+class TestImportTimeConfigWarnings:
+    """`doctor --json` output must stay valid JSON even when no config file exists."""
+
+    @staticmethod
+    def _import_config_stdout(tmp_path: Path, command: str) -> str:
+        import os
+        import subprocess as sp
+        import sys
+
+        code = f"import sys; sys.argv = ['th-cli', {command!r}]; import th_cli.config"
+        env = {**os.environ, "HOME": str(tmp_path), "PYTHONPATH": str(Path(__file__).resolve().parent.parent)}
+        proc = sp.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=tmp_path, env=env, check=False)
+        assert proc.returncode == 0, proc.stderr
+        return proc.stdout
+
+    def test_warning_is_printed_for_other_commands(self, tmp_path: Path) -> None:
+        """Positive control: without this, the doctor test below could pass trivially."""
+        assert "Using default configuration" in self._import_config_stdout(tmp_path, "project")
+
+    def test_warning_is_not_printed_for_doctor(self, tmp_path: Path) -> None:
+        assert "Using default configuration" not in self._import_config_stdout(tmp_path, "doctor")

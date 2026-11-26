@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 
 import click
 import pytest
-
 from httpx import ConnectError, ReadTimeout
 
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse, describe_error
@@ -28,6 +27,7 @@ from th_cli.exceptions import (
     APIError,
     CLIError,
     ConfigurationError,
+    backend_hint_for,
     handle_api_error,
     handle_file_error,
     unexpected_error,
@@ -320,3 +320,19 @@ class TestUnexpectedError:
     def test_other_error_has_no_backend_hint(self):
         err = unexpected_error("Unexpected error in list operation", ValueError("boom"))
         assert err.message == "Unexpected error in list operation: boom"
+
+
+class TestBackendHintFor:
+    def test_transport_error_gets_hint(self):
+        assert backend_hint_for(ResponseHandlingException(ConnectError(""))) == f"\n{BACKEND_HINT}"
+
+    def test_other_error_gets_nothing(self):
+        assert backend_hint_for(ValueError("x")) == ""
+
+    def test_shared_transport_formatter_includes_hint_but_not_for_timeouts(self):
+        from th_cli.commands.test_run_execution import _timeout_or_connection_error
+
+        refused = _timeout_or_connection_error(ResponseHandlingException(ConnectError("")), "repeat run")
+        assert BACKEND_HINT in refused
+        timed_out = _timeout_or_connection_error(ResponseHandlingException(ReadTimeout("")), "repeat run")
+        assert BACKEND_HINT not in timed_out

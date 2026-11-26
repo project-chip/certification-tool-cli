@@ -42,10 +42,10 @@ _SENSITIVE_WORDS = {"psk", "pskc", "qr", "pin", "passcode"}
 
 _KEY_WORD_PATTERN = (
     r"password|passphrase|network[_-]?key|(?:[a-z_]*_)?dataset(?:_hex)?|psk|pskc|token|secret|"
-    r"setup[_-]?(?:code|pin)|qr(?:[_-]?code)?|manual[_-]?code|passcode"
+    r"setup[_-]?(?:code|pin)|(?<![a-z0-9])pin|qr(?:[_-]?code)?|manual[_-]?code|passcode"
 )
 _KEY_VALUE_RE = re.compile(
-    rf"""(["']?(?:{_KEY_WORD_PATTERN})["']?\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,;}}]+)""",
+    rf"""(["']?(?:{_KEY_WORD_PATTERN})["']?\s*[=:]\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}}]+)""",
     re.IGNORECASE,
 )
 _URL_USERINFO_RE = re.compile(r"([a-z][a-z0-9+.-]*://)[^/@\s]+@", re.IGNORECASE)

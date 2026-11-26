@@ -25,7 +25,7 @@ from th_cli.api_lib_autogen.api_client import SyncApis
 from th_cli.api_lib_autogen.exceptions import UnexpectedResponse, describe_error
 from th_cli.client import get_client
 from th_cli.colorize import colorize_cmd_help, colorize_help
-from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.exceptions import CLIError, backend_hint_for, handle_api_error
 from th_cli.utils import __json_string
 
 # Constants
@@ -135,6 +135,7 @@ def available_tests(
         raise CLIError(
             f"Could not fetch the available tests: {describe_error(e)}. "
             "Please check if the API server is running and accessible."
+            f"{backend_hint_for(e)}"
         )
     finally:
         if client:

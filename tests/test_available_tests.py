@@ -166,6 +166,25 @@ class TestAvailableTestsCommand:
         assert "Please check if the API server is running and accessible" in result.output
         mock_api_client.close.assert_called_once()
 
+    def test_available_tests_transport_error_suggests_doctor(
+        self, cli_runner: CliRunner, mock_sync_apis: Mock, mock_api_client: Mock
+    ) -> None:
+        """An empty-text transport error names its type and points at `th-cli doctor`."""
+        from httpx import ConnectError
+
+        from th_cli.api_lib_autogen.exceptions import ResponseHandlingException
+        from th_cli.exceptions import BACKEND_HINT
+
+        api = mock_sync_apis.test_collections_api.read_test_collections_api_v1_test_collections__get
+        api.side_effect = ResponseHandlingException(ConnectError(""))
+        with patch("th_cli.commands.available_tests.get_client", return_value=mock_api_client):
+            with patch("th_cli.commands.available_tests.SyncApis", return_value=mock_sync_apis):
+                result = cli_runner.invoke(available_tests)
+
+        assert result.exit_code == 1
+        assert "ConnectError" in result.output
+        assert BACKEND_HINT in result.output
+
     def test_available_tests_client_cleanup_on_exception(self, cli_runner: CliRunner, mock_api_client: Mock) -> None:
         """Test that client is properly cleaned up even when an exception occurs."""
         # Arrange

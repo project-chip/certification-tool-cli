@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import contextlib
+import io
 import json
 import sys
 from enum import Enum
@@ -154,7 +156,12 @@ def _is_doctor_invocation() -> bool:
 
 
 try:
-    config = load_config()
+    if _is_doctor_invocation():
+        # Fallback warnings would corrupt `doctor --json`; check_config() reports them instead.
+        with contextlib.redirect_stdout(io.StringIO()):
+            config = load_config()
+    else:
+        config = load_config()
 except ConfigurationError as e:
     if not _is_doctor_invocation():
         # Raised at import time, before click is running, so report it like click would

@@ -24,7 +24,7 @@ from httpx import ConnectError, ReadTimeout
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
 from th_cli.commands.rescan_tests import rescan_tests
-from th_cli.exceptions import ConfigurationError
+from th_cli.exceptions import BACKEND_HINT, ConfigurationError
 
 
 def _rescan_response(test_collections: api_models.TestCollections, **changes: object) -> api_models.TestCollections:
@@ -320,6 +320,7 @@ class TestRescanTestsCommand:
 
         assert result.exit_code == 1
         assert "Could not rescan test collections" in result.output
+        assert BACKEND_HINT in result.output
         mock_api_client.close.assert_called_once()
 
     def test_rescan_tests_generic_exception(
