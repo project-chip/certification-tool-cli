@@ -29,6 +29,12 @@ logger.level(CHIPTOOL_LEVEL, no=21, icon="🤖", color="<cyan>")
 PYTHON_TEST_LEVEL = "PYTHON_TEST"
 logger.level(PYTHON_TEST_LEVEL, no=22, icon="🐍", color="<cyan>")
 
+# Add custom logger for DUT commissioning behavior of a test case.
+# NOTE: must match the level registered by the backend (app/test_engine/logger.py),
+# otherwise logger.log(record.level, ...) raises ValueError for unknown levels.
+COMMISSIONING_LEVEL = "COMMISSIONING"
+logger.level(COMMISSIONING_LEVEL, no=23, icon="🔑", color="<magenta><bold>")
+
 # Global reference to log stream handler (if enabled)
 _log_stream_handler: Optional["LogStreamHandler"] = None
 

@@ -321,6 +321,7 @@
         .filter-btn.level-debug    {{ background: #fafafa; color: #757575; border-color: #e0e0e0; }}
         .filter-btn.level-chiptool {{ background: #e0f2f1; color: #00796b; border-color: #4db6ac; }}
         .filter-btn.level-python   {{ background: #f3e5f5; color: #6a1b9a; border-color: #ba68c8; }}
+        .filter-btn.level-commissioning {{ background: #fce4ec; color: #ad1457; border-color: #f06292; }}
 
         .filter-btn.active     {{ opacity: 1; font-weight: 600; border-width: 2px; }}
         .filter-btn:not(.active) {{ opacity: 0.4; }}
@@ -369,6 +370,7 @@
         .log-entry.level-success    {{ border-left-color: #4caf50; background: #e8f5e9; }}
         .log-entry.level-chiptool   {{ border-left-color: #009688; background: #e0f2f1; }}
         .log-entry.level-python_test{{ border-left-color: #9c27b0; background: #f3e5f5; }}
+        .log-entry.level-commissioning {{ border-left-color: #e91e63; background: #fce4ec; font-weight: 600; }}
 
         .log-timestamp {{ color: #666; font-weight: 500; margin-right: 8px; }}
         .log-level {{
@@ -388,6 +390,7 @@
         .log-level.SUCCESS    {{ background: #4caf50; color: white; }}
         .log-level.CHIPTOOL   {{ background: #009688; color: white; }}
         .log-level.PYTHON_TEST{{ background: #9c27b0; color: white; }}
+        .log-level.COMMISSIONING {{ background: #e91e63; color: white; }}
 
         .log-message {{ color: #333; }}
 
@@ -504,6 +507,7 @@
                     <button class="filter-btn level-debug"           onclick="toggleFilter(this, 'DEBUG')">DEBUG</button>
                     <button class="filter-btn level-chiptool active" onclick="toggleFilter(this, 'CHIPTOOL')">CHIP</button>
                     <button class="filter-btn level-python   active" onclick="toggleFilter(this, 'PYTHON_TEST')">PYTHON</button>
+                    <button class="filter-btn level-commissioning active" onclick="toggleFilter(this, 'COMMISSIONING')">COMMISSION</button>
                 </div>
             </div>
 
@@ -538,7 +542,7 @@
     let eventSource      = null;
     let autoScroll       = true;
     let logCount         = 0;
-    let activeFilters    = new Set(['INFO', 'WARNING', 'ERROR', 'CHIPTOOL', 'PYTHON_TEST', 'SUCCESS']);
+    let activeFilters    = new Set(['INFO', 'WARNING', 'ERROR', 'CHIPTOOL', 'PYTHON_TEST', 'COMMISSIONING', 'SUCCESS']);
     let allLogs          = [];
     let logBatchQueue    = [];
     let batchProcessing  = false;
