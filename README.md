@@ -47,6 +47,7 @@ CLI tool for using the CSA Test Harness
 Commands:
   abort-testing               Abort the current test execution
   available-tests             Get a list of available tests
+  doctor                      Diagnose problems reaching the backend
   project                     Manage the application projects
   rescan-tests                Rescan available test collections
   run-tests                   Create a new test run from selected tests
@@ -67,6 +68,30 @@ Options:
 ### test-runner-status
 
 Run `th-cli test-runner-status` to get the current state of the Matter test runner. For JSON respond, add `--json`.
+
+### doctor
+
+Run `th-cli doctor` when the CLI cannot talk to the backend. It checks, and reports as pass / warn / fail / skip:
+
+- **config**: which `config.json` is used (or that the example file or defaults were used) and the backend host. A
+  broken `config.json` is reported here instead of aborting the command.
+- **backend reachable**: `GET /api/v1/version` with a 5 s timeout, reported as connection refused, DNS failure,
+  timeout or the HTTP status.
+- **versions**: the CLI version and SHA next to the backend version, SHA, SDK tag and database revision.
+- **test runner** and **database**: the runner state and a database-backed call (`/projects/`). A failure here is a
+  warning.
+- **Docker containers** (backend, frontend, db, proxy): skipped when `docker` is not installed.
+
+The command exits with a non-zero status if a check fails.
+
+Options:
+- `--json`: Print the results as JSON.
+- `--no-docker`: Skip the Docker container checks.
+- `--log-lines <N>`: Include the last N lines of the backend container log.
+- `--no-redact`: Do not mask IP and MAC addresses.
+
+The output is meant to be pasted into issues. Values of keys such as passwords, network keys, datasets, tokens and
+setup codes, and credentials in URLs, are always masked. IP and MAC addresses are masked unless `--no-redact` is given.
 
 ### abort-testing
 

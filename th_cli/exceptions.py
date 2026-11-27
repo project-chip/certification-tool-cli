@@ -19,7 +19,7 @@ from typing import Any
 
 import click
 
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse, describe_error
 from th_cli.colorize import colorize_error
 
 
@@ -61,6 +61,23 @@ class ConfigurationError(CLIError):
     """Exception for configuration-related errors."""
 
     pass
+
+
+BACKEND_HINT = "Is the backend running? Try `th-cli doctor` to diagnose."
+
+
+def backend_hint_for(e: BaseException) -> str:
+    """Return the newline-prefixed backend hint for transport errors, else an empty string."""
+    return f"\n{BACKEND_HINT}" if isinstance(e, ResponseHandlingException) else ""
+
+
+def unexpected_error(message: str, e: BaseException) -> CLIError:
+    """Build a CLIError for an unexpected failure that never has an empty reason.
+
+    Adds a hint to check the backend when the failure was a transport error.
+    Callers should `raise unexpected_error(...) from e` so the cause is chained.
+    """
+    return CLIError(f"{message}: {describe_error(e)}{backend_hint_for(e)}")
 
 
 def _format_api_error_content(content: Any) -> Any:

@@ -19,9 +19,19 @@ from unittest.mock import MagicMock, patch
 
 import click
 import pytest
+from httpx import ConnectError, ReadTimeout
 
-from th_cli.api_lib_autogen.exceptions import UnexpectedResponse
-from th_cli.exceptions import APIError, CLIError, ConfigurationError, handle_api_error, handle_file_error
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse, describe_error
+from th_cli.exceptions import (
+    BACKEND_HINT,
+    APIError,
+    CLIError,
+    ConfigurationError,
+    backend_hint_for,
+    handle_api_error,
+    handle_file_error,
+    unexpected_error,
+)
 
 # ---------------------------------------------------------------------------
 # CLIError
@@ -280,3 +290,49 @@ class TestHandleFileError:
             handle_file_error(e)
         # "file" title-cased → "File"
         assert "File" in exc_info.value.format_message()
+
+
+# ---------------------------------------------------------------------------
+# Empty error text (#1224)
+# ---------------------------------------------------------------------------
+
+
+class TestDescribeError:
+    @pytest.mark.parametrize("error", [ConnectError(""), ReadTimeout("")])
+    def test_empty_transport_error_falls_back_to_class_name(self, error):
+        assert describe_error(error) == type(error).__name__
+
+    def test_response_handling_exception_is_unwrapped_with_class_name(self):
+        assert describe_error(ResponseHandlingException(ConnectError("refused"))) == "ConnectError: refused"
+
+    def test_plain_exception_text_is_unchanged(self):
+        assert describe_error(ValueError("bad value")) == "bad value"
+
+    def test_response_handling_str_is_never_empty(self):
+        assert str(ResponseHandlingException(ConnectError(""))) == "Error handling response: ConnectError"
+
+
+class TestUnexpectedError:
+    def test_transport_error_keeps_type_and_adds_hint(self):
+        err = unexpected_error("Unexpected error in list operation", ResponseHandlingException(ConnectError("")))
+        assert err.message == f"Unexpected error in list operation: ConnectError\n{BACKEND_HINT}"
+
+    def test_other_error_has_no_backend_hint(self):
+        err = unexpected_error("Unexpected error in list operation", ValueError("boom"))
+        assert err.message == "Unexpected error in list operation: boom"
+
+
+class TestBackendHintFor:
+    def test_transport_error_gets_hint(self):
+        assert backend_hint_for(ResponseHandlingException(ConnectError(""))) == f"\n{BACKEND_HINT}"
+
+    def test_other_error_gets_nothing(self):
+        assert backend_hint_for(ValueError("x")) == ""
+
+    def test_shared_transport_formatter_includes_hint_but_not_for_timeouts(self):
+        from th_cli.commands.test_run_execution import _timeout_or_connection_error
+
+        refused = _timeout_or_connection_error(ResponseHandlingException(ConnectError("")), "repeat run")
+        assert BACKEND_HINT in refused
+        timed_out = _timeout_or_connection_error(ResponseHandlingException(ReadTimeout("")), "repeat run")
+        assert BACKEND_HINT not in timed_out

@@ -15,6 +15,7 @@
 #
 from .abort_testing import abort_testing
 from .available_tests import available_tests
+from .doctor import doctor
 from .project import project
 from .rescan_tests import rescan_tests
 from .run_tests import run_tests
@@ -24,6 +25,7 @@ from .test_runner_status import test_runner_status
 __all__ = [
     "abort_testing",
     "available_tests",
+    "doctor",
     "project",
     "rescan_tests",
     "run_tests",

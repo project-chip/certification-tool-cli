@@ -17,10 +17,12 @@
 
 import click
 
+from th_cli.api_lib_autogen.exceptions import describe_error
 from th_cli.colorize import colorize_cmd_help, colorize_error, colorize_key_value
 from th_cli.commands import (
     abort_testing,
     available_tests,
+    doctor,
     project,
     rescan_tests,
     run_tests,
@@ -45,8 +47,8 @@ def get_extended_help() -> str:
         if versions_data:
             for key, value in versions_data.items():
                 help_text += f"\n{colorize_key_value(key, value)}"
-    except Exception:
-        help_text += colorize_error("\nNot able to retrieve versions from server.")
+    except Exception as e:
+        help_text += colorize_error(f"\nNot able to retrieve versions from server: {describe_error(e)}")
 
     return help_text
 
@@ -79,6 +81,7 @@ def root() -> None:
 
 root.add_command(abort_testing)
 root.add_command(available_tests)
+root.add_command(doctor)
 root.add_command(project)
 root.add_command(rescan_tests)
 root.add_command(run_tests)

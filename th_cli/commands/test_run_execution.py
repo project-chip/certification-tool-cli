@@ -41,7 +41,7 @@ from th_cli.colorize import (
 )
 from th_cli.commands.run_tests import TWO_WAY_TALK_TEST_IDS, _print_webrtc_banner_and_wait
 from th_cli.config import config as th_config
-from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from th_cli.exceptions import CLIError, backend_hint_for, handle_api_error, handle_file_error, unexpected_error
 from th_cli.test_run import logging as test_logging
 from th_cli.test_run.camera.two_way_talk_handler import TwoWayTalkHandler
 from th_cli.test_run.websocket import TestRunSocket
@@ -481,7 +481,7 @@ async def repeat(id: int, title: str | None, no_color: bool, no_streaming: bool)
     except CLIError:
         raise  # Re-raise CLI Errors as-is
     except Exception as e:
-        raise CLIError(f"Unexpected error during repeated test execution: {e}")
+        raise unexpected_error("Unexpected error during repeated test execution", e) from e
     finally:
         if client:
             await client.aclose()
@@ -778,7 +778,10 @@ def _timeout_or_connection_error(e: ResponseHandlingException, operation: str) -
             f"(waited {int(TEST_RUN_EXECUTION_IO_TIMEOUT.read)}s). Executions with a lot of "
             "log data can take longer than that to transfer; please try again."
         )
-    return f"Could not {operation}: {e}. Please check if the API server is running and accessible."
+    return (
+        f"Could not {operation}: {e}. Please check if the API server is running and accessible."
+        f"{backend_hint_for(e)}"
+    )
 
 
 async def __repeat_test_run_execution(
@@ -862,8 +865,7 @@ async def __start_and_stream_repeated_execution(
             await _cancel_socket_task(socket_task)
             if e.status_code == 409:
                 raise CLIError(
-                    f"Execution {new_execution.id} was created but could not be started: "
-                    f"{_extract_error_detail(e)}"
+                    f"Execution {new_execution.id} was created but could not be started: " f"{_extract_error_detail(e)}"
                 ) from e
             handle_api_error(e, f"start repeated test run execution '{new_execution.id}'")
         except ResponseHandlingException as e:

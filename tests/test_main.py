@@ -24,7 +24,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
+from httpx import ConnectError
 
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException
 from th_cli.main import root
 
 
@@ -63,4 +65,13 @@ class TestRootVersionOption:
             result = cli_runner.invoke(root, ["--version"])
 
         assert result.exit_code == 0
-        assert "Not able to retrieve versions from server." in result.output
+        assert "Not able to retrieve versions from server: unreachable" in result.output
+
+    def test_version_reports_reason_when_transport_error_has_empty_text(self, cli_runner: CliRunner) -> None:
+        """An httpx error with an empty str() must still say what failed."""
+        error = ResponseHandlingException(ConnectError(""))
+        with patch("th_cli.main.get_versions", side_effect=error):
+            result = cli_runner.invoke(root, ["--version"])
+
+        assert result.exit_code == 0
+        assert "Not able to retrieve versions from server: ConnectError" in result.output

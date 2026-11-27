@@ -19,10 +19,10 @@ from httpx import Timeout, TimeoutException
 
 from th_cli.api_lib_autogen import models as api_models
 from th_cli.api_lib_autogen.api_client import SyncApis
-from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse
+from th_cli.api_lib_autogen.exceptions import ResponseHandlingException, UnexpectedResponse, describe_error
 from th_cli.client import get_client
 from th_cli.colorize import colorize_change, colorize_cmd_help, colorize_help, colorize_success, colorize_warning
-from th_cli.exceptions import CLIError, handle_api_error
+from th_cli.exceptions import CLIError, backend_hint_for, handle_api_error
 
 # Rescanning regenerates the Python test JSON files via the SDK container,
 # which can take significantly longer than httpx's 5s default read timeout.
@@ -141,13 +141,17 @@ def rescan_tests() -> None:
             click.echo(colorize_success("Rescan request sent (backend may still be processing)"))
         else:
             raise CLIError(
-                f"Could not rescan test collections: {e}. Please check if the API server is running and accessible."
+                f"Could not rescan test collections: {describe_error(e)}. "
+                "Please check if the API server is running and accessible."
+                f"{backend_hint_for(e)}"
             )
     except UnexpectedResponse as e:
         handle_api_error(e, "rescan test collections")
     except Exception as e:
         raise CLIError(
-            f"Could not rescan test collections: {e}. Please check if the API server is running and accessible."
+            f"Could not rescan test collections: {describe_error(e)}. "
+            "Please check if the API server is running and accessible."
+            f"{backend_hint_for(e)}"
         )
     finally:
         if client:

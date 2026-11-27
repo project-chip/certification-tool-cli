@@ -40,7 +40,7 @@ from th_cli.colorize import (
     colorize_warning,
     italic,
 )
-from th_cli.exceptions import CLIError, handle_api_error, handle_file_error
+from th_cli.exceptions import CLIError, handle_api_error, handle_file_error, unexpected_error
 from th_cli.utils import __print_config, __print_json, read_pics_config
 from th_cli.validation import validate_directory_path
 
@@ -67,7 +67,7 @@ def get_sync_apis(operation: str):
     except CLIError:
         raise
     except Exception as e:
-        raise CLIError(f"Unexpected error in {operation} operation: {e}")
+        raise unexpected_error(f"Unexpected error in {operation} operation", e) from e
     finally:
         if client:
             client.close()
