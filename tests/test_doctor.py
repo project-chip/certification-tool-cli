@@ -384,7 +384,10 @@ class TestImportTimeConfigWarnings:
         import sys
 
         code = f"import sys; sys.argv = ['th-cli', {command!r}]; import th_cli.config"
-        env = {**os.environ, "HOME": str(tmp_path), "PYTHONPATH": str(Path(__file__).resolve().parent.parent)}
+        # Drop pytest-cov's variables: older versions (4.x, used in CI) start coverage inside the child
+        # process, and its data from a temp cwd corrupts the parent's report.
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE", "COVERAGE"))}
+        env.update(HOME=str(tmp_path), PYTHONPATH=str(Path(__file__).resolve().parent.parent))
         proc = sp.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=tmp_path, env=env, check=False)
         assert proc.returncode == 0, proc.stderr
         return proc.stdout
